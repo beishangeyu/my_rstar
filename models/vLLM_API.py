@@ -4,6 +4,7 @@ from vllm import LLM, SamplingParams
 from transformers import AutoTokenizer
 import numpy as np
 import math
+import os
 
 
 def load_vLLM_model(
@@ -20,7 +21,6 @@ def load_vLLM_model(
             trust_remote_code=True,
             max_num_seqs=max_num_seqs,
             swap_space=16,
-            max_model_len=30000, # TODO 不同模型的model_len不同, 在这里更改
         )
     else:
         llm = LLM(
@@ -30,7 +30,7 @@ def load_vLLM_model(
             trust_remote_code=True,
             max_num_seqs=max_num_seqs,
             swap_space=16,
-            max_model_len=30000,
+            max_model_len=30000, # TODO 不同模型的model_len不同, 在这里更改
         )
 
     return tokenizer, llm
@@ -53,7 +53,7 @@ def generate_with_vLLM_model(
         top_p=top_p,
         top_k=top_k,
         # TODO 在生成代码的时对重复内容惩罚会导致奇怪的行为, 测试一下去掉这个参数是否会影响别的action, 如果会那就在代码生成时禁用, 别的时候还是启用吧
-        repetition_penalty=repetition_penalty, 
+        # repetition_penalty=repetition_penalty, 
         n=n,
         logprobs=logprobs,
         max_tokens=max_tokens,
@@ -65,11 +65,11 @@ def generate_with_vLLM_model(
 
 
 if __name__ == "__main__":
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1" # 可以这样子设置可见显卡
     model_ckpt = "mistralai/Mistral-7B-v0.1"
     tokenizer, model = load_vLLM_model(
         model_ckpt, seed=42, tensor_parallel_size=1, half_precision=False
     )
     input = "What is the meaning of life?"
     output = generate_with_vLLM_model(model, input)
-    breakpoint()
     print(output[0].outputs[0].text)
