@@ -143,6 +143,7 @@ class Generator:
         cleaned_io_output_list = [io_output.strip() for io_output in io_output_list]  #! cleaning
         return io_input, cleaned_io_output_list
 
+    # NOTE 直接生成答案
     def generate_direct_answers(self, user_question: str, paraphrased: bool, hint: str):
         direct_answer_list, value_list = [], []
 
@@ -167,6 +168,9 @@ class Generator:
 
         return direct_answer_list, value_list
 
+    # 是一步一步提出子问题然后回答的, 不是一次提出所有
+    # TODO 代码生成任务中如何提出子问题? 这个跟 OST 是否重复? OST 那里也是一步一步提出来的吗?
+    # NOTE 生成下一个子问题和下一个子问题的答案
     def generate_subquestions(
         self,
         user_question: str,
@@ -298,6 +302,7 @@ class Generator:
 
         return subquestion_list, subanswer_list, value_list, potential_answers_list
 
+    # NOTE 重新回答子问题
     def generate_re_subanswers(
         self,
         user_question: str,
@@ -371,6 +376,7 @@ class Generator:
 
         return re_subanswer_list, value_list, potential_answers_list
 
+    # NOTE 重述用户答案
     def generate_rephrased_user_question(self, user_question: str):
         rephrased_user_question_list = []
         io_input = self.rephrasing_prompt_template
@@ -414,6 +420,7 @@ class Generator:
 
         return rephrased_user_question_list, potential_answers_list
 
+    # NOTE 提出单步思考
     def generate_ost_step(
         self,
         user_question: str,
@@ -422,6 +429,7 @@ class Generator:
         parent_is_subquestion: bool,
     ):
         ost_step_list = []
+        # TODO 也是一步一步提出来的
         if parent_is_subquestion:
             existing_ost_steps, next_ost_step_id = concat_subqs_subas_as_ost_steps(solution_trace)
         else:
