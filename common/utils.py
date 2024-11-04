@@ -10,6 +10,7 @@ import multiprocessing
 from typing import Tuple
 from statistics import mean
 from torch.utils.data import Dataset
+import jsonlines
 
 
 def fix_seeds(seed):

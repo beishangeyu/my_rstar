@@ -31,7 +31,6 @@ def main(args):
 
     tokenizer, model = None, None
     # TODO 直接设置api为vllm
-    args.api = "vllm"
     if args.api == "huggingface":
         from models.HuggingFace_API import load_HF_model
 
@@ -53,6 +52,7 @@ def main(args):
     num_tested = 0
     start_time = time.time()
 
+    # TODO 加入中断后恢复重传的功能
     for i, data_item in enumerate(
         (
             pbar := tqdm(
@@ -103,6 +103,7 @@ def main(args):
 
         num_tested += 1
 
+        # TODO 更改保存文件的方式
         with open(
             os.path.join(args.answer_sheets_dir, f"Question {i:04d} - Answer.json"), "w"
         ) as f:

@@ -44,7 +44,7 @@ def generate_with_vLLM_model(
     top_k=40,
     repetition_penalty=1.1,
     n=1,
-    max_tokens=256,
+    max_tokens=1024,
     logprobs=1,
     stop=[],
 ):
@@ -52,7 +52,8 @@ def generate_with_vLLM_model(
         temperature=temperature,
         top_p=top_p,
         top_k=top_k,
-        # TODO 在生成代码的时对重复内容惩罚会导致奇怪的行为, 测试一下去掉这个参数是否会影响别的action, 如果会那就在代码生成时禁用, 别的时候还是启用吧
+        # TODO 在生成代码的时对重复内容惩罚会导致奇怪的行为, 测试一下去掉这个参数是否会影响别的action, 
+        # TODO 如果会那就在代码生成时禁用, 别的时候还是启用
         # repetition_penalty=repetition_penalty, 
         n=n,
         logprobs=logprobs,
@@ -70,6 +71,20 @@ if __name__ == "__main__":
     tokenizer, model = load_vLLM_model(
         model_ckpt, seed=42, tensor_parallel_size=1, half_precision=False
     )
-    input = "What is the meaning of life?"
+    input = """
+### Instruction: Leah had 32 chocolates and her sister had 42. If they ate 35, how many pieces do they
+have left in total?
+
+### Response: Let’s think step by step.
+Step 1: Add the number of chocolates Leah and her sister had initially. Leah had 32 chocolates and her
+sister had 42 chocolates. So, they had 32 + 42 = 74 chocolates in total.
+Step 2: Subtract the number of chocolates they ate from the total number of chocolates they had. They
+ate 35 chocolates. So, they have 74 - 35 = 39 chocolates left.
+Step 3: The answer is 39.
+
+### Instruction: Kenh had 3 apples and Andy had 99 apples. If they ate 7 apples and gave 66 apples to Wang. How many apples do Kenh and Andy have left in total?
+
+### Response: Let’s think step by step.
+"""
     output = generate_with_vLLM_model(model, input)
     print(output[0].outputs[0].text)
