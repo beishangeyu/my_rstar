@@ -20,7 +20,7 @@ def load_vLLM_model(
             trust_remote_code=True,
             max_num_seqs=max_num_seqs,
             swap_space=16,
-            max_model_len=30000,
+            max_model_len=30000, # TODO 不同模型的model_len不同, 在这里更改
         )
     else:
         llm = LLM(
