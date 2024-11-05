@@ -429,28 +429,25 @@ class Reasoning_MCTS_Node(MCTS_Node):
             else:
                 self.ost_step_counter = parent.ost_step_counter
 
-        # TODO 记录从根节点到当前节点的推理路径
-        # TODO 如果要不同node type的prompt不同, 这里可能有点难处理. 干脆删了全部重新写
+        # 记录从根节点到当前节点的推理路径
         if parent is None:  # root
             # assert self.node_type is Node_Type.USER_QUESTION
-            # self.solution_trace: Dict[int, Dict[str, str]] = {
-            #     0: {"user_question": user_requirement, "ost_step": {}}
-            # }
-            # TODO 要更改 prompt 的格式
-            pass
+            self.solution_trace: Dict[int, Dict[str, str]] = {
+                0: {"user_requirement": user_requirement, "ost_step": {}}
+            }  # 这是一个 dict形式的树, ost_step也是一个dict, key是第几步, value就是具体内容
         else:
             # assert self.node_type is not Node_Type.USER_QUESTION
-            # self.solution_trace = deepcopy(parent.solution_trace)
+            # deepcopy parent的, 防止修改影响到之前的node
+            self.solution_trace = deepcopy(parent.solution_trace)
 
-            # if node_type is Node_Type.REPHRASED_USER_QUESTION:
-            #     self.solution_trace[0]["user_question"] = rephrased_requirement
-            # elif node_type is Node_Type.OST_STEP:
-            #     assert (
-            #         "ost_step" in self.solution_trace[self.subquestion_counter].keys()
-            #     )
-            #     self.solution_trace[self.subquestion_counter]["ost_step"][
-            #         self.ost_step_counter
-            #     ] = ost_step
+            if node_type is Node_Type.REPHRASED_USER_QUESTION:
+                # 直接更换成重述后的
+                self.solution_trace[0]["user_question"] = rephrased_requirement
+            elif node_type is Node_Type.OST_STEP:
+                # self.solution_trace[self.subquestion_counter]["ost_step"][self.ost_step_counter] = ost_step
+                # TODO 因为当前动作没含有 subquestion, 第一个直接取 0 即可, 后续或需要扩展
+                self.solution_trace[0]["ost_step"][self.ost_step_counter] = ost_step
+
             pass
 
     # TODO 这个只是输出相关, 等有时间了再来考虑
