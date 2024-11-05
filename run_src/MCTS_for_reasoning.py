@@ -430,6 +430,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 self.ost_step_counter = parent.ost_step_counter
 
         # 记录从根节点到当前节点的推理路径
+        # TODO 随着action set扩大, 或许需要修改, 但是最好还是以dict形式, 方便组合
         if parent is None:  # root
             # assert self.node_type is Node_Type.USER_QUESTION
             self.solution_trace: Dict[int, Dict[str, str]] = {
@@ -463,12 +464,12 @@ class Reasoning_MCTS_Node(MCTS_Node):
     #     return f"{type2str[self.node_type]}-{self.id}"
 
     def _create_children(self):
+        # NOTE 直接生成答案
         def do_action_generate_direct_answers():
             verbose_print(
                 f"---- Generating direct answers for node {self.id}...", self.verbose
             )
 
-            #! ACTION: generate direct answer for the user question (w/ or w/o hint)
             if (
                 self.node_type is not Node_Type.USER_QUESTION
                 and self.node_type is not Node_Type.REPHRASED_USER_QUESTION
