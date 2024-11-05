@@ -707,67 +707,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
                     )
                 )
 
-        def do_action_generate_subquestions():
-            verbose_print(
-                f"---- Generating subquestions for node {self.id}...", self.verbose
-            )
-
-            #! ACTION: generate new subquestions
-            (subquestion_list, subanswer_list, value_list, potential_answers_list) = (
-                self.generator.generate_subquestions(
-                    user_question=self.user_question,
-                    solution_trace=self.solution_trace,
-                    paraphrased=self.paraphrased,
-                )
-            )
-            for subquestion, subanswer, value, potential_answers in zip(
-                subquestion_list, subanswer_list, value_list, potential_answers_list
-            ):
-                if np.isnan(value) or value <= 0:
-                    value = 0.01
-                    # breakpoint()
-                self.children.append(
-                    Reasoning_MCTS_Node(
-                        parent=self,
-                        depth=self.depth + 1,
-                        node_type=Node_Type.SUBQUESTION,
-                        node_value=value,
-                        subquestion=subquestion,
-                        subanswer=subanswer,
-                        is_new_subquestion=True,
-                        potential_answers=deepcopy(potential_answers),
-                    )
-                )
-
-        def do_action_generate_re_subanswers():
-            verbose_print(
-                f"---- Generating re-subanswers for node {self.id}...", self.verbose
-            )
-
-            #! ACTION: re-generate subanswers for the previous subquestion
-            (re_subanswer_list, value_list, potential_answers_list) = (
-                self.generator.generate_re_subanswers(
-                    user_question=self.user_question,
-                    solution_trace=self.solution_trace,
-                    paraphrased=self.paraphrased,
-                )
-            )
-            for re_subanswer, value, potential_answers in zip(
-                re_subanswer_list, value_list, potential_answers_list
-            ):
-                if np.isnan(value) or value <= 0:
-                    breakpoint()
-                self.children.append(
-                    Reasoning_MCTS_Node(
-                        parent=self,
-                        depth=self.depth + 1,
-                        node_type=Node_Type.RE_SUBANSWER,
-                        node_value=value,
-                        re_subanswer=re_subanswer,
-                        potential_answers=deepcopy(potential_answers),
-                    )
-                )
-
         def do_action_generate_rephrased_user_question():
             verbose_print(
                 f"---- Generating rephrased user question for node {self.id}...",
@@ -828,9 +767,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
             # A2: Propose the remaining thought steps
             do_action_generate_direct_answers()
 
-            # A3: Propose next sub-question along with its answer.
-            do_action_generate_subquestions()
-
             # A5: Rephrase the question/sub-question.
             if not self.disable_a5:
                 do_action_generate_rephrased_user_question()
@@ -843,33 +779,8 @@ class Reasoning_MCTS_Node(MCTS_Node):
             # A2: Propose the remaining thought steps
             do_action_generate_direct_answers()
 
-            # A3: Propose next sub-question along with its answer.
-            do_action_generate_subquestions()
         elif self.node_type is Node_Type.DIRECT_ANSWER:
             raise ValueError("DIRECT_ANSWER node cannot create children!!")
-        elif self.node_type is Node_Type.SUBQUESTION:
-            # A1: Propose an one-step thought.
-            if not self.disable_a1:
-                do_action_generate_ost_step()
-
-            # A2: Propose the remaining thought steps
-            do_action_generate_direct_answers()
-
-            # A3: Propose next sub-question along with its answer.
-            do_action_generate_subquestions()
-
-            # A4: Answer the sub-question again.
-            do_action_generate_re_subanswers()
-        elif self.node_type is Node_Type.RE_SUBANSWER:
-            # A1: Propose an one-step thought.
-            if not self.disable_a1:
-                do_action_generate_ost_step()
-
-            # A2: Propose the remaining thought steps
-            do_action_generate_direct_answers()
-
-            # A3: Propose next sub-question along with its answer.
-            do_action_generate_subquestions()
         elif self.node_type is Node_Type.OST_STEP:
             # A1: Propose an one-step thought.
             if not self.disable_a1:
