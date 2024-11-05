@@ -181,63 +181,14 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # 一次generate中模型回复的次数
+    # NOTE 一次generate中模型回复的次数
     if args.mcts_num_last_votes is None:
         args.mcts_num_last_votes = 32
 
+    # NOTE 采用一次action1生成的子节点数量
     if not args.disable_a1:
         if args.num_a1_steps is None:
             args.num_a1_steps = 3
-
-    #! ----------------------------------------------------------------------------
-
-    prompts_dir = os.path.join(args.prompts_root, args.dataset_name)
-
-    args.fewshot_cot_prompt_path = os.path.join(
-        prompts_dir, "fewshot_cot", "fewshot_cot_prompt.txt"
-    )
-    args.fewshot_cot_config_path = os.path.join(
-        prompts_dir, "fewshot_cot", "fewshot_cot_config.json"
-    )
-
-    args.fewshot_ost_prompt_path = os.path.join(
-        prompts_dir, "fewshot_ost", "fewshot_ost_prompt.txt"
-    )
-    args.fewshot_ost_config_path = os.path.join(
-        prompts_dir, "fewshot_ost", "fewshot_ost_config.json"
-    )
-
-    args.decompose_template_path = os.path.join(
-        prompts_dir, "decompose", "decompose_template.json"
-    )
-    args.decompose_prompt_path = os.path.join(
-        prompts_dir, "decompose", "decompose_prompt.txt"
-    )
-
-    if not args.disable_a5:
-        args.rephrasing_prompt_template_path = os.path.join(
-            prompts_dir, "rephrasing_prompt_template.txt"
-        )
-        if args.modify_prompts_for_rephrasing:
-            args.fewshot_cot_prompt_rephrased_path = os.path.join(
-                prompts_dir, "fewshot_cot", "fewshot_cot_prompt_rephrased.txt"
-            )
-            args.fewshot_ost_prompt_rephrased_path = os.path.join(
-                prompts_dir, "fewshot_ost", "fewshot_ost_prompt_rephrased.txt"
-            )
-            args.decompose_prompt_rephrased_path = os.path.join(
-                prompts_dir, "decompose", "decompose_prompt_rephrased.txt"
-            )
-        else:
-            args.fewshot_cot_prompt_rephrased_path = os.path.join(
-                prompts_dir, "fewshot_cot", "fewshot_cot_prompt.txt"
-            )
-            args.fewshot_ost_prompt_rephrased_path = os.path.join(
-                prompts_dir, "fewshot_ost", "fewshot_ost_prompt.txt"
-            )
-            args.decompose_prompt_rephrased_path = os.path.join(
-                prompts_dir, "decompose", "decompose_prompt.txt"
-            )
 
     args = post_process_args(args)
     print(args)
