@@ -198,7 +198,6 @@ class Generator:
         return direct_answer_list, value_list
 
     # 是一步一步提出子问题然后回答的, 不是一次提出所有
-    # TODO 代码生成任务中如何提出子问题? 这个跟 OST 是否重复? OST 那里也是一步一步提出来的吗?
     # NOTE 生成下一个子问题和下一个子问题的答案
     def generate_subquestions(
         self,
