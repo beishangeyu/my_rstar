@@ -181,6 +181,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # 一次generate中模型回复的次数
     if args.mcts_num_last_votes is None:
         args.mcts_num_last_votes = 32
 
