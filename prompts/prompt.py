@@ -1,3 +1,5 @@
+# TODO 遇到看不懂的先不要管, 先测试目前动作能否有效, 无效再考虑弄懂那些看不懂的动作
+
 # NOTE 提出单步思考
 # TODO 对于 Mistral-7B-v0.1, ost 的 stop token 应该是 [function haed and docstring] (和 \n\n, 或许?)
 ost_prompt = """
@@ -72,25 +74,27 @@ def find_Odd_Pair(A, N):
     # The number of odd pairs is the product of odd_count and even_count
     return odd_count * even_count
 """
+ost_stop_token = ['[function haed and docstring]', '\n\n']
 
 
 
 # NOTE 重述用户的要求
-# TODO stop token 应该是 Original requirment 和 \n\n
+# TODO stop token 应该是 Original requirement 和 \n\n
 rephrase_prompt = """
-You are an AI assistant to help me rephrase the requirment.
+You are an AI assistant to help me rephrase the requirement.
 
-Original requirment: Write a python function to check whether the first and last characters of a given string are equal or not.
-Rephrased requirment: Write a Python function to check if the first and last characters of a given string are equal.
+Original requirement: Write a python function to check whether the first and last characters of a given string are equal or not.
+Rephrased requirement: Write a Python function to check if the first and last characters of a given string are equal.
 
-Original requirment: Writing a python function to unearth the first recurrent nature in a given chain
-Rephrased requirment: Write a Python function to find the first recurrent element in a given sequence.
+Original requirement: Writing a python function to unearth the first recurrent nature in a given chain
+Rephrased requirement: Write a Python function to find the first recurrent element in a given sequence.
 
-Original requirment: Write a function to count the same pair in two given lists usage map function.
-Rephrased requirment: Write a Python function using map to count the number of matching pairs in two given lists.
+Original requirement: Write a function to count the same pair in two given lists usage map function.
+Rephrased requirement: Write a Python function using map to count the number of matching pairs in two given lists.
 """
+rephrase_stop_token = ['\n\n']
 # TODO 提出下一个子问题并回答
-# TODO 直接回答问题
+# XXX 直接回答不需要 prompt
 
 # 对 prompt 进行测试
 if __name__ == "__main__":
@@ -113,10 +117,10 @@ if __name__ == "__main__":
 # '''
 # [step to implement]
 # """
-    input = rephrase_prompt + """
-Original requirment: Writing a python function to left rotating the bits of a afforded number
-Rephrased requirment:
-"""
-    output = generate_with_vLLM_model(model, input, stop=["Original requirment", '\n\n'])
+#     input = rephrase_prompt + """
+# Original requirement: Writing a python function to left rotating the bits of a afforded number
+# Rephrased requirement:
+# """
+    output = generate_with_vLLM_model(model, input, stop=["Original requirement", '\n\n'])
     print(output[0].outputs[0].text)
     
