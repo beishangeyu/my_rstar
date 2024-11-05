@@ -168,9 +168,12 @@ class Generator:
         return io_input, cleaned_io_output_list
 
     # NOTE 直接生成答案
-    def generate_direct_answers(self, user_question: str, paraphrased: bool, hint: str):
-        direct_answer_list, value_list = [], []
+    def generate_direct_answers(
+        self, user_question: str, paraphrased: bool, hint: str, is_ost: bool
+    ):
 
+        # TODO 父节点类型不同, prompt 格式也不一样
+        direct_answer_list, value_list = [], []
         #! few shot cot
         num_return = self.mcts_num_last_votes
         io_input, cleaned_io_output_list = self._fewshot_cot_answer_question(
@@ -216,49 +219,7 @@ Rephrased requirement:
         )[0]
         rephrased_user_question_list.append(io_output)
 
-        #! generate potential answer to the user question
-        potential_answers_list: List[List[str]] = []  # essentially direct answer list
-        if self.enable_potential_score:
-            response_prefix = make_response_prefix(None, None)
-            potential_score_input = (
-                "Question: "
-                + rephrased_user_question_list[0]
-                + "\nAnswer: "
-                + response_prefix
-            )
-            potential_score_output = self.io.generate(
-                potential_score_input,
-                num_return=self.num_votes,
-                max_tokens=128,
-                stop_tokens=self.fewshot_cot_config["stop_tokens"],
-            )
-            potential_score_input2 = [
-                "Question: "
-                + rephrased_user_question_list[0]
-                + "\nAnswer: "
-                + response_prefix
-                + z
-                + "\nTherefore, the answer (arabic numerals) is"
-                for z in potential_score_output
-            ]
-            cleaned_io_output_list = self.io.generate(
-                potential_score_input2,
-                num_return=1,
-                max_tokens=128,
-                stop_tokens=self.fewshot_cot_config["stop_tokens"],
-            )
-            cleaned_io_output_list = [z[0] for z in cleaned_io_output_list]
-
-            potential_answers_list.append(
-                [
-                    self.evaluator.extract_answer_from_model_completion(o)
-                    for o in cleaned_io_output_list
-                ]
-            )
-        else:
-            potential_answers_list = [None] * len(rephrased_user_question_list)
-
-        return rephrased_user_question_list, potential_answers_list
+        return rephrased_user_question_list
 
     # NOTE 提出单步思考
     def generate_ost_step(
@@ -295,51 +256,7 @@ Step{next_ost_step_id}:
         )
         ost_step_list = [io_output.strip() for io_output in io_output_list]
 
-        #! generate potential answer to the user question
-        potential_answers_list: List[List[str]] = []  # essentially direct answer list
-        if self.enable_potential_score:
-            for ost_step in ost_step_list:
-                response_prefix = make_response_prefix(
-                    solution_trace, Node_Type.OST_STEP, new_ost_step=ost_step
-                )
-
-                potential_score_input = (
-                    "Question: " + user_question + "\nAnswer: " + response_prefix
-                )
-
-                potential_score_output = self.io.generate(
-                    potential_score_input,
-                    num_return=self.num_votes,
-                    max_tokens=128,
-                    stop_tokens=self.fewshot_cot_config["stop_tokens"],
-                )
-                potential_score_input2 = [
-                    "Question: "
-                    + user_question
-                    + "\nAnswer: "
-                    + response_prefix
-                    + z
-                    + "\nTherefore, the answer (arabic numerals) is"
-                    for z in potential_score_output
-                ]
-                cleaned_io_output_list = self.io.generate(
-                    potential_score_input2,
-                    num_return=1,
-                    max_tokens=128,
-                    stop_tokens=self.fewshot_cot_config["stop_tokens"],
-                )
-                cleaned_io_output_list = [z[0] for z in cleaned_io_output_list]
-
-                potential_answers_list.append(
-                    [
-                        self.evaluator.extract_answer_from_model_completion(o)
-                        for o in cleaned_io_output_list
-                    ]
-                )
-        else:
-            potential_answers_list = [None] * len(ost_step_list)
-
-        return ost_step_list, potential_answers_list
+        return ost_step_list
 
 
 class Reasoning_MCTS_Node(MCTS_Node):
@@ -357,27 +274,15 @@ class Reasoning_MCTS_Node(MCTS_Node):
         max_depth_allowed: int = None,
         disable_a1: bool = None,
         # -----------------------------------
-        # --- For instantiating REPHRASED_USER_QUESTION node ---
-        rephrased_user_question: str = None,
+        # --- rephrase之后的用户需求  ---
+        rephrased_requirement: str = None,
         # ------------------------------------------------------
         expected_answer: str = None,
         # --- For instantiating DIRECT_ANSWER node ---
         direct_answer: str = None,
         # --------------------------------------------
-        # --- For instantiating SUBQUESTION node ---
-        subquestion: str = None,
-        subanswer: str = None,
-        is_new_subquestion: bool = None,
-        # ------------------------------------------
-        # --- For instantiating RE_SUBANSWER node ---
-        re_subanswer: str = None,
-        # -------------------------------------------
         # --- For instantiating OST_STEP node ---
         ost_step: str = None,
-        # ---------------------------------------
-        # --- For node selection (not in sanity checks yet) ---
-        enable_potential_score: bool = None,
-        potential_answers: List[str] = None,
     ) -> None:
         """params:
         subquestion: the node is proposing a new subquestion
@@ -400,12 +305,8 @@ class Reasoning_MCTS_Node(MCTS_Node):
                     for attr in [
                         parent,
                         node_value,
-                        rephrased_user_question,
+                        rephrased_requirement,
                         direct_answer,
-                        subquestion,
-                        subanswer,
-                        is_new_subquestion,
-                        re_subanswer,
                         ost_step,
                     ]
                 )
@@ -431,18 +332,12 @@ class Reasoning_MCTS_Node(MCTS_Node):
                         user_question,
                         expected_answer,
                         direct_answer,
-                        subquestion,
-                        subanswer,
-                        is_new_subquestion,
-                        re_subanswer,
                         ost_step,
                         max_depth_allowed,
                         disable_a1,
                     ]
                 )
-                assert all(
-                    attr is not None for attr in [parent, rephrased_user_question]
-                )
+                assert all(attr is not None for attr in [parent, rephrased_requirement])
             elif node_type is Node_Type.DIRECT_ANSWER:
                 assert depth > 0
                 assert all(
@@ -452,10 +347,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
                         disable_a5,
                         user_question,
                         expected_answer,
-                        subquestion,
-                        subanswer,
-                        is_new_subquestion,
-                        re_subanswer,
                         ost_step,
                         max_depth_allowed,
                         disable_a1,
@@ -463,53 +354,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 )
                 assert all(
                     attr is not None for attr in [parent, node_value, direct_answer]
-                )
-            elif node_type is Node_Type.SUBQUESTION:
-                assert depth > 0
-                assert all(
-                    attr is None
-                    for attr in [
-                        generator,
-                        disable_a5,
-                        user_question,
-                        expected_answer,
-                        direct_answer,
-                        re_subanswer,
-                        ost_step,
-                        max_depth_allowed,
-                        disable_a1,
-                    ]
-                )
-                assert all(
-                    attr is not None
-                    for attr in [
-                        parent,
-                        node_value,
-                        subquestion,
-                        subanswer,
-                        is_new_subquestion,
-                    ]
-                )
-            elif node_type is Node_Type.RE_SUBANSWER:
-                assert depth > 0
-                assert all(
-                    attr is None
-                    for attr in [
-                        generator,
-                        disable_a5,
-                        user_question,
-                        expected_answer,
-                        direct_answer,
-                        subquestion,
-                        subanswer,
-                        is_new_subquestion,
-                        ost_step,
-                        max_depth_allowed,
-                        disable_a1,
-                    ]
-                )
-                assert all(
-                    attr is not None for attr in [parent, node_value, re_subanswer]
                 )
             elif node_type is Node_Type.OST_STEP:
                 assert depth > 0
@@ -520,13 +364,9 @@ class Reasoning_MCTS_Node(MCTS_Node):
                         generator,
                         disable_a5,
                         user_question,
-                        rephrased_user_question,
+                        rephrased_requirement,
                         expected_answer,
                         direct_answer,
-                        subquestion,
-                        subanswer,
-                        is_new_subquestion,
-                        re_subanswer,
                         max_depth_allowed,
                         disable_a1,
                     ]
@@ -544,13 +384,10 @@ class Reasoning_MCTS_Node(MCTS_Node):
         self.node_type = node_type
         self.node_value = node_value
         self.direct_answer = direct_answer
-        self.subquestion = subquestion
-        self.subanswer = subanswer
-        self.is_new_subquestion = is_new_subquestion
-        self.re_subanswer = re_subanswer
         self.ost_step = ost_step
 
-        if parent is None:  # root
+        # root node
+        if parent is None:
             self.verbose = verbose
             self.user_question = user_question
             self.expected_answer = expected_answer
@@ -559,8 +396,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
             self.question_index = generator.question_index
             self.max_depth_allowed = max_depth_allowed
             self.disable_a1 = disable_a1
-            self.enable_potential_score = enable_potential_score
-        else:  # inherit from parent
+        else:
             self.verbose = parent.verbose
             self.user_question = parent.user_question
             self.expected_answer = parent.expected_answer
@@ -569,14 +405,13 @@ class Reasoning_MCTS_Node(MCTS_Node):
             self.question_index = parent.generator.question_index
             self.max_depth_allowed = parent.max_depth_allowed
             self.disable_a1 = parent.disable_a1
-            self.enable_potential_score = parent.enable_potential_score
 
         #! keep track of paraphrasing
         if node_type is Node_Type.USER_QUESTION:
             self.paraphrased = False
         elif node_type is Node_Type.REPHRASED_USER_QUESTION:
             self.paraphrased = True
-            self.user_question = rephrased_user_question
+            self.user_question = rephrased_requirement
         else:
             assert parent is not None
             self.paraphrased = parent.paraphrased
@@ -611,7 +446,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
             self.solution_trace = deepcopy(parent.solution_trace)
 
             if node_type is Node_Type.REPHRASED_USER_QUESTION:
-                self.solution_trace[0]["user_question"] = rephrased_user_question
+                self.solution_trace[0]["user_question"] = rephrased_requirement
             elif node_type is Node_Type.DIRECT_ANSWER:
                 assert self.subquestion_counter in self.solution_trace.keys()
                 assert self.subquestion_counter == parent.subquestion_counter
@@ -707,6 +542,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
                     )
                 )
 
+        # NOTE 重述用户的需求
         def do_action_generate_rephrased_user_question():
             verbose_print(
                 f"---- Generating rephrased user question for node {self.id}...",
@@ -714,21 +550,19 @@ class Reasoning_MCTS_Node(MCTS_Node):
             )
 
             #! ACTION: generate paraphrased question for the root question
-            rephrased_user_question_list, potential_answers_list = (
+            rephrased_user_question_list = (
                 self.generator.generate_rephrased_requirement(
                     user_question=self.user_question
                 )
             )
-            for rephrased_user_question, potential_answers in zip(
-                rephrased_user_question_list, potential_answers_list
-            ):
+            # TODO 用新生成的需求替换掉原来的 docstring
+            for rephrased_user_question in rephrased_user_question_list:
                 self.children.append(
                     Reasoning_MCTS_Node(
                         parent=self,
                         depth=self.depth + 1,
                         node_type=Node_Type.REPHRASED_USER_QUESTION,
-                        rephrased_user_question=rephrased_user_question,
-                        potential_answers=deepcopy(potential_answers),
+                        rephrased_requirement=rephrased_user_question,
                     )
                 )
 
