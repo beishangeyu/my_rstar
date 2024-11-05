@@ -1,5 +1,5 @@
 # NOTE 提出单步思考
-# TODO 对于 Mistral-7B-v0.1, ost 的 stop token 应该是 [function haed and docstring]
+# TODO 对于 Mistral-7B-v0.1, ost 的 stop token 应该是 [function haed and docstring] (和 \n\n, 或许?)
 ost_prompt = """
 You are a Python assistant. You are given function head and its docstring. Provide the full implementation of the following function.
 
@@ -72,11 +72,23 @@ def find_Odd_Pair(A, N):
     # The number of odd pairs is the product of odd_count and even_count
     return odd_count * even_count
 """
-# XXX 初步测试 ost prompt 下模型的行为符合预期
 
 
 
-# TODO 重述用户的要求
+# NOTE 重述用户的要求
+# TODO stop token 应该是 Original requirment 和 \n\n
+rephrase_prompt = """
+You are an AI assistant to help me rephrase the requirment.
+
+Original requirment: Write a python function to check whether the first and last characters of a given string are equal or not.
+Rephrased requirment: Write a Python function to check if the first and last characters of a given string are equal.
+
+Original requirment: Writing a python function to unearth the first recurrent nature in a given chain
+Rephrased requirment: Write a Python function to find the first recurrent element in a given sequence.
+
+Original requirment: Write a function to count the same pair in two given lists usage map function.
+Rephrased requirment: Write a Python function using map to count the number of matching pairs in two given lists.
+"""
 # TODO 提出下一个子问题并回答
 # TODO 直接回答问题
 
@@ -101,6 +113,10 @@ if __name__ == "__main__":
 # '''
 # [step to implement]
 # """
-    output = generate_with_vLLM_model(model, input)
+    input = rephrase_prompt + """
+Original requirment: Writing a python function to left rotating the bits of a afforded number
+Rephrased requirment:
+"""
+    output = generate_with_vLLM_model(model, input, stop=["Original requirment", '\n\n'])
     print(output[0].outputs[0].text)
     
