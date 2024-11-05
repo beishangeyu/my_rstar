@@ -270,7 +270,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
         node_value: float = None,
         generator: Generator = None,
         disable_a5: bool = None,
-        user_question: str = None,
+        user_requirement: str = None,
         max_depth_allowed: int = None,
         disable_a1: bool = None,
         # -----------------------------------
@@ -315,7 +315,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
                     for attr in [
                         generator,
                         disable_a5,
-                        user_question,
+                        user_requirement,
                         expected_answer,
                         max_depth_allowed,
                         disable_a1,
@@ -329,7 +329,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
                         node_value,
                         generator,
                         disable_a5,
-                        user_question,
+                        user_requirement,
                         expected_answer,
                         direct_answer,
                         ost_step,
@@ -345,7 +345,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
                     for attr in [
                         generator,
                         disable_a5,
-                        user_question,
+                        user_requirement,
                         expected_answer,
                         ost_step,
                         max_depth_allowed,
@@ -363,7 +363,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
                         node_value,
                         generator,
                         disable_a5,
-                        user_question,
+                        user_requirement,
                         rephrased_requirement,
                         expected_answer,
                         direct_answer,
@@ -389,7 +389,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
         # root node
         if parent is None:
             self.verbose = verbose
-            self.user_question = user_question
+            self.user_requirement = user_requirement  # 即每个样本的要求
             self.expected_answer = expected_answer
             self.generator = generator
             self.disable_a5 = disable_a5
@@ -398,7 +398,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
             self.disable_a1 = disable_a1
         else:
             self.verbose = parent.verbose
-            self.user_question = parent.user_question
+            self.user_requirement = parent.user_requirement
             self.expected_answer = parent.expected_answer
             self.generator = parent.generator
             self.disable_a5 = parent.disable_a5
@@ -410,22 +410,17 @@ class Reasoning_MCTS_Node(MCTS_Node):
         if node_type is Node_Type.USER_QUESTION:
             self.paraphrased = False
         elif node_type is Node_Type.REPHRASED_USER_QUESTION:
+            # 是否重述过用户需求
             self.paraphrased = True
-            self.user_question = rephrased_requirement
+            self.user_requirement = rephrased_requirement
         else:
             assert parent is not None
             self.paraphrased = parent.paraphrased
+            # 和父节点的requirement保持一致
+            self.user_requirement = parent.user_requirement
 
-        #! record number of subquestions till now
-        if parent is None:  # root
-            self.subquestion_counter = 0
-        else:
-            if node_type is Node_Type.SUBQUESTION and is_new_subquestion:
-                self.subquestion_counter = parent.subquestion_counter + 1
-            else:
-                self.subquestion_counter = parent.subquestion_counter
-
-        #! record number of one-step thought steps till now
+        # 记录 ost 步数
+        # TODO 一般不能大于 8? 拿几个样本去 gpt 那里试一下, 小模型的思考步骤应该比那个多个一两步
         if parent is None:  # root
             self.ost_step_counter = 0
         else:
@@ -434,79 +429,41 @@ class Reasoning_MCTS_Node(MCTS_Node):
             else:
                 self.ost_step_counter = parent.ost_step_counter
 
-        #! record solution trace from root to the current node. key: subquestion id
-        # 记录从根节点到当前节点的推理路径
+        # TODO 记录从根节点到当前节点的推理路径
+        # TODO 如果要不同node type的prompt不同, 这里可能有点难处理. 干脆删了全部重新写
         if parent is None:  # root
-            assert self.node_type is Node_Type.USER_QUESTION
-            self.solution_trace: Dict[int, Dict[str, str]] = {
-                0: {"user_question": user_question, "ost_step": {}}
-            }
+            # assert self.node_type is Node_Type.USER_QUESTION
+            # self.solution_trace: Dict[int, Dict[str, str]] = {
+            #     0: {"user_question": user_requirement, "ost_step": {}}
+            # }
+            # TODO 要更改 prompt 的格式
+            pass
         else:
-            assert self.node_type is not Node_Type.USER_QUESTION
-            self.solution_trace = deepcopy(parent.solution_trace)
+            # assert self.node_type is not Node_Type.USER_QUESTION
+            # self.solution_trace = deepcopy(parent.solution_trace)
 
-            if node_type is Node_Type.REPHRASED_USER_QUESTION:
-                self.solution_trace[0]["user_question"] = rephrased_requirement
-            elif node_type is Node_Type.DIRECT_ANSWER:
-                assert self.subquestion_counter in self.solution_trace.keys()
-                assert self.subquestion_counter == parent.subquestion_counter
-                self.solution_trace[self.subquestion_counter]["direct_answer"] = {
-                    "text": direct_answer,
-                    "value": node_value,
-                }
-            elif node_type is Node_Type.SUBQUESTION:
-                assert (
-                    is_new_subquestion
-                    and self.subquestion_counter == parent.subquestion_counter + 1
-                )
-                self.solution_trace[self.subquestion_counter] = {
-                    "subquestion": subquestion,
-                    "subanswer": {"text": subanswer, "value": node_value},
-                    "ost_step": {},
-                }
-            elif node_type is Node_Type.RE_SUBANSWER:
-                assert parent.subquestion is not None
-                assert self.subquestion_counter == parent.subquestion_counter
-                assert (
-                    self.solution_trace[self.subquestion_counter]["subquestion"]
-                    == parent.subquestion
-                )
-                self.solution_trace[self.subquestion_counter]["subanswer"] = {
-                    "text": re_subanswer,
-                    "value": node_value,
-                }
-            elif node_type is Node_Type.OST_STEP:
-                assert (
-                    "ost_step" in self.solution_trace[self.subquestion_counter].keys()
-                )
-                self.solution_trace[self.subquestion_counter]["ost_step"][
-                    self.ost_step_counter
-                ] = ost_step
+            # if node_type is Node_Type.REPHRASED_USER_QUESTION:
+            #     self.solution_trace[0]["user_question"] = rephrased_requirement
+            # elif node_type is Node_Type.OST_STEP:
+            #     assert (
+            #         "ost_step" in self.solution_trace[self.subquestion_counter].keys()
+            #     )
+            #     self.solution_trace[self.subquestion_counter]["ost_step"][
+            #         self.ost_step_counter
+            #     ] = ost_step
+            pass
 
-        #! potential_score for intermediate nodes (only used for node selection)
-        if self.enable_potential_score:
-            self.potential_answers = potential_answers
-            self.potential_score = 0
-            if parent is None:  # root
-                assert self.node_type is Node_Type.USER_QUESTION
-                self.potential_answers_history = {}
-            else:
-                assert self.node_type is not Node_Type.USER_QUESTION
-                self.potential_answers_history = deepcopy(
-                    parent.potential_answers_history
-                )
-                self.potential_answers_history[self.depth] = potential_answers
-
-    def __str__(self) -> str:
-        type2str = {
-            Node_Type.USER_QUESTION: "U",
-            Node_Type.REPHRASED_USER_QUESTION: "RU",
-            Node_Type.DIRECT_ANSWER: "DA",
-            Node_Type.SUBQUESTION: "SQ",
-            Node_Type.RE_SUBANSWER: "RS",
-            Node_Type.OST_STEP: "TS",
-        }
-        return f"{type2str[self.node_type]}-{self.id}"
+    # TODO 这个只是输出相关, 等有时间了再来考虑
+    # def __str__(self) -> str:
+    #     type2str = {
+    #         Node_Type.USER_QUESTION: "U",
+    #         Node_Type.REPHRASED_USER_QUESTION: "RU",
+    #         Node_Type.DIRECT_ANSWER: "DA",
+    #         Node_Type.SUBQUESTION: "SQ",
+    #         Node_Type.RE_SUBANSWER: "RS",
+    #         Node_Type.OST_STEP: "TS",
+    #     }
+    #     return f"{type2str[self.node_type]}-{self.id}"
 
     def _create_children(self):
         def do_action_generate_direct_answers():
@@ -524,7 +481,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 hint = None
 
             (direct_answer_list, value_list) = self.generator.generate_direct_answers(
-                user_question=self.user_question,
+                user_question=self.user_requirement,
                 paraphrased=self.paraphrased,
                 hint=hint,
             )
@@ -552,7 +509,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
             #! ACTION: generate paraphrased question for the root question
             rephrased_user_question_list = (
                 self.generator.generate_rephrased_requirement(
-                    user_question=self.user_question
+                    user_question=self.user_requirement
                 )
             )
             # TODO 用新生成的需求替换掉原来的 docstring
@@ -574,7 +531,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
 
             #! ACTION: generate one-step thought step
             ost_step_list, potential_answers_list = self.generator.generate_ost_step(
-                user_question=self.user_question,
+                user_question=self.user_requirement,
                 solution_trace=self.solution_trace,
                 paraphrased=self.paraphrased,
                 parent_is_subquestion=parent_is_subquestion,
@@ -693,7 +650,7 @@ def search_for_answers(
         verbose=args.verbose,
         generator=generator,
         disable_a5=args.disable_a5,
-        user_question=user_question,
+        user_requirement=user_question,
         expected_answer=gt_answer,
         max_depth_allowed=args.max_depth_allowed,
         disable_a1=args.disable_a1,
