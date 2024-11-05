@@ -795,25 +795,15 @@ class Reasoning_MCTS_Node(MCTS_Node):
     # 有效的叶结点是子问题类型(回答完了)和直接回答类型
     def is_valid_leaf_node(self):
         #! a valid solution can only be in SUBQUESTION type or DIRECT_ANSWER type
-        return (
-            self.node_type is Node_Type.SUBQUESTION
-            and reach_terminal_subquestion(self.subquestion, self.user_question)
-        ) or self.node_type is Node_Type.DIRECT_ANSWER
+        self.node_type is Node_Type.DIRECT_ANSWER
 
     # 有效的solution node是子问题节点(回答完了), 单步思考节点(回答完了), 或直接回答节点
     def is_valid_solution_node(self):
         #! a valid solution can only be in SUBQUESTION type or DIRECT_ANSWER type or OST_STEP type
         return (
-            (
-                self.node_type is Node_Type.SUBQUESTION
-                and reach_terminal_subquestion(self.subquestion, self.user_question)
-            )
-            or (
-                self.node_type is Node_Type.OST_STEP
-                and reach_terminal_ost_step(self.ost_step)
-            )
-            or self.node_type is Node_Type.DIRECT_ANSWER
-        )
+            self.node_type is Node_Type.OST_STEP
+            and reach_terminal_ost_step(self.ost_step)
+        ) or self.node_type is Node_Type.DIRECT_ANSWER
 
     def set_potential_score(self, score: float):
         self.potential_score = score
@@ -826,7 +816,9 @@ class Reasoning_MCTS_Node(MCTS_Node):
         return self.children
 
     def is_terminal(self):
-        return self.depth >= self.max_depth_allowed or self.is_valid_leaf_node()
+        # return self.depth >= self.max_depth_allowed or self.is_valid_leaf_node()
+        # XXX github上有人说加入ost判定后会稍微增加性能, 测试一下
+        return self.depth >= self.max_depth_allowed or self.is_valid_solution_node()
 
     def calculate_reward(self):
         if self.is_valid_leaf_node():
