@@ -83,14 +83,20 @@ ost_stop_token = ['[function haed and docstring]', '\n\n']
 rephrase_prompt = """
 You are an AI assistant to help me rephrase the requirement.
 
-Original requirement: Write a python function to check whether the first and last characters of a given string are equal or not.
-Rephrased requirement: Write a Python function to check if the first and last characters of a given string are equal.
+Original requirement: 
+Write a python function to check whether the first and last characters of a given string are equal or not.
+Rephrased requirement: 
+Write a Python function to check if the first and last characters of a given string are equal.
 
-Original requirement: Writing a python function to unearth the first recurrent nature in a given chain
-Rephrased requirement: Write a Python function to find the first recurrent element in a given sequence.
+Original requirement: 
+Writing a python function to unearth the first recurrent nature in a given chain
+Rephrased requirement: 
+Write a Python function to find the first recurrent element in a given sequence.
 
-Original requirement: Write a function to count the same pair in two given lists usage map function.
-Rephrased requirement: Write a Python function using map to count the number of matching pairs in two given lists.
+Original requirement: 
+Write a function to count the same pair in two given lists usage map function.
+Rephrased requirement: W
+rite a Python function using map to count the number of matching pairs in two given lists.
 """
 rephrase_stop_token = ['\n\n']
 # TODO 提出下一个子问题并回答
