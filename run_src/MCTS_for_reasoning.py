@@ -34,6 +34,7 @@ from run_src.rstar_utils import (
     find_best_solution,
     stochastic_find_best_solution,
 )
+from prompts.prompt import ost_prompt, ost_stop_token, rephrase_prompt, rephrase_stop_token
 
 
 def verbose_print(s: str, verbose: bool):
@@ -65,11 +66,11 @@ class Generator:
         self.fewshot_cot_config = read_json(args.fewshot_cot_config_path)
 
         if not args.disable_a1:  # A1: Propose an one-step thought.
-            self.fewshot_ost_prompt = read_txt(args.fewshot_ost_prompt_path)
+            self.fewshot_ost_prompt = ost_prompt
             self.fewshot_ost_config = read_json(args.fewshot_ost_config_path)
 
         if not args.disable_a5:  # A5: Rephrase the question/sub-question.
-            self.rephrasing_prompt_template = read_txt(args.rephrasing_prompt_template_path)
+            self.rephrasing_prompt_template = rephrase_prompt
             self.decompose_prompt_rephrased = read_txt(args.decompose_prompt_rephrased_path)
             self.fewshot_cot_prompt_rephrased = read_txt(args.fewshot_cot_prompt_rephrased_path)
             self.fewshot_ost_prompt_rephrased = read_txt(args.fewshot_ost_prompt_rephrased_path)
@@ -377,14 +378,16 @@ class Generator:
         return re_subanswer_list, value_list, potential_answers_list
 
     # NOTE 重述用户答案
-    def generate_rephrased_user_question(self, user_question: str):
+    def generate_rephrased_requirement(self, user_question: str):
         rephrased_user_question_list = []
-        io_input = self.rephrasing_prompt_template
-        io_input += "\n\n"
-        io_input += "Original Question: " + user_question + "\n"
-        io_input += "Rephrased Question: Given a list of conditions, please answer the question. Condition 1: "
-        io_output = self.io.generate(model_input=io_input, max_tokens=512, num_return=1, stop_tokens=["\n", "\n\n"])[0]
-        io_output = "Given a list of conditions, please answer the question. Condition 1: " + io_output
+        io_input = f"""
+{rephrase_prompt}
+
+Original requirement: {user_question}
+Rephrased requirement:
+"""
+        # TODO 直接用模型的回答去替换本来的prompt
+        io_output = self.io.generate(model_input=io_input, max_tokens=512, num_return=1, stop_tokens=rephrase_stop_token)[0]
         rephrased_user_question_list.append(io_output)
 
         #! generate potential answer to the user question
@@ -866,7 +869,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
             verbose_print(f"---- Generating rephrased user question for node {self.id}...", self.verbose)
 
             #! ACTION: generate paraphrased question for the root question
-            rephrased_user_question_list, potential_answers_list = self.generator.generate_rephrased_user_question(
+            rephrased_user_question_list, potential_answers_list = self.generator.generate_rephrased_requirement(
                 user_question=self.user_question
             )
             for rephrased_user_question, potential_answers in zip(rephrased_user_question_list, potential_answers_list):
