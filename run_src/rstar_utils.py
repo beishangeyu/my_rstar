@@ -691,15 +691,12 @@ def make_hint(
 
 
 # 组合成正确格式的 prompt, 让模型根据 function head, docstring, hint 直接生成答案
-def make_prompt(task: Dict, requirement: str, hint: str) -> str:
-    code = task["code"]
-    function_head = re.search(r"def .+?:", code).group(0)
-    test_case = task["test_list"][0][7:]
+def make_prompt(requirement: str, hint: str, func_head: str, test_case: str) -> str:
     prompt = f"""
 You are a Python assistant. Implement a Python function based on the given function head, docstring, and hint.
 
 [Function head and docstring]:
-{function_head}
+{func_head}
     '''
     {requirement}
     for example:
