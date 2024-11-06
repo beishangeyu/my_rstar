@@ -1,6 +1,8 @@
 # Licensed under the MIT license.
 
-from eval_src.toolkit_for_MATH.latex_answer_check import latex_answer_check as latex_equiv
+from eval_src.toolkit_for_MATH.latex_answer_check import (
+    latex_answer_check as latex_equiv,
+)
 
 import os, json, re
 from typing import List, Dict, Tuple
@@ -54,7 +56,9 @@ class Evaluator:
             return text
 
     # 找到出现次数最多的answer, 提供它对应的第一个completion和他在所有completion中的index, 以及confidence
-    def find_most_confident_answer(self, completions: List[str], prior_weights: List[float] = None):
+    def find_most_confident_answer(
+        self, completions: List[str], prior_weights: List[float] = None
+    ):
         """Returns the most confident answer, its completion, its id in the input list, and its confidence."""
         if completions is None or len(completions) == 0:
             return None, None, None, None
@@ -64,6 +68,7 @@ class Evaluator:
         # 把相同answer的completion放在一起
         for id, c in enumerate(completions):
             try:
+                # TODO 对于代码而言 code 即 answer, 不用再取出来, 但是要把注释去掉
                 model_answer = self.extract_answer_from_model_completion(c)
                 has_existed = False
                 for existing_answer in answer2completions.keys():
@@ -93,7 +98,9 @@ class Evaluator:
                 score = prior_weight * (count / len(completions))
                 completion2score[completion] = score
 
-            most_confident_completion = max(completion2score.keys(), key=lambda x: completion2score[x])
+            most_confident_completion = max(
+                completion2score.keys(), key=lambda x: completion2score[x]
+            )
 
             return (
                 self.extract_answer_from_model_completion(most_confident_completion),
@@ -102,21 +109,27 @@ class Evaluator:
                 completion2score[most_confident_completion],
             )
         else:
-            most_confident_answer = max(answer2completions.keys(), key=lambda x: len(answer2completions[x]))
+            most_confident_answer = max(
+                answer2completions.keys(), key=lambda x: len(answer2completions[x])
+            )
             assert (
                 len(answer2completions[most_confident_answer]) > 0
             ), "There are no completions for the most confident answer."
-            confidence = len(answer2completions[most_confident_answer]) / len(completions)
+            confidence = len(answer2completions[most_confident_answer]) / len(
+                completions
+            )
             assert confidence > 0
             return (
                 most_confident_answer,
                 # 选择该出现次数最多的answer的第一个completion
                 answer2completions[most_confident_answer][0],
                 answer2ids[most_confident_answer][0],
-                confidence, # 该answer出现的次数 / 总的completion数
+                confidence,  # 该answer出现的次数 / 总的completion数
             )
 
-    def stochastic_select_answer(self, completion2score, answer2completions, completions):
+    def stochastic_select_answer(
+        self, completion2score, answer2completions, completions
+    ):
         answer2score = {}
         answer_counts = {}
         for completion, score in completion2score.items():
@@ -161,18 +174,29 @@ class Evaluator:
         return completion2score
 
     def stochastic_select_response(self, completion2score, completions):
-        sorted_completions = sorted(completion2score.items(), key=lambda x: x[1], reverse=True)[:1]
+        sorted_completions = sorted(
+            completion2score.items(), key=lambda x: x[1], reverse=True
+        )[:1]
         completions, scores = zip(*sorted_completions)
         total_score = sum(scores)
         try:
             probabilities = [score / total_score for score in scores]
-            sampled_completion = random.choices(completions, weights=probabilities, k=1)[0]
+            sampled_completion = random.choices(
+                completions, weights=probabilities, k=1
+            )[0]
         except:
             sampled_completion = random.choices(completions, k=1)[0]
         confidence = completion2score[sampled_completion]
-        most_confident_answer = self.extract_answer_from_model_completion(sampled_completion)
+        most_confident_answer = self.extract_answer_from_model_completion(
+            sampled_completion
+        )
         id_of_most_confident = completions.index(sampled_completion)
-        return most_confident_answer, sampled_completion, id_of_most_confident, confidence
+        return (
+            most_confident_answer,
+            sampled_completion,
+            id_of_most_confident,
+            confidence,
+        )
 
     def stochastic_find_most_confident_answer(
         self,
@@ -194,12 +218,19 @@ class Evaluator:
         if not answer2completions:
             return None, None, None, None
 
-        completion2score = self.stochastic_calculate_completion_scores(prior_weights, answer2completions)
-
-        most_confident_answer, sampled_completion, id_of_most_confident, confidence = self.stochastic_select_response(
-            completion2score, completions
+        completion2score = self.stochastic_calculate_completion_scores(
+            prior_weights, answer2completions
         )
-        return most_confident_answer, sampled_completion, id_of_most_confident, confidence
+
+        most_confident_answer, sampled_completion, id_of_most_confident, confidence = (
+            self.stochastic_select_response(completion2score, completions)
+        )
+        return (
+            most_confident_answer,
+            sampled_completion,
+            id_of_most_confident,
+            confidence,
+        )
 
     def check_answers_equiv(self, answer_a: str, answer_b: str):
         raise NotImplementedError
@@ -211,235 +242,14 @@ class Evaluator:
         raise NotImplementedError
 
 
-class GSM8KEvaluator(Evaluator):
-    def __init__(self) -> None:
-        super().__init__()
-
+class PythonEvaluator(Evaluator):
     def check_answers_equiv(self, answer_a: str, answer_b: str):
-        """Judge whether two answers are equivalent."""
-        is_number_a, number_a = self._is_number(answer_a)
-        is_number_b, number_b = self._is_number(answer_b)
-        if is_number_a and is_number_b:
-            correct = number_a == number_b
-        else:
-            correct = False
+        pass
 
-        return correct
+    # TODO 即 task 的 code 部分
+    def extract_answer_from_gold_solution(self, solution: str) -> str:
+        return self.isolate_answer(solution)
 
-    def extract_answer_from_gold_solution(self, solution: str | float):
-        """Extract the answer from the gold solution."""
-        if isinstance(solution, float):
-            return str(solution)
-        return solution.split("#### ")[-1].strip()
-
-    def extract_answer_from_model_completion(self, completion: str):
-        """Extract the answer from the model completion."""
-        if completion is None:
-            return None
-
-        assert isinstance(completion, str)
-
-        preds = completion
-        preds = preds.split(self.answer_marker)
-        answer_flag = True if len(preds) > 1 else False
-        if answer_flag:
-            pred = preds[1]
-        else:
-            pred = preds[-1]
-
-        pred = pred.replace(",", "")
-        pred = [s for s in re.findall(r"-?\d+\.?\d*", pred)]
-
-        if len(pred) == 0:
-            return None
-        else:
-            if answer_flag:
-                pred = pred[0]
-            else:
-                pred = pred[-1]
-
-        if pred != "" and pred[-1] == ".":
-            pred = pred[:-1]
-
-        pred = pred.replace(",", "").replace("\n", "")
-        is_number, pred = self._is_number(pred)
-        if is_number:
-            return pred
-        else:
-            return None
-
-
-GSM8KHARDEvaluator = GSM8KEvaluator
-MULTIARITHEvaluator = GSM8KEvaluator
-
-
-class MATHEvaluator(Evaluator):
-    def __init__(self) -> None:
-        super().__init__()
-
-    def check_answers_equiv(self, answer_a: str, answer_b: str):
-        if answer_a is None or answer_b is None:
-            return False
-
-        if answer_a == "" or answer_b == "":
-            return False
-
-        answer_a = answer_a.strip()
-        answer_b = answer_b.strip()
-
-        if answer_a.lower() == answer_b.lower():
-            return True
-
-        try:
-            res = latex_equiv(answer_a, answer_b)
-        except Exception as e:
-            print(e)
-            res = False
-
-        return res
-
-    def extract_answer_from_gold_solution(self, solution: str):
-        def remove_boxed(s):
-            left = "\\boxed{"
-            try:
-                assert s[: len(left)] == left
-                assert s[-1] == "}"
-                return s[len(left) : -1]
-            except:
-                return None
-
-        def last_boxed_only_string(string):
-            idx = string.rfind("\\boxed")
-            if idx < 0:
-                idx = string.rfind("\\fbox")
-                if idx < 0:
-                    return None
-
-            i = idx
-            right_brace_idx = None
-            num_left_braces_open = 0
-            while i < len(string):
-                if string[i] == "{":
-                    num_left_braces_open += 1
-                if string[i] == "}":
-                    num_left_braces_open -= 1
-                    if num_left_braces_open == 0:
-                        right_brace_idx = i
-                        break
-                i += 1
-
-            if right_brace_idx == None:
-                retval = None
-            else:
-                retval = string[idx : right_brace_idx + 1]
-
-            return retval
-
-        return remove_boxed(last_boxed_only_string(solution))
-
-    def extract_answer_from_model_completion(self, completion):
-        answer_split = self.isolate_answer(completion)
-        return answer_split
-
-
-class SVAMPEvaluator(Evaluator):
-    def __init__(self) -> None:
-        super().__init__()
-
-    def check_answers_equiv(self, answer_a: str, answer_b: str):
-        """Judge whether two answers are equivalent."""
-        is_number_a, number_a = self._is_number(answer_a)
-        is_number_b, number_b = self._is_number(answer_b)
-        if is_number_a and is_number_b:
-            correct = number_a == number_b
-        else:
-            correct = False
-
-        return correct
-
-    def extract_answer_from_gold_solution(self, solution: str | float):
-        """Extract the answer from the gold solution."""
-        if isinstance(solution, float):
-            return str(solution)
-        return solution.strip()
-
-    def extract_answer_from_model_completion(self, completion: str):
-        """Extract the answer from the model completion."""
-        if completion is None:
-            return None
-
-        assert isinstance(completion, str)
-
-        preds = completion
-        preds = preds.split(self.answer_marker)
-        answer_flag = True if len(preds) > 1 else False
-        if answer_flag:
-            pred = preds[1]
-        else:
-            pred = preds[-1]
-
-        pred = pred.replace(",", "")
-        pred = [s for s in re.findall(r"-?\d+\.?\d*", pred)]
-
-        if len(pred) == 0:
-            return None
-        else:
-            if answer_flag:
-                pred = pred[0]
-            else:
-                pred = pred[-1]
-
-        if pred != "" and pred[-1] == ".":
-            pred = pred[:-1]
-
-        pred = pred.replace(",", "").replace("\n", "")
-        is_number, pred = self._is_number(pred)
-        if is_number:
-            return pred
-        else:
-            return None
-
-
-class STGEvaluator(Evaluator):
-    def __init__(self) -> None:
-        super().__init__()
-
-    # 将一些常见的肯定和否定的回答标准化为true或false
-    def _format_answer(self, answer: str):
-        if answer.lower() in ["proved", "true", "yes", "correct", "positive", "affirmative", "right", "1", "t", "y"]:
-            return "true"
-        elif answer.lower() in ["disproved", "false", "no", "incorrect", "negative", "wrong", "0", "f", "n"]:
-            return "false"
-        else:
-            return answer.lower()
-
-    # 其实就是比较两个字符串的相似度, 相似度大于90%就认为是相同的
-    def check_answers_equiv(self, answer_a: str, answer_b: str):
-        if answer_a is None or answer_b is None:
-            return False
-
-        assert isinstance(answer_a, str) and isinstance(answer_b, str)
-
-        format_answer_a = self._format_answer(answer_a)
-        format_answer_b = self._format_answer(answer_b)
-        return format_answer_a == format_answer_b or fuzz.token_sort_ratio(format_answer_a, format_answer_b) >= 90
-
-    def extract_answer_from_gold_solution(self, solution: str):
-        if solution is None:
-            return None
-
-        assert isinstance(solution, str)
-
-        return self._format_answer(solution)
-
-    def extract_answer_from_model_completion(self, completion: str):
-        if completion is None:
-            return None
-
-        assert isinstance(completion, str)
-
-        answer = self.isolate_answer(completion)
-        if answer is None:
-            return None
-
-        return self._format_answer(answer)
+    # TODO 应该负责去除代码中的注释部分
+    def extract_answer_from_model_completion(self, completion: str) -> str:
+        return self.isolate_answer(completion)

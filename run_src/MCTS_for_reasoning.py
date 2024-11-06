@@ -99,6 +99,7 @@ class Generator:
             confidence = 1
         else:
             # TODO 修改函数内部逻辑
+            # TAG
             _, most_confident_answer_full_completion, _, confidence = (
                 self.evaluator.find_most_confident_answer(io_output_list)
             )
