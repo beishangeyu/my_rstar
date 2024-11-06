@@ -59,7 +59,7 @@ class Generator:
         self.num_subquestions = args.num_subquestions
         self.num_a1_steps = args.num_a1_steps  # 默认为3
         self.num_votes = args.num_votes  # 默认是 32
-        # NOTE 这里设置生成的 max token
+        # NOTE 设置生成的 max token
         self.max_tokens = 1024
         self.enable_potential_score = args.enable_potential_score
 
@@ -89,50 +89,8 @@ class Generator:
                 args.fewshot_ost_prompt_rephrased_path
             )
 
-    def _extract_from_cache(self, subquestion_list: List[str]):
-        high_score_questions = []
-        selected_answers = []
-        values = []
-        low_score_questions = []
-        low_score_values = []
-        low_score_answers_list = []
-        unmatched_questions = []
+    # 从output_list中选择出现次数最多的answer和对应的completion
 
-        for subquestion in subquestion_list:
-            best_match = process.extractOne(
-                subquestion, self.reasoning_cache.keys(), scorer=fuzz.ratio
-            )
-
-            if best_match:
-                best_question, best_score = best_match[0], best_match[1]
-                similarity = best_score / 100
-                cache_entry = self.reasoning_cache[best_question]
-                score = cache_entry["score"]
-                if similarity == 1:
-                    if score >= 0.9:
-                        high_score_questions.append(best_question)
-                        selected_answers.append(cache_entry["selected_answer"])
-                        values.append(score)
-                    else:
-                        low_score_questions.append(best_question)
-                        low_score_values.append(score)
-                        low_score_answers_list.append(cache_entry["answer_list"])
-                else:
-                    unmatched_questions.append(subquestion)
-            else:
-                unmatched_questions.append(subquestion)
-
-        return {
-            "high_score_questions": high_score_questions,
-            "selected_answers": selected_answers,  # most likely answer corresponding to each subquestion
-            "values": values,
-            "low_score_questions": low_score_questions,
-            "low_score_values": low_score_values,
-            "low_score_answers_list": low_score_answers_list,
-            "unmatched_questions": unmatched_questions,
-        }
-
-    # 从output_list中选择出现次数最多的answer和对应的completion,
     def _get_most_likely_answer(self, io_output_list: List[str]) -> Tuple[str, float]:
         assert len(io_output_list) > 0
 
@@ -140,6 +98,7 @@ class Generator:
             most_confident_answer_full_completion = io_output_list[0]
             confidence = 1
         else:
+            # TODO 修改函数内部逻辑
             _, most_confident_answer_full_completion, _, confidence = (
                 self.evaluator.find_most_confident_answer(io_output_list)
             )
@@ -147,8 +106,8 @@ class Generator:
 
         return most_confident_answer_full_completion, confidence
 
-    # TODO 或许需要修改一下input的格式
-    def _fewshot_cot_answer_question(
+    # NOTE 生成 impl.
+    def _generate_impl(
         self,
         requirement: str,
         paraphrased: bool,
@@ -166,7 +125,7 @@ class Generator:
         # io_input = self.fewshot_cot_config["prompt_template"].format(
         #     examples=fewshot_cot_prompt, instruction=question
         # )
-        # XXX 直接用传进来构造好的 prompt
+        # TODO make prompt 或许可以根据类型的不同构造不同的 input
         io_input = make_prompt(
             requirement=requirement,
             hint=hint,
@@ -177,7 +136,7 @@ class Generator:
             model_input=io_input,
             num_return=num_return,
             max_tokens=self.max_tokens,
-            # stop_tokens=self.fewshot_cot_config["stop_tokens"], # TODO 去测试一下这里的 stop token 应该是什么
+            stop_tokens=["[Function head and docstring]:"],
         )
         cleaned_io_output_list = [
             io_output.strip() for io_output in io_output_list
@@ -197,8 +156,8 @@ class Generator:
 
         # TODO 父节点类型不同, prompt 格式也不一样
         direct_answer_list, value_list = [], []
-        num_return = self.mcts_num_last_votes
-        io_input, cleaned_io_output_list = self._fewshot_cot_answer_question(
+        num_return = self.mcts_num_last_votes  # 默认为32
+        io_input, cleaned_io_output_list = self._generate_impl(
             requirement=user_requirement,
             paraphrased=paraphrased,
             num_return=num_return,
@@ -209,6 +168,7 @@ class Generator:
 
         try:
             # 选择出现次数最多的答案返回, 这个答案次数的占比即 value
+            # TODO 这里的答案需要修改吗? 因为有多行
             most_likely_answer, likelihood = self._get_most_likely_answer(
                 cleaned_io_output_list
             )
