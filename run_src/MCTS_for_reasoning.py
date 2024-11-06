@@ -8,6 +8,7 @@ import numpy as np, os, random, json, math, wandb
 from tqdm import trange
 from typing import List, Dict, Tuple
 from copy import deepcopy
+import re
 
 try:
     from rapidfuzz import fuzz, process
@@ -33,6 +34,7 @@ from run_src.rstar_utils import (
     find_valid_solution_nodes,
     find_best_solution,
     stochastic_find_best_solution,
+    make_prompt,
 )
 from prompts.prompt import (
     ost_prompt,
@@ -56,8 +58,9 @@ class Generator:
 
         self.num_subquestions = args.num_subquestions
         self.num_a1_steps = args.num_a1_steps  # 默认为3
-        self.num_votes = args.num_votes
-        self.max_tokens = args.max_tokens
+        self.num_votes = args.num_votes  # 默认是 32
+        # NOTE 这里设置生成的 max token
+        self.max_tokens = 1024
         self.enable_potential_score = args.enable_potential_score
 
         self.mcts_num_last_votes = args.mcts_num_last_votes
@@ -146,22 +149,35 @@ class Generator:
 
     # TODO 或许需要修改一下input的格式
     def _fewshot_cot_answer_question(
-        self, question: str, paraphrased: bool, num_return: int, hint: str = None
+        self,
+        requirement: str,
+        paraphrased: bool,
+        num_return: int,
+        func_head: str,
+        test_case: str,
+        hint: str = None,
     ):
-        fewshot_cot_prompt = (
-            self.fewshot_cot_prompt
-            if not paraphrased
-            else self.fewshot_cot_prompt_rephrased
-        )
-        question += "\n\n" + hint if hint is not None else ""
-        io_input = self.fewshot_cot_config["prompt_template"].format(
-            examples=fewshot_cot_prompt, instruction=question
+        # fewshot_cot_prompt = (
+        #     self.fewshot_cot_prompt
+        #     if not paraphrased
+        #     else self.fewshot_cot_prompt_rephrased
+        # )
+        # question += "\n\n" + hint if hint is not None else ""
+        # io_input = self.fewshot_cot_config["prompt_template"].format(
+        #     examples=fewshot_cot_prompt, instruction=question
+        # )
+        # XXX 直接用传进来构造好的 prompt
+        io_input = make_prompt(
+            requirement=requirement,
+            hint=hint,
+            func_head=func_head,
+            test_case=test_case,
         )
         io_output_list = self.io.generate(
-            io_input,
+            model_input=io_input,
             num_return=num_return,
             max_tokens=self.max_tokens,
-            stop_tokens=self.fewshot_cot_config["stop_tokens"],
+            # stop_tokens=self.fewshot_cot_config["stop_tokens"], # TODO 去测试一下这里的 stop token 应该是什么
         )
         cleaned_io_output_list = [
             io_output.strip() for io_output in io_output_list
@@ -170,18 +186,25 @@ class Generator:
 
     # NOTE 直接生成答案
     def generate_direct_answers(
-        self, user_question: str, paraphrased: bool, hint: str, is_ost: bool
+        self,
+        user_requirement: str,
+        paraphrased: bool,
+        hint: str,
+        is_ost: bool,
+        func_head: str,
+        test_case: str,
     ):
 
         # TODO 父节点类型不同, prompt 格式也不一样
         direct_answer_list, value_list = [], []
-        #! few shot cot
         num_return = self.mcts_num_last_votes
         io_input, cleaned_io_output_list = self._fewshot_cot_answer_question(
-            question=user_question,
+            requirement=user_requirement,
             paraphrased=paraphrased,
             num_return=num_return,
             hint=hint,
+            func_head=func_head,
+            test_case=test_case,
         )
 
         try:
@@ -481,12 +504,17 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 hint = make_hint(self.solution_trace, self.node_type)
             else:
                 hint = None
+                code = self.task["code"]
+                func_head = re.search(r"def .+?:", code).group(0)
+                test_case = self.task["test_list"][0][7:]
 
             # TODO user question 应该组合
             (direct_answer_list, value_list) = self.generator.generate_direct_answers(
-                user_question=self.user_requirement,
+                user_requirement=self.user_requirement,
                 paraphrased=self.paraphrased,
                 hint=hint,
+                func_head=func_head,
+                test_case=test_case,
             )
             for direct_answer, value in zip(direct_answer_list, value_list):
                 if np.isnan(value) or value <= 0:
