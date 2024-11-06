@@ -665,7 +665,7 @@ def mask_subq_suba_trace(
     return masked_solution_traces
 
 
-# TODO 修改solution trace的组合方式
+# NOTE 把solution trace结合成hint
 def make_hint(
     solution_trace: Dict[int, Dict[str, str]],  # 只有第一个dict是有用的
     node_type: Node_Type,
@@ -675,7 +675,7 @@ def make_hint(
 ) -> str:
     # 这个函数只被 direct answer 调用, 利用过往的ost step来生成hint
     if node_type is Node_Type.OST_STEP:
-        hint = "Hint: "
+        hint = ""
         # 取出solution_trace中最后一个key value pair
         last_tuple = list(solution_trace.items())[-1]
         last_tuple_recording = last_tuple[1]
@@ -683,18 +683,33 @@ def make_hint(
         for step_id, step_text in last_tuple_recording["ost_step"].items():
             # 第一句话应该是 we can follow these step...
             if step_id == 0:
-                hint += step_text
+                hint += step_text + "\n"
             else:
                 hint += step_text + "\n"
-        # TODO 测试一下这种 prompt 模型的行为是否正常, 猜测还是需要加入标志部分
         if new_ost_step is not None:
             hint += new_ost_step + "\n"
 
-        hint = hint.strip(" ")
+        hint = hint.strip()
     else:
         raise ValueError(f"Invalid node type: {node_type}.")
 
     return hint
+
+
+# 组合成正确格式的 prompt, 让模型根据 function head, docstring, hint 直接生成答案
+def make_prompt(task: Dict, requirement: str, hint: str) -> str:
+    prompt = f"""
+You are a Python assistant. Implement a Python function based on the given function head, docstring, and hint.
+
+[Function head and docstring]:
+如果重述了需求, 要用重述后的需求
+
+[Hint]
+{hint}
+
+[Function implementation]
+"""
+    return prompt
 
 
 def make_response_prefix(
