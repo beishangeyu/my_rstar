@@ -133,13 +133,34 @@ if __name__ == "__main__":
     # Original requirement: Writing a python function to left rotating the bits of a afforded number
     # Rephrased requirement:
     # """
-    output = generate_with_vLLM_model(
-        model, input, stop=["[Function head and docstring]"]
-    )
-    print(output[0].outputs[0].text)
+    input = """
+You are a Python assistant. Implement a Python function based on the given function head, docstring, and hint.
+
+[Function head and docstring]:
+def max_aggregate(stdata):
+    '''
+    Write a function to calculate the maximum aggregate from the list of tuples.
+    for example:
+    max_aggregate([('Juan Whelan',90),('Sabah Colley',88),('Peter Nichols',7),('Juan Whelan',122),('Sabah Colley',84)])==('Juan Whelan', 212)
+    '''
+
+[Hint]
+To implement the max_aggregate function, we need to follow these steps:
+Step1: Understand the Input. The function takes a list of tuples (stdata). Each tuple represents a set of data points (e.g., scores, measurements).
+Step2: Define the Aggregate Calculation. Determine how to calculate the "aggregate" from each tuple. This could mean summing the values in the tuple, finding the maximum value, or some other form of aggregation.
+Step3: Initialize a Variable to Track the Maximum. Before iterating through the list, initialize a variable to store the maximum aggregate value found.
+Step4: Iterate Through the List of Tuples. For each tuple in the list, calculate the aggregate using the defined method.
+Step5: Update the Maximum Aggregate. Compare the current aggregate with the stored maximum, and update it if the current aggregate is greater.
+Step6: Return the Maximum Aggregate. After iterating through all tuples, return the maximum aggregate value.
+Step7: Implement the max_aggregate function
+
+[Function implementation]
+"""
     # last_output = ""
     # for i in range(10):
     #     input += last_output
     #     output = generate_with_vLLM_model(model, input, stop=ost_stop_token)
     #     last_output = output[0].outputs[0].text
     #     print(output[0].outputs[0].text)
+    output = generate_with_vLLM_model(model, input, stop=[], max_tokens=1024)
+    print(output[0].outputs[0].text)
