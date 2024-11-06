@@ -21,6 +21,7 @@ Step3: Initialize a Variable to Track the Maximum. Before iterating through the 
 Step4: Iterate Through the List of Tuples. For each tuple in the list, calculate the aggregate using the defined method.
 Step5: Update the Maximum Aggregate. Compare the current aggregate with the stored maximum, and update it if the current aggregate is greater.
 Step6: Return the Maximum Aggregate. After iterating through all tuples, return the maximum aggregate value.
+Step7: Implement the max_aggregate function
 
 [Function implementation]
 def max_aggregate(stdata):
@@ -49,12 +50,12 @@ def find_Odd_Pair(A,N):
 
 [Step to implement]
 To implement the find_Odd_Pair function, we can follow these steps:
-
 Step1: Understand the Input. The function takes a list A and an integer N, where N is the number of elements in the list A.
 Step2: Understand XOR Properties. The XOR of two numbers is odd if and only if one number is odd and the other is even. Therefore, we need to count how many odd and even numbers are present in the list.
 Step3: Count Odd and Even Numbers. Initialize two counters: one for odd numbers and one for even numbers. Iterate through the list to populate these counters.
 Step4: Calculate Pairs. The number of valid pairs (one odd, one even) can be calculated by multiplying the count of odd numbers by the count of even numbers.
 Step5: Return the Count. Finally, return the total count of such pairs.
+Step6: Implement the find_Odd_Pair function
 
 [Function implementation]
 def find_Odd_Pair(A, N):
@@ -74,7 +75,9 @@ def find_Odd_Pair(A, N):
     # The number of odd pairs is the product of odd_count and even_count
     return odd_count * even_count
 """
-ost_stop_token = ["[Function haed and docstring]", "\n\n"]
+# 因为一次只进行一步思考, 所以读到换行符就要停下来
+# XXX 如果 step 中含有 Return 则说明可以生成代码了
+ost_stop_token = ["\n\n", "\n"]
 
 
 # NOTE 重述用户的要求
@@ -105,29 +108,39 @@ rephrase_stop_token = ["\n\n"]
 if __name__ == "__main__":
     import sys
 
-    sys.path.append(".")
+    sys.path.append(".")  # 这个路径好像是以命令行的路径为准而不是这个文件所在的路径
     from models.vLLM_API import *
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1"  # 可以这样子设置可见显卡
+    # 设置使用的显卡
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     model_ckpt = "mistralai/Mistral-7B-v0.1"
     tokenizer, model = load_vLLM_model(
         model_ckpt, seed=42, tensor_parallel_size=1, half_precision=False
     )
-    #     input = ost_prompt + """
-    # [function head and docstring]
+    #     input = (
+    #         ost_prompt
+    #         + """
+    # [Function head and docstring]
     # def difference(n):
     # '''
     # Write a python function to find the difference between sum of cubes of first n natural numbers and the sum of first n natural numbers.
     # for example:
     # difference(3) == 30
     # '''
-    # [step to implement]
+    # [Step to implement]
     # """
-    #     input = rephrase_prompt + """
+    #     )
+    # input = rephrase_prompt + """
     # Original requirement: Writing a python function to left rotating the bits of a afforded number
     # Rephrased requirement:
     # """
     output = generate_with_vLLM_model(
-        model, input, stop=["Original requirement", "\n\n"]
+        model, input, stop=["[Function head and docstring]"]
     )
     print(output[0].outputs[0].text)
+    # last_output = ""
+    # for i in range(10):
+    #     input += last_output
+    #     output = generate_with_vLLM_model(model, input, stop=ost_stop_token)
+    #     last_output = output[0].outputs[0].text
+    #     print(output[0].outputs[0].text)
