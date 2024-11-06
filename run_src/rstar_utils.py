@@ -673,17 +673,18 @@ def make_hint(
     new_suba=None,
     new_ost_step=None,
 ) -> str:
+    # 这个函数只被 direct answer 调用, 所以就是利用过往的ost step来生成hint
     if node_type is Node_Type.OST_STEP:
-        hint = "Hint: "
+        hint = "Hint: \n"
         # 取出solution_trace中最后一个key value pair
         last_tuple = list(solution_trace.items())[-1]
         last_tuple_recording = last_tuple[1]
         assert last_tuple_recording["ost_step"]
         for step_id, step_text in last_tuple_recording["ost_step"].items():
-            hint += step_text + " "
+            hint += step_text + "\n"
 
         if new_ost_step is not None:
-            hint += new_ost_step
+            hint += new_ost_step + "\n"
 
         hint = hint.strip(" ")
     else:
