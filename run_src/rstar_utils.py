@@ -4,7 +4,6 @@ from enum import Enum, unique
 import re
 import math
 from typing import Dict, Tuple
-from colorama import Fore, Style
 import math
 from eval_src import Evaluator
 
@@ -104,12 +103,7 @@ def print_tree_from_root(
             node_info = "[" + node_info + "]"
         node_info += " "
 
-        if color_print and node.is_valid_solution_node():
-            node_details = (
-                Fore.RED + Style.BRIGHT + node_info + Fore.RESET + Style.RESET_ALL
-            )
-        else:
-            node_details = node_info
+        node_details = node_info
 
         if node.node_type is Node_Type.USER_QUESTION:
             gt = node.expected_answer.replace("\n", " ")
