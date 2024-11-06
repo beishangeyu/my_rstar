@@ -76,7 +76,6 @@ def find_Odd_Pair(A, N):
     return odd_count * even_count
 """
 # 因为一次只进行一步思考, 所以读到换行符就要停下来
-# XXX 如果 step 中含有 Return 则说明可以生成代码了
 ost_stop_token = ["\n\n", "\n"]
 
 
