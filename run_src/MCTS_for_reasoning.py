@@ -266,6 +266,8 @@ class Reasoning_MCTS_Node(MCTS_Node):
         parent: "Reasoning_MCTS_Node",
         depth: int,
         node_type: Node_Type,
+        # 直接把整个样本传进来
+        task: str,
         verbose: bool = False,
         # --- For instantiating root node ---
         node_value: float = None,
@@ -386,6 +388,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
         self.node_value = node_value
         self.direct_answer = direct_answer
         self.ost_step = ost_step
+        self.task = task
 
         # root node
         if parent is None:
@@ -479,6 +482,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
             else:
                 hint = None
 
+            # TODO user question 应该组合
             (direct_answer_list, value_list) = self.generator.generate_direct_answers(
                 user_question=self.user_requirement,
                 paraphrased=self.paraphrased,
