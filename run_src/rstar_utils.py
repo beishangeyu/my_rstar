@@ -673,16 +673,20 @@ def make_hint(
     new_suba=None,
     new_ost_step=None,
 ) -> str:
-    # 这个函数只被 direct answer 调用, 所以就是利用过往的ost step来生成hint
+    # 这个函数只被 direct answer 调用, 利用过往的ost step来生成hint
     if node_type is Node_Type.OST_STEP:
-        hint = "Hint: \n"
+        hint = "Hint: "
         # 取出solution_trace中最后一个key value pair
         last_tuple = list(solution_trace.items())[-1]
         last_tuple_recording = last_tuple[1]
         assert last_tuple_recording["ost_step"]
         for step_id, step_text in last_tuple_recording["ost_step"].items():
-            hint += step_text + "\n"
-
+            # 第一句话应该是 we can follow these step...
+            if step_id == 0:
+                hint += step_text
+            else:
+                hint += step_text + "\n"
+        # TODO 测试一下这种 prompt 模型的行为是否正常, 猜测还是需要加入标志部分
         if new_ost_step is not None:
             hint += new_ost_step + "\n"
 
