@@ -144,6 +144,7 @@ class Generator:
 
         return most_confident_answer_full_completion, confidence
 
+    # TODO 或许需要修改一下input的格式
     def _fewshot_cot_answer_question(
         self, question: str, paraphrased: bool, num_return: int, hint: str = None
     ):
