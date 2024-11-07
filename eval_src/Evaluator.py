@@ -238,20 +238,16 @@ class Evaluator:
 
 
 class PythonEvaluator(Evaluator):
-    # TODO 用于比较两个函数是否相等的, 直接比较即可
+    # 比较两个函数是否相等
     def check_answers_equiv(self, answer_a: str, answer_b: str):
-        # 还要去除空行
-        answer_a = remove_comments(answer_a)
-        answer_b = remove_comments(answer_b)
         return answer_a == answer_b
 
     # TODO 即 task 的 code 部分
     def extract_answer_from_gold_solution(self, solution: str) -> str:
         return self.isolate_answer(solution)
 
-    # TODO 应该负责去除代码中的注释部分
     def extract_answer_from_model_completion(self, completion: str) -> str:
-        return self.isolate_answer(completion)
+        return remove_comments(completion)
 
 
 # 去除注释和空行
