@@ -25,26 +25,6 @@ def fix_seeds(seed):
     torch.backends.cudnn.benchmark = False
 
 
-def read_json(file_path):
-    assert str(file_path).endswith(".json")
-    with open(file_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    return data
-
-
-def save_json(js_obj, file_path):
-    assert str(file_path).endswith(".json")
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(js_obj, f, indent=4)
-
-
-def read_txt(file_path):
-    assert str(file_path).endswith(".txt")
-    with open(file_path, "r", encoding="utf-8") as f:
-        data = f.read()
-    return data
-
-
 def write_jsonl(filename: str, data: Iterable[Dict], append: bool = False):
     if append:
         mode = "ab"
@@ -115,6 +95,7 @@ def shuffleDict(d):
     return dict(keys)
 
 
+# TODO data reader 也要更改, 别忘记改成支持中断重传的那种
 def data_reader(args):
     questions = []
     answers = []
