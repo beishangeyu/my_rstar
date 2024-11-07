@@ -44,20 +44,7 @@ def main(args):
             data_item["code"],
         )
 
-        # 直接在这个基础上增加不就可以了
-        js = {
-            "id": problem_id,
-            "problem": problem,
-            "model_completion": None,
-            "model_answer": None,
-            "all_model_completions": {},
-            "gold_solution": gt_solution,
-            "gold_answer": gt_answer,
-        }
-
         model_solutions, stopping_id, model_all_solutions = [], -1, []
-
-        # try:
         model_solutions, stopping_id, model_all_solutions = search_for_answers(
             args=args,
             user_question=problem,
@@ -65,38 +52,11 @@ def main(args):
             gt_answer=gt_solution,
             generator=generator,
         )
-        # except GeneratorError as e:
-        #     print(e)
-        #     js["generator_error"] = {
-        #         "source": e.source,
-        #         "io_input": e.io_input,
-        #         "io_output_list": e.io_output_list,
-        #     }
-        # except Exception as e:
-        #     print(e)
-        #     js["other_error"] = {"text": str(e)}
 
         num_tested += 1
 
-        # TODO 更改保存文件的方式
-        with open(
-            os.path.join(args.gene_result, f"Question {i:04d} - Answer.json"), "w"
-        ) as f:
-            json.dump(js, f)
-
     end_time = time.time()
-
-    print(
-        f"==> Total calls: {generator.io.call_counter}, Avg calls: {generator.io.call_counter/(num_tested):.2f}"
-    )
-    print(
-        f"==> Total tokens: {generator.io.token_counter}, Avg tokens: {generator.io.token_counter/(num_tested):.2f}"
-    )
-    print(
-        f"==> Total time: {end_time-start_time:.2f}s, Avg time: {(end_time-start_time)/(num_tested):.2f}s"
-    )
-
-    with open(os.path.join(args.run_outputs_dir, "final_result.txt"), "w") as f:
+    with open(os.path.join(args.gene_result, "final_result.txt"), "w") as f:
         f.write(
             f"Total calls: {generator.io.call_counter}, Avg calls: {generator.io.call_counter/(num_tested):.2f}\n"
         )
@@ -119,10 +79,12 @@ if __name__ == "__main__":
 
     # MCTS
     parser.add_argument("--mcts_discount_factor", type=float, default=1.0)
-    parser.add_argument("--mcts_exploration_weight", type=float, default=2.0)
+    parser.add_argument(
+        "--mcts_exploration_weight", type=float, default=2.0
+    )  # 探索权重
     parser.add_argument(
         "--mcts_weight_scheduler", choices=["exp", "lin", "const"], default="const"
-    )
+    )  # 动态调整探索权重
     parser.add_argument("--mcts_num_last_votes", type=int, default=None)
     parser.add_argument("--save_tree", action="store_true")
 
