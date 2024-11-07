@@ -49,14 +49,8 @@ def write_jsonl(filename: str, data: Iterable[Dict], append: bool = True):
             fp.write((json.dumps(x) + "\n").encode("utf-8"))
 
 
-# https://review-of-my-life.blogspot.com/2017/11/python-dict-shuffle.html
 def shuffleDict(d):
     keys = list(d.keys())
     random.shuffle(keys)
-    [(key, d[key]) for key in keys]
-    random.shuffle(keys)
-    [(key, d[key]) for key in keys]
-    random.shuffle(keys)
-    keys = [(key, d[key]) for key in keys]
-    # keys = d(keys)
-    return dict(keys)
+    shuffled_dict = {key: d[key] for key in keys}
+    return shuffled_dict
