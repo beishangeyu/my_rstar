@@ -30,21 +30,12 @@ def main(args):
     evaluator = eval(f"{args.dataset_name}Evaluator()")
 
     tokenizer, model = None, None
-    # TODO 直接设置api为vllm
-    if args.api == "huggingface":
-        from models.HuggingFace_API import load_HF_model
-
-        tokenizer, model = load_HF_model(args.model_ckpt)
-    elif args.api == "vllm":
+    if args.api == "vllm":
         from models.vLLM_API import load_vLLM_model
 
         tokenizer, model = load_vLLM_model(
             args.model_ckpt, args.seed, args.tensor_parallel_size, args.half_precision
         )
-    elif args.api == "gpt3.5-turbo":
-        from models.OpenAI_API import load_OpenAI_model
-
-        tokenizer, model = load_OpenAI_model(args.model_ckpt)
     generator = Generator(args, tokenizer, model, evaluator)
 
     total_correct = 0
