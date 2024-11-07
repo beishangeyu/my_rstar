@@ -7,7 +7,7 @@ import random
 import numpy as np
 import torch
 import multiprocessing
-from typing import Tuple
+from typing import Tuple, Iterable, Dict
 from statistics import mean
 from torch.utils.data import Dataset
 import jsonlines
@@ -23,19 +23,6 @@ def fix_seeds(seed):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-
-
-def setup_model_parallel() -> Tuple[int, int]:
-    from fairscale.nn.model_parallel.initialize import initialize_model_parallel
-
-    local_rank = int(os.environ.get("LOCAL_RANK", -1))
-    world_size = int(os.environ.get("WORLD_SIZE", -1))
-
-    torch.distributed.init_process_group("nccl")
-    initialize_model_parallel(world_size)
-    torch.cuda.set_device(local_rank)
-
-    return local_rank, world_size
 
 
 def read_json(file_path):
@@ -58,6 +45,17 @@ def read_txt(file_path):
     return data
 
 
+def write_jsonl(filename: str, data: Iterable[Dict], append: bool = False):
+    if append:
+        mode = "ab"
+    else:
+        mode = "wb"
+    filename = os.path.expanduser(filename)
+    with open(filename, mode) as fp:
+        for x in data:
+            fp.write((json.dumps(x) + "\n").encode("utf-8"))
+
+
 def regex_calibrate(output_text: str):
     """
     use regex to extract_answer_from_response the mathematic equation and use python to correct answer
@@ -67,7 +65,11 @@ def regex_calibrate(output_text: str):
     def evaluate_expression(expression):
         cleaned_expression = re.sub(r"\s+\.", ".", expression)
         cleaned_expression = re.sub(r"\.\s+", ".", cleaned_expression)
-        cleaned_expression = cleaned_expression.replace(" x ", " * ").replace("$", "").replace("%", "/100")
+        cleaned_expression = (
+            cleaned_expression.replace(" x ", " * ")
+            .replace("$", "")
+            .replace("%", "/100")
+        )
         cleaned_expression = re.sub(r"\s+", "", cleaned_expression)
         try:
             return eval(cleaned_expression, {}, {})
@@ -85,7 +87,11 @@ def regex_calibrate(output_text: str):
             correct_answer = f"{correct_answer:.6f}"
         else:
             correct_answer = int(correct_answer)
-        return f" {expression.strip()} = {unit}{correct_answer} " if correct_answer is not None else match.group(0)
+        return (
+            f" {expression.strip()} = {unit}{correct_answer} "
+            if correct_answer is not None
+            else match.group(0)
+        )
 
     calibrated_text = re.sub(equation_regex, handle_units, output_text)
     calibrated_text = calibrated_text.strip()
