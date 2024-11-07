@@ -16,7 +16,7 @@ except:
     pass
 
 from models.IO_System import IO_System
-from common.utils import read_txt, read_json
+from common.utils import write_jsonl
 from eval_src.Evaluator import Evaluator, GSM8KEvaluator
 from MCTS_backbone import MCTS_Searcher, MCTS_Node
 from run_src.rstar_utils import (
@@ -682,32 +682,23 @@ def search_for_answers(
                     file=f,
                 )
 
-    # TODO 更改保存 文件的方式
-    # 记录最终整个树里所有的 solution node
-    js = [
+    # NOTE 记录最终整个树里所有的 solution node
+    path1 = os.path.join(
+        args.answer_sheets_dir, f"Task_id_{question_id}_all_solutions.jsonl"
+    )
+    all_solutions = [
         {"trace": node.solution_trace, "rollout_id": node.rollout_id}
         for node in all_solution_nodes
     ]
-    with open(
-        os.path.join(
-            args.answer_sheets_dir, f"Question {question_id:04d} - Final Solutions.json"
-        ),
-        "w",
-    ) as f:
-        json.dump(js, f)
+    write_jsonl(path1, all_solutions, append=True)
 
-    # 记录每次 rollout 得到的路径中最后一个节点
-    js2 = [
-        {"trace": node.solution_trace, "rollout_id": i}
-        for i, node in enumerate(model_rollout_nodes)
-    ]
-    with open(
-        os.path.join(
-            args.answer_sheets_dir,
-            f"Question {question_id:04d} - Rollout Solutions.json",
-        ),
-        "w",
-    ) as f:
-        json.dump(js2, f)
+    # NOTE 记录每次 rollout 新增的那个 solution
+    path2 = os.path.join(
+        args.answer_sheets_dir, f"Task_id_{question_id}_new_solution_per_rollout.json"
+    )
+    new_solution_per_rollout = []
+    for i, node in enumerate(model_rollout_nodes):
+        new_solution_per_rollout.append({"trace": node.solution_trace, "rollout_id": i})
+    write_jsonl(path2, new_solution_per_rollout, append=True)
 
     return model_solutions, i, model_all_solutions
