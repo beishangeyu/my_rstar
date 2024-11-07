@@ -692,13 +692,13 @@ def search_for_answers(
     ]
     write_jsonl(path1, all_solutions, append=True)
 
-    # NOTE 记录每次 rollout 路径中最后的节点
+    # NOTE 记录每次simulate的路径中最后的节点
     path2 = os.path.join(
-        args.answer_sheets_dir, f"Task_id_{question_id}_all_rollout_nodes.json"
+        args.answer_sheets_dir, f"Task_id_{question_id}_last_node_per_simulate.json"
     )
-    all_rollout_nodes = []
+    last_node_per_simulate = []
     for i, node in enumerate(model_rollout_nodes):
-        all_rollout_nodes.append({"trace": node.solution_trace, "rollout_id": i})
-    write_jsonl(path2, all_rollout_nodes, append=True)
+        last_node_per_simulate.append({"trace": node.solution_trace, "rollout_id": i})
+    write_jsonl(path2, last_node_per_simulate, append=True)
 
     return model_solutions, i, model_all_solutions
