@@ -7,7 +7,7 @@ from eval_src.Evaluator import *
 from MCTS_for_reasoning import Generator, search_for_answers
 from run_src.rstar_utils import GeneratorError
 from common.arguments import get_parser, post_process_args, save_args
-from common.utils import fix_seeds, setup_model_parallel, read_json
+from common.utils import fix_seeds, read_jsonl, write_jsonl, load_dataset
 import os
 import json
 import time
@@ -16,18 +16,12 @@ from tqdm import tqdm
 
 def main(args):
     fix_seeds(args.seed)
-    if args.model_parallel:
-        args.local_rank, args.world_size = setup_model_parallel()
-    else:
-        args.local_rank, args.world_size = 0, 1
 
-    test_file = os.path.join(
-        args.data_root, args.dataset_name, args.test_json_filename + ".json"
-    )
-    assert os.path.exists(test_file), f"Test file {test_file} does not exist."
-    data_item_list = read_json(test_file)
+    args.local_rank, args.world_size = 0, 1
 
-    evaluator = eval(f"{args.dataset_name}Evaluator()")
+    dataset_path = f"./data/{args.dataset_name}.jsonl"
+    dataset = read_jsonl(dataset_path)
+    evaluator = PythonEvaluator()
 
     tokenizer, model = None, None
     if args.api == "vllm":
@@ -38,18 +32,12 @@ def main(args):
         )
     generator = Generator(args, tokenizer, model, evaluator)
 
-    total_correct = 0
-    total_correct_limit = 0
     num_tested = 0
     start_time = time.time()
 
     # TODO 加入中断后恢复重传的功能
     for i, data_item in enumerate(
-        (
-            pbar := tqdm(
-                data_item_list, disable=args.local_rank > 0 or args.verbose, position=1
-            )
-        )
+        (pbar := tqdm(dataset, disable=args.local_rank > 0 or args.verbose, position=1))
     ):
         if i < args.start_idx or i >= args.end_idx:
             continue
@@ -138,13 +126,10 @@ if __name__ == "__main__":
     #! -------------------------------- Arguments --------------------------------
     parser = get_parser()
 
+    # 数据集的名称
+    parser.add_argument("--dataset_name", type=str)
+
     parser.add_argument("--num_rollouts", type=int, default=15)
-    parser.add_argument(
-        "--num_subquestions",
-        type=int,
-        default=3,
-        help="Number of trials for proposing the next subquestion",
-    )
     parser.add_argument("--num_votes", type=int, default=10)
     parser.add_argument("--max_depth_allowed", type=int, default=5)
 
@@ -159,16 +144,9 @@ if __name__ == "__main__":
 
     # Action1: Propose an one-step thought.
     parser.add_argument("--num_a1_steps", type=int, default=None)
-    parser.add_argument("--disable_a1", action="store_true")
 
     # Paraphrasing
     parser.add_argument("--modify_prompts_for_rephrasing", action="store_true")
-    parser.add_argument("--disable_a5", action="store_true")
-
-    #! -------------------------- Used for selecting answer --------------------------
-    parser.add_argument("--enable_potential_score", action="store_true")
-
-    #! -------------------------------------------------------------------------------
 
     args = parser.parse_args()
 
