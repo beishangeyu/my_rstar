@@ -513,6 +513,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
                     )
                 )
 
+        # NOTE 生成单步思考
         def do_action_generate_ost_step(parent_is_subquestion=False):
             verbose_print(
                 f"---- Generating one-step thought steps for node {self.id}...",
@@ -520,22 +521,19 @@ class Reasoning_MCTS_Node(MCTS_Node):
             )
 
             #! ACTION: generate one-step thought step
-            ost_step_list, potential_answers_list = self.generator.generate_ost_step(
+            ost_step_list = self.generator.generate_ost_step(
                 user_question=self.user_requirement,
                 solution_trace=self.solution_trace,
                 paraphrased=self.paraphrased,
                 parent_is_subquestion=parent_is_subquestion,
             )
-            for ost_step, potential_answers in zip(
-                ost_step_list, potential_answers_list
-            ):
+            for ost_step in ost_step_list:
                 self.children.append(
                     Reasoning_MCTS_Node(
                         parent=self,
                         depth=self.depth + 1,
                         node_type=Node_Type.OST_STEP,
                         ost_step=ost_step,
-                        potential_answers=deepcopy(potential_answers),
                     )
                 )
 
@@ -551,7 +549,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
             # A5: Rephrase the question/sub-question.
             if not self.disable_a5:
                 do_action_generate_rephrased_user_question()
-
         elif self.node_type is Node_Type.REPHRASED_USER_QUESTION:
             # A1: Propose an one-step thought.
             if not self.disable_a1:
@@ -559,15 +556,11 @@ class Reasoning_MCTS_Node(MCTS_Node):
 
             # A2: Propose the remaining thought steps
             do_action_generate_direct_answers()
-
         elif self.node_type is Node_Type.DIRECT_ANSWER:
             raise ValueError("DIRECT_ANSWER node cannot create children!!")
+        # 先生成单步思考之后生成答案
         elif self.node_type is Node_Type.OST_STEP:
-            # A1: Propose an one-step thought.
-            if not self.disable_a1:
-                do_action_generate_ost_step()
-
-            # A2: Propose the remaining thought steps
+            do_action_generate_ost_step()
             do_action_generate_direct_answers()
 
         assert self.children
@@ -585,9 +578,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
             self.node_type is Node_Type.OST_STEP
             and reach_terminal_ost_step(self.ost_step)
         ) or self.node_type is Node_Type.DIRECT_ANSWER
-
-    def set_potential_score(self, score: float):
-        self.potential_score = score
 
     def find_children(self, rollout_id: int):
         self.children = self.children or self._create_children()
