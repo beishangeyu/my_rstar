@@ -90,7 +90,6 @@ class Generator:
             )
 
     # 从output_list中选择出现次数最多的answer和对应的completion
-
     def _get_most_likely_answer(self, io_output_list: List[str]) -> Tuple[str, float]:
         assert len(io_output_list) > 0
 
@@ -98,8 +97,6 @@ class Generator:
             most_confident_answer_full_completion = io_output_list[0]
             confidence = 1
         else:
-            # TODO 修改函数内部逻辑
-            # TAG
             _, most_confident_answer_full_completion, _, confidence = (
                 self.evaluator.find_most_confident_answer(io_output_list)
             )
@@ -126,6 +123,7 @@ class Generator:
         # io_input = self.fewshot_cot_config["prompt_template"].format(
         #     examples=fewshot_cot_prompt, instruction=question
         # )
+
         # TODO make prompt 或许可以根据类型的不同构造不同的 input
         io_input = make_prompt(
             requirement=requirement,
@@ -652,10 +650,12 @@ def search_for_answers(
     model_solutions = []
     model_all_solutions = []
     model_rollout_nodes = []
+    # 进行指定次数次 rollout
     for i in (pbar := trange(args.num_rollouts, disable=True, position=0)):
         rollout_node = mcts_searcher.do_rollout(root_node, i)
         model_rollout_nodes.append(rollout_node)
 
+        # 每次 rollout 找出 best_solution 和 所有 solution
         _, best_solution, _, chosen_node, all_solution_nodes, all_solutions = (
             stochastic_find_best_solution(
                 root_node,
@@ -682,8 +682,8 @@ def search_for_answers(
                     file=f,
                 )
 
-    # TAG
-    #! record final traces
+    # TODO 更改保存 文件的方式
+    # 记录最终整个树里所有的 solution node
     js = [
         {"trace": node.solution_trace, "rollout_id": node.rollout_id}
         for node in all_solution_nodes
@@ -696,6 +696,7 @@ def search_for_answers(
     ) as f:
         json.dump(js, f)
 
+    # 记录每次 rollout 得到的路径中最后一个节点
     js2 = [
         {"trace": node.solution_trace, "rollout_id": i}
         for i, node in enumerate(model_rollout_nodes)
@@ -708,15 +709,5 @@ def search_for_answers(
         "w",
     ) as f:
         json.dump(js2, f)
-
-    if args.enable_potential_score:
-        js = [node.potential_answers_history for node in all_solution_nodes]
-        with open(
-            os.path.join(
-                args.answer_sheets_dir, f"Question {question_id:04d} - Potentials.json"
-            ),
-            "w",
-        ) as f:
-            json.dump(js, f)
 
     return model_solutions, i, model_all_solutions
