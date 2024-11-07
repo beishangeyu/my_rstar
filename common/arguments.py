@@ -63,23 +63,10 @@ def get_parser():
         choices=allowed_dataset_names,
         help=f"Test dataset name: Choose from {allowed_dataset_names}.",
     )
-    parser.add_argument("--test_json_filename", type=str, default="test_all")
-    parser.add_argument(
-        "--start_idx",
-        type=int,
-        default=0,
-        help="Start index of test questions (inclusive)",
-    )
-    parser.add_argument(
-        "--end_idx",
-        type=int,
-        default=math.inf,
-        help="End index of test questions (inclusive))",
-    )
 
-    #! outputs settings
-    parser.add_argument("--run_outputs_root", type=str, default="run_outputs")
-    parser.add_argument("--eval_outputs_root", type=str, default="eval_outputs")
+    # do generate 和 do eval 结果的保存路径
+    parser.add_argument("--gene_result", type=str, default="gene_result")
+    parser.add_argument("--eval_result", type=str, default="eval_result")
 
     return parser
 
