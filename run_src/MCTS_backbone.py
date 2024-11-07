@@ -70,9 +70,15 @@ class MCTS_Searcher:
         discount: float,
         verbose: bool = False,
     ):
-        self.Q: Dict[MCTS_Node, float] = defaultdict(lambda: 0.0)  # total reward of each node
-        self.N: Dict[MCTS_Node, int] = defaultdict(lambda: 0)  # total visit count for each node
-        self.parent2children: Dict[MCTS_Node, List[MCTS_Node]] = dict()  # children of each node
+        self.Q: Dict[MCTS_Node, float] = defaultdict(
+            lambda: 0.0
+        )  # total reward of each node
+        self.N: Dict[MCTS_Node, int] = defaultdict(
+            lambda: 0
+        )  # total visit count for each node
+        self.parent2children: Dict[MCTS_Node, List[MCTS_Node]] = (
+            dict()
+        )  # children of each node
 
         #! explored = expanded + simulated, i.e. has seen terminal at least once, i.e. we can calculate its UCT value, i.e. has Q and N
         self.explored_nodes = set()
@@ -87,7 +93,7 @@ class MCTS_Searcher:
         global node_cnt
         node_cnt = 0
 
-    # 选一个节点扩展, 然后模拟, 返回模拟得到的路径中最后一个节点
+    # 选一个节点扩展, 然后模拟, 返回得到的路径中最后一个节点
     def do_rollout(self, root_node: MCTS_Node, rollout_id: int):
         "Make the tree one layer better. (Train for one iteration.)"
         verbose_print("==> Selecting a node...", self.verbose)
@@ -115,7 +121,9 @@ class MCTS_Searcher:
 
             # case 2: a node has children but not all children have been explored, then randomly select an unexplored child
             # unexplored = set(self.parent2children[node]) - self.explored_nodes   # `set` introduces randomness
-            unexplored = [n for n in self.parent2children[node] if n not in self.explored_nodes]
+            unexplored = [
+                n for n in self.parent2children[node] if n not in self.explored_nodes
+            ]
             if unexplored:
                 n = random.choice(unexplored)
                 path.append(n)
@@ -147,13 +155,17 @@ class MCTS_Searcher:
             if cur_node not in self.parent2children.keys():
                 self.parent2children[cur_node] = cur_node.find_children(rollout_id)
 
-            cur_node = random.choice(self.parent2children[cur_node])  # randomly select a child
+            cur_node = random.choice(
+                self.parent2children[cur_node]
+            )  # randomly select a child
             path.append(cur_node)
 
     def _backpropagate(self, path: List[MCTS_Node]):
         "Send the reward back up to the ancestors of the leaf"
         leaf = path[-1]
-        reward = leaf.calculate_reward() # reward 是 best answer(所有 completion 中, 出现次数最多的 answer. answer 是答案, completion 还包含推理过程)的出现次数 / completion 的总数
+        reward = (
+            leaf.calculate_reward()
+        )  # reward 是 best answer(所有 completion 中, 出现次数最多的 answer. answer 是答案, completion 还包含推理过程)的出现次数 / completion 的总数
         for node in reversed(path):
             self.Q[node] += reward
             self.N[node] += 1
@@ -164,7 +176,9 @@ class MCTS_Searcher:
         if self.weight_scheduler == "exp":
             return self.exploration_weight * (0.1 ** (rollout_id / self.num_rollouts))
         elif self.weight_scheduler == "lin":
-            return self.exploration_weight * (1 - 0.9 * (rollout_id / self.num_rollouts))
+            return self.exploration_weight * (
+                1 - 0.9 * (rollout_id / self.num_rollouts)
+            )
         elif self.weight_scheduler == "const":
             return self.exploration_weight
 
@@ -175,7 +189,10 @@ class MCTS_Searcher:
         assert all(n in self.explored_nodes for n in self.parent2children[node])
 
         return max(
-            self.parent2children[node], key=lambda n: self._compute_uct(parent_node=node, node=n, rollout_id=rollout_id)
+            self.parent2children[node],
+            key=lambda n: self._compute_uct(
+                parent_node=node, node=n, rollout_id=rollout_id
+            ),
         )
 
     def _compute_uct(self, parent_node: MCTS_Node, node: MCTS_Node, rollout_id: int):
@@ -187,4 +204,6 @@ class MCTS_Searcher:
                 return 999
             else:
                 weight = self._get_weight(rollout_id)
-                return self.Q[node] / self.N[node] + weight * math.sqrt(math.log(self.N[parent_node]) / self.N[node])
+                return self.Q[node] / self.N[node] + weight * math.sqrt(
+                    math.log(self.N[parent_node]) / self.N[node]
+                )
