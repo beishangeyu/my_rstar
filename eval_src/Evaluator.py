@@ -1,9 +1,4 @@
 # Licensed under the MIT license.
-
-from eval_src.toolkit_for_MATH.latex_answer_check import (
-    latex_answer_check as latex_equiv,
-)
-
 import os, json, re
 from typing import List, Dict, Tuple
 from collections import defaultdict
@@ -243,8 +238,12 @@ class Evaluator:
 
 
 class PythonEvaluator(Evaluator):
+    # TODO 用于比较两个函数是否相等的, 直接比较即可
     def check_answers_equiv(self, answer_a: str, answer_b: str):
-        pass
+        # 还要去除空行
+        answer_a = remove_comments(answer_a)
+        answer_b = remove_comments(answer_b)
+        return answer_a == answer_b
 
     # TODO 即 task 的 code 部分
     def extract_answer_from_gold_solution(self, solution: str) -> str:
@@ -253,3 +252,48 @@ class PythonEvaluator(Evaluator):
     # TODO 应该负责去除代码中的注释部分
     def extract_answer_from_model_completion(self, completion: str) -> str:
         return self.isolate_answer(completion)
+
+
+# 去除注释和空行
+def remove_comments(code: str) -> str:
+    pattern = r"(\"\"\".*?\"\"\"|\'\'\'.*?\'\'\'|#.*?$)"
+    # 去除注释
+    code = re.sub(pattern, "", code, flags=re.MULTILINE | re.DOTALL)
+    # 去除代码内空行和前后空行
+    return re.sub(r"\n\s*\n", "\n", code).strip()
+
+
+if __name__ == "__main__":
+    code = """
+def count_differences(str1: str, str2: str) -> int:
+    \"\"\"
+    计算两个字符串中不同字符的个数。
+    
+    参数:
+    str1 (str): 第一个字符串
+    str2 (str): 第二个字符串
+    
+    返回:
+    int: 两个字符串中不同字符的个数。如果字符串长度不同，只比较最短长度的字符。
+
+    示例:
+    >>> count_differences("abcde", "abfde")
+    1
+    >>> count_differences("hello", "hallo")
+    2
+    \"\"\"
+    # 取两个字符串中较小的长度，以防止长度不一致时超出索引范围
+    min_length = min(len(str1), len(str2))
+
+    # 初始化计数器，用于记录不同字符的数量
+    difference_count = 0
+
+    # 遍历每个字符，逐一比较两字符串的字符是否相同
+    for i in range(min_length):
+        if str1[i] != str2[i]:  # 如果字符不同
+            difference_count += 1  # 计数器加一
+
+    # 返回两个字符串不同字符的个数
+    return difference_count
+"""
+    print(remove_comments(code=code))
