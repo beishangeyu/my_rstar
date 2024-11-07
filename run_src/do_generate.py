@@ -36,15 +36,15 @@ def main(args):
     start_time = time.time()
 
     for i, data_item in enumerate(dataset):
-        print(f"---------------------- Curent task id: {i} -------------------------")
+        print(f"---------------------- Curent task id: {i} ----------------------")
 
         problem_id, problem, gt_solution = (
-            data_item["id"],
-            data_item["problem"],
-            data_item["solution"],
+            data_item["task_id"],
+            data_item["adv_text"],
+            data_item["code"],
         )
-        gt_answer = data_item["code"]
 
+        # 直接在这个基础上增加不就可以了
         js = {
             "id": problem_id,
             "problem": problem,
@@ -80,19 +80,9 @@ def main(args):
 
         # TODO 更改保存文件的方式
         with open(
-            os.path.join(args.answer_sheets_dir, f"Question {i:04d} - Answer.json"), "w"
+            os.path.join(args.gene_result, f"Question {i:04d} - Answer.json"), "w"
         ) as f:
             json.dump(js, f)
-
-        with open(
-            os.path.join(args.run_outputs_dir, "intermediate_result.txt"), "w"
-        ) as f:
-            f.write(
-                f"Total calls: {generator.io.call_counter}, Avg calls: {generator.io.call_counter/(num_tested):.2f}\n"
-            )
-            f.write(
-                f"Total tokens: {generator.io.token_counter}, Avg tokens: {generator.io.token_counter/(num_tested):.2f}\n"
-            )
 
     end_time = time.time()
 
@@ -119,11 +109,9 @@ def main(args):
 
 
 if __name__ == "__main__":
-    #! -------------------------------- Arguments --------------------------------
+    # 指定到 gpu
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     parser = get_parser()
-
-    # 数据集的名称
-    parser.add_argument("--dataset_name", type=str)
 
     parser.add_argument("--num_rollouts", type=int, default=15)
     parser.add_argument("--num_votes", type=int, default=10)
@@ -138,11 +126,7 @@ if __name__ == "__main__":
     parser.add_argument("--mcts_num_last_votes", type=int, default=None)
     parser.add_argument("--save_tree", action="store_true")
 
-    # Action1: Propose an one-step thought.
     parser.add_argument("--num_a1_steps", type=int, default=None)
-
-    # Paraphrasing
-    parser.add_argument("--modify_prompts_for_rephrasing", action="store_true")
 
     args = parser.parse_args()
 
@@ -151,9 +135,8 @@ if __name__ == "__main__":
         args.mcts_num_last_votes = 32
 
     # NOTE 采用一次action1生成的子节点数量
-    if not args.disable_a1:
-        if args.num_a1_steps is None:
-            args.num_a1_steps = 3
+    if args.num_a1_steps is None:
+        args.num_a1_steps = 3
 
     args = post_process_args(args)
     print(args)
