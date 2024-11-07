@@ -682,7 +682,7 @@ def search_for_answers(
                     file=f,
                 )
 
-    # NOTE 记录最终整个树里所有的 solution node
+    # NOTE 记录最终整个树里所有的 solution
     path1 = os.path.join(
         args.answer_sheets_dir, f"Task_id_{question_id}_all_solutions.jsonl"
     )
@@ -692,13 +692,13 @@ def search_for_answers(
     ]
     write_jsonl(path1, all_solutions, append=True)
 
-    # NOTE 记录每次 rollout 新增的那个 solution
+    # NOTE 记录每次 rollout 路径中最后的节点
     path2 = os.path.join(
-        args.answer_sheets_dir, f"Task_id_{question_id}_new_solution_per_rollout.json"
+        args.answer_sheets_dir, f"Task_id_{question_id}_all_rollout_nodes.json"
     )
-    new_solution_per_rollout = []
+    all_rollout_nodes = []
     for i, node in enumerate(model_rollout_nodes):
-        new_solution_per_rollout.append({"trace": node.solution_trace, "rollout_id": i})
-    write_jsonl(path2, new_solution_per_rollout, append=True)
+        all_rollout_nodes.append({"trace": node.solution_trace, "rollout_id": i})
+    write_jsonl(path2, all_rollout_nodes, append=True)
 
     return model_solutions, i, model_all_solutions
