@@ -20,7 +20,7 @@ def main(args):
     args.local_rank, args.world_size = 0, 1
 
     dataset_path = f"./data/{args.dataset_name}.jsonl"
-    dataset = read_jsonl(dataset_path)
+    dataset = load_dataset(read_jsonl(dataset_path))
     evaluator = PythonEvaluator()
 
     tokenizer, model = None, None
@@ -35,19 +35,15 @@ def main(args):
     num_tested = 0
     start_time = time.time()
 
-    # TODO 加入中断后恢复重传的功能
-    for i, data_item in enumerate(
-        (pbar := tqdm(dataset, disable=args.local_rank > 0 or args.verbose, position=1))
-    ):
-        if i < args.start_idx or i >= args.end_idx:
-            continue
+    for i, data_item in enumerate(dataset):
+        print(f"---------------------- Curent task id: {i} -------------------------")
 
         problem_id, problem, gt_solution = (
             data_item["id"],
             data_item["problem"],
             data_item["solution"],
         )
-        gt_answer = evaluator.extract_answer_from_gold_solution(gt_solution)
+        gt_answer = data_item["code"]
 
         js = {
             "id": problem_id,
