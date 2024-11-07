@@ -171,6 +171,7 @@ class MCTS_Searcher:
             self.N[node] += 1
             self.explored_nodes.add(node)
 
+    # NOTE 动态调整探索权重
     def _get_weight(self, rollout_id: int):
         # start with exploration weight, end with 0.1 * exploration weight
         if self.weight_scheduler == "exp":
