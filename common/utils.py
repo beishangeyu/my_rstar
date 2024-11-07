@@ -7,7 +7,7 @@ import random
 import numpy as np
 import torch
 import multiprocessing
-from typing import Tuple, Iterable, Dict
+from typing import Tuple, Iterable, Dict, List
 from statistics import mean
 from torch.utils.data import Dataset
 import jsonlines
@@ -23,6 +23,19 @@ def fix_seeds(seed):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+
+def read_jsonl(filename: str) -> List[Dict]:
+    data = []
+    with jsonlines.open(filename) as reader:
+        for obj in reader:
+            data.append(obj)
+    return data
+
+
+def load_dataset(data: List[Dict]):
+    # 只保留 state 为 true 的 item
+    return [item for item in data if item["state"] == "true"]
 
 
 def write_jsonl(filename: str, data: Iterable[Dict], append: bool = False):
