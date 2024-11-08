@@ -204,7 +204,7 @@ Rephrased requirement:
 
         return rephrased_user_question_list
 
-    # NOTE 提出单步思考
+    # NOTE 给出之前生成的单步思考, 生成下一步思考
     def generate_ost_step(
         self,
         user_question: str,
@@ -214,15 +214,8 @@ Rephrased requirement:
         task: str,
     ):
         ost_step_list = []
-        # TODO 也是一步一步提出来的
-        # 如果父节点是subquestion
-        if parent_is_subquestion:
-            existing_ost_steps, next_ost_step_id = concat_subqs_subas_as_ost_steps(
-                solution_trace
-            )
-        # 如果父节点不是subquestion
-        else:
-            existing_ost_steps, next_ost_step_id = concat_ost_steps(solution_trace)
+        #  也是一步一步提出来的
+        existing_ost_steps, next_ost_step_id = concat_ost_steps(solution_trace)
         io_input = f"""
 {ost_prompt}
 [function haed and docstring]
