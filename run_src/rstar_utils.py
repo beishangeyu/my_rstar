@@ -179,6 +179,7 @@ def concat_subqs_and_subas(
     return solution_trace_str, next_subquestion_id
 
 
+# TODO 更改 concat 方式
 def concat_ost_steps(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, int]:
     """Return: concatenated one-step thought steps, next one-step thought step id"""
     last_tuple = list(solution_trace.items())[-1]
