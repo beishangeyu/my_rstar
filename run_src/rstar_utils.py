@@ -187,8 +187,9 @@ def concat_ost_steps(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, in
     assert "ost_step" in last_tuple_recording.keys()
     if len(last_tuple_recording["ost_step"]) > 0:
         solution_trace_str = ""
+
         for step_id, step_text in last_tuple_recording["ost_step"].items():
-            solution_trace_str += f"Step {step_id}: " + step_text + "\n"
+            solution_trace_str += f"Step{step_id}: " + step_text + "\n"
         return solution_trace_str, step_id + 1
     else:
         # no one-step thought step yet

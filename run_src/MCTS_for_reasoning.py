@@ -423,9 +423,10 @@ class Reasoning_MCTS_Node(MCTS_Node):
             if node_type is Node_Type.REPHRASED_USER_QUESTION:
                 # 直接更换成重述后的
                 self.solution_trace[0]["user_question"] = rephrased_requirement
+            # TODO 这里记录 solution trace 的格式, 更改一下, 或许不要有 step id
             elif node_type is Node_Type.OST_STEP:
                 # self.solution_trace[self.subquestion_counter]["ost_step"][self.ost_step_counter] = ost_step
-                # TODO 因为当前动作没含有 subquestion, 第一个直接取 0 即可, 后续或需要扩展
+                # XXX 因为当前动作没含有 subquestion, 第一个直接取 0 即可, 后续或需要扩展
                 self.solution_trace[0]["ost_step"][self.ost_step_counter] = ost_step
 
             pass
