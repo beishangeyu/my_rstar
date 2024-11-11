@@ -69,26 +69,6 @@ class Generator:
             decompose_template = json.load(f)
             self.question_index = decompose_template["index"]
 
-        self.decompose_prompt = read_txt(args.decompose_prompt_path)
-        self.fewshot_cot_prompt = read_txt(args.fewshot_cot_prompt_path)
-        self.fewshot_cot_config = read_json(args.fewshot_cot_config_path)
-
-        if not args.disable_a1:  # A1: Propose an one-step thought.
-            self.fewshot_ost_prompt = ost_prompt
-            self.fewshot_ost_config = read_json(args.fewshot_ost_config_path)
-
-        if not args.disable_a5:  # A5: Rephrase the question/sub-question.
-            self.rephrasing_prompt_template = rephrase_prompt
-            self.decompose_prompt_rephrased = read_txt(
-                args.decompose_prompt_rephrased_path
-            )
-            self.fewshot_cot_prompt_rephrased = read_txt(
-                args.fewshot_cot_prompt_rephrased_path
-            )
-            self.fewshot_ost_prompt_rephrased = read_txt(
-                args.fewshot_ost_prompt_rephrased_path
-            )
-
     # 从output_list中选择出现次数最多的answer和对应的completion
     def _get_most_likely_answer(self, io_output_list: List[str]) -> Tuple[str, float]:
         assert len(io_output_list) > 0
@@ -408,7 +388,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
             else:
                 self.ost_step_counter = parent.ost_step_counter
 
-        # 记录从根节点到当前节点的推理路径
+        # NOTE 记录从根节点到当前节点的推理路径
         # TODO 随着action set扩大, 或许需要修改, 但是最好还是以dict形式, 方便组合
         if parent is None:  # root
             # assert self.node_type is Node_Type.USER_QUESTION
@@ -422,7 +402,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
 
             if node_type is Node_Type.REPHRASED_USER_QUESTION:
                 # 直接更换成重述后的
-                self.solution_trace[0]["user_question"] = rephrased_requirement
+                self.solution_trace[0]["user_requirement"] = rephrased_requirement
             # TODO 这里记录 solution trace 的格式, 更改一下, 或许不要有 step id
             elif node_type is Node_Type.OST_STEP:
                 # self.solution_trace[self.subquestion_counter]["ost_step"][self.ost_step_counter] = ost_step
@@ -532,6 +512,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 )
 
         #! create children
+        # NOTE 规定了每种类型的节点可以创造什么类型的子节点
         if self.node_type is Node_Type.USER_QUESTION:
             do_action_generate_ost_step()
             do_action_generate_direct_answers()
@@ -540,7 +521,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
             do_action_generate_direct_answers()
         elif self.node_type is Node_Type.DIRECT_ANSWER:
             raise ValueError("DIRECT_ANSWER node cannot create children!!")
-        # 先生成单步思考之后生成答案
         elif self.node_type is Node_Type.OST_STEP:
             do_action_generate_ost_step()
             do_action_generate_direct_answers()
