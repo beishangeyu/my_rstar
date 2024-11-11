@@ -22,17 +22,10 @@ from MCTS_backbone import MCTS_Searcher, MCTS_Node
 from run_src.rstar_utils import (
     Node_Type,
     GeneratorError,
-    reach_terminal_subquestion,
     reach_terminal_ost_step,
-    concat_subqs_and_subas,
     concat_ost_steps,
-    concat_subqs_subas_as_ost_steps,
     make_hint,
-    make_response_prefix,
-    split_user_question,
     print_tree_from_root,
-    find_valid_solution_nodes,
-    find_best_solution,
     stochastic_find_best_solution,
     make_prompt,
 )
@@ -388,25 +381,20 @@ class Reasoning_MCTS_Node(MCTS_Node):
             else:
                 self.ost_step_counter = parent.ost_step_counter
 
-        # NOTE 记录从根节点到当前节点的推理路径
-        # TODO 随着action set扩大, 或许需要修改, 但是最好还是以dict形式, 方便组合
-        if parent is None:  # root
-            # assert self.node_type is Node_Type.USER_QUESTION
+        # NOTE 在这里更新推理路径
+        if parent is None:
+            # 0 表示当前这是第 0 个 subquestion
             self.solution_trace: Dict[int, Dict[str, str]] = {
                 0: {"user_requirement": user_requirement, "ost_step": {}}
-            }  # 这是一个 dict形式的树, ost_step也是一个dict, key是第几步, value就是具体内容
+            }
         else:
-            # assert self.node_type is not Node_Type.USER_QUESTION
-            # deepcopy parent的, 防止修改影响到之前的node
             self.solution_trace = deepcopy(parent.solution_trace)
-
             if node_type is Node_Type.REPHRASED_USER_QUESTION:
-                # 直接更换成重述后的
                 self.solution_trace[0]["user_requirement"] = rephrased_requirement
             # TODO 这里记录 solution trace 的格式, 更改一下, 或许不要有 step id
             elif node_type is Node_Type.OST_STEP:
-                # self.solution_trace[self.subquestion_counter]["ost_step"][self.ost_step_counter] = ost_step
                 # XXX 因为当前动作没含有 subquestion, 第一个直接取 0 即可, 后续或需要扩展
+                # solution_trace[0]["ost_step"] 也是一个 dict, key 是思考的步数
                 self.solution_trace[0]["ost_step"][self.ost_step_counter] = ost_step
 
             pass
@@ -457,14 +445,14 @@ class Reasoning_MCTS_Node(MCTS_Node):
                         parent=self,
                         depth=self.depth + 1,
                         node_type=Node_Type.DIRECT_ANSWER,
-                        # NOTE value 即 node 的 reward, 计算方式为出现次数最多的答案次数占总次数的比例
+                        #  value 即 node 的 reward, 计算方式为出现次数最多的答案次数占总次数的比例
                         node_value=value,
                         direct_answer=direct_answer,
                     )
                 )
 
         # NOTE 重述用户的需求
-        def do_action_generate_rephrased_user_question():
+        def do_action_generate_rephrased_user_requirement():
             verbose_print(
                 f"---- Generating rephrased user question for node {self.id}...",
                 self.verbose,
@@ -516,6 +504,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
         if self.node_type is Node_Type.USER_QUESTION:
             do_action_generate_ost_step()
             do_action_generate_direct_answers()
+            do_action_generate_rephrased_user_requirement()
         elif self.node_type is Node_Type.REPHRASED_USER_QUESTION:
             do_action_generate_ost_step()
             do_action_generate_direct_answers()
@@ -524,6 +513,8 @@ class Reasoning_MCTS_Node(MCTS_Node):
         elif self.node_type is Node_Type.OST_STEP:
             do_action_generate_ost_step()
             do_action_generate_direct_answers()
+            # XXX 在单步思考中途修改 requirement, solution trace 需要更改?
+            do_action_generate_rephrased_user_requirement()
 
         assert self.children
         return self.children
