@@ -533,22 +533,10 @@ class Reasoning_MCTS_Node(MCTS_Node):
 
         #! create children
         if self.node_type is Node_Type.USER_QUESTION:
-            # A1: Propose an one-step thought.
-            if not self.disable_a1:
-                do_action_generate_ost_step()
-
-            # A2: Propose the remaining thought steps
+            do_action_generate_ost_step()
             do_action_generate_direct_answers()
-
-            # A5: Rephrase the question/sub-question.
-            if not self.disable_a5:
-                do_action_generate_rephrased_user_question()
         elif self.node_type is Node_Type.REPHRASED_USER_QUESTION:
-            # A1: Propose an one-step thought.
-            if not self.disable_a1:
-                do_action_generate_ost_step()
-
-            # A2: Propose the remaining thought steps
+            do_action_generate_ost_step()
             do_action_generate_direct_answers()
         elif self.node_type is Node_Type.DIRECT_ANSWER:
             raise ValueError("DIRECT_ANSWER node cannot create children!!")
