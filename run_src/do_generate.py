@@ -55,18 +55,6 @@ def main(args):
 
         num_tested += 1
 
-    end_time = time.time()
-    with open(os.path.join(args.gene_result, "final_result.txt"), "w") as f:
-        f.write(
-            f"Total calls: {generator.io.call_counter}, Avg calls: {generator.io.call_counter/(num_tested):.2f}\n"
-        )
-        f.write(
-            f"Total tokens: {generator.io.token_counter}, Avg tokens: {generator.io.token_counter/(num_tested):.2f}\n"
-        )
-        f.write(
-            f"Total time: {end_time-start_time:.2f}s, Avg time: {(end_time-start_time)/(num_tested):.2f}s\n"
-        )
-
 
 if __name__ == "__main__":
     # 指定到 gpu
