@@ -232,7 +232,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
     ) -> None:
         super().__init__()
 
-        #! attributes
         self.parent = parent  # if parent is None, then the node is the root
         self.children: List["Reasoning_MCTS_Node"] = []
         self.depth = depth
@@ -242,14 +241,18 @@ class Reasoning_MCTS_Node(MCTS_Node):
         self.ost_step = ost_step
         self.task = task
 
-        # root node
         if parent is None:
             self.verbose = verbose
             self.user_requirement = user_requirement  # 即每个样本的要求
+            # TODO 这个 expected_answer 是拿来干嘛的?
             self.expected_answer = expected_answer
             self.generator = generator
             self.question_index = generator.question_index
             self.max_depth_allowed = max_depth_allowed
+
+            code = task["code"]
+            func_name = re.search(r"def (.+?)\(", code).group(1)
+            self.func_name = func_name
         else:
             self.verbose = parent.verbose
             self.user_requirement = parent.user_requirement
@@ -257,6 +260,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
             self.generator = parent.generator
             self.question_index = parent.generator.question_index
             self.max_depth_allowed = parent.max_depth_allowed
+            self.func_name = parent.func_name
 
         if node_type is Node_Type.USER_QUESTION:
             self.paraphrased = False
@@ -290,7 +294,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
             self.solution_trace = deepcopy(parent.solution_trace)
             if node_type is Node_Type.REPHRASED_USER_QUESTION:
                 self.solution_trace[0]["user_requirement"] = rephrased_requirement
-            # TODO 这里记录 solution trace 的格式, 更改一下, 或许不要有 step id
             elif node_type is Node_Type.OST_STEP:
                 # solution_trace[0]["ost_step"] 也是一个 dict, key 是思考的步数
                 self.solution_trace[0]["ost_step"][self.ost_step_counter] = ost_step
@@ -316,16 +319,14 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 f"---- Generating direct answers for node {self.id}...", self.verbose
             )
 
-            if (
-                self.node_type is not Node_Type.USER_QUESTION
-                and self.node_type is not Node_Type.REPHRASED_USER_QUESTION
-            ):
-                hint = make_hint(self.solution_trace, self.node_type)
+            if self.node_type == Node_Type.OST_STEP:
+                hint = make_hint(self.solution_trace, self.node_type, self.func_name)
             else:
                 hint = None
-                code = self.task["code"]
-                func_head = re.search(r"def .+?:", code).group(0)
-                test_case = self.task["test_list"][0][7:]
+
+            code = self.task["code"]
+            func_head = re.search(r"def .+?:", code).group(0)
+            test_case = self.task["test_list"][0][7:]
 
             (direct_answer_list, value_list) = self.generator.generate_direct_answers(
                 user_requirement=self.user_requirement,
