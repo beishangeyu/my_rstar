@@ -221,116 +221,16 @@ class Reasoning_MCTS_Node(MCTS_Node):
         # 直接把整个样本传进来
         task: str,
         verbose: bool = False,
-        # --- For instantiating root node ---
         node_value: float = None,
         generator: Generator = None,
-        disable_a5: bool = None,
         user_requirement: str = None,
         max_depth_allowed: int = None,
-        disable_a1: bool = None,
-        # -----------------------------------
-        # --- rephrase之后的用户需求  ---
-        rephrased_requirement: str = None,
-        # ------------------------------------------------------
+        rephrased_requirement: str = None,  # rephrase后的要求
         expected_answer: str = None,
-        # --- For instantiating DIRECT_ANSWER node ---
         direct_answer: str = None,
-        # --------------------------------------------
-        # --- For instantiating OST_STEP node ---
         ost_step: str = None,
     ) -> None:
-        """params:
-        subquestion: the node is proposing a new subquestion
-        subanswer: the answer corresponding to the new subquestion the node proposed
-        re_subanswer: the node is proposing a new subanswer to the parent's subquestion
-        """
         super().__init__()
-
-        #! sanity checks
-        try:
-            assert depth is not None
-            assert node_type is not None
-            if node_value is not None:
-                assert node_value > 0, breakpoint()
-
-            if node_type is Node_Type.USER_QUESTION:
-                assert depth == 0
-                assert all(
-                    attr is None
-                    for attr in [
-                        parent,
-                        node_value,
-                        rephrased_requirement,
-                        direct_answer,
-                        ost_step,
-                    ]
-                )
-                assert all(
-                    attr is not None
-                    for attr in [
-                        generator,
-                        disable_a5,
-                        user_requirement,
-                        expected_answer,
-                        max_depth_allowed,
-                        disable_a1,
-                    ]
-                )
-            elif node_type is Node_Type.REPHRASED_USER_QUESTION:
-                assert depth == 1
-                assert all(
-                    attr is None
-                    for attr in [
-                        node_value,
-                        generator,
-                        disable_a5,
-                        user_requirement,
-                        expected_answer,
-                        direct_answer,
-                        ost_step,
-                        max_depth_allowed,
-                        disable_a1,
-                    ]
-                )
-                assert all(attr is not None for attr in [parent, rephrased_requirement])
-            elif node_type is Node_Type.DIRECT_ANSWER:
-                assert depth > 0
-                assert all(
-                    attr is None
-                    for attr in [
-                        generator,
-                        disable_a5,
-                        user_requirement,
-                        expected_answer,
-                        ost_step,
-                        max_depth_allowed,
-                        disable_a1,
-                    ]
-                )
-                assert all(
-                    attr is not None for attr in [parent, node_value, direct_answer]
-                )
-            elif node_type is Node_Type.OST_STEP:
-                assert depth > 0
-                assert all(
-                    attr is None
-                    for attr in [
-                        node_value,
-                        generator,
-                        disable_a5,
-                        user_requirement,
-                        rephrased_requirement,
-                        expected_answer,
-                        direct_answer,
-                        max_depth_allowed,
-                        disable_a1,
-                    ]
-                )
-                assert all(attr is not None for attr in [parent, ost_step])
-        except AssertionError:
-            print(f"Instantiating node with type {node_type} failed!")
-            breakpoint()
-            exit()
 
         #! attributes
         self.parent = parent  # if parent is None, then the node is the root
@@ -348,21 +248,16 @@ class Reasoning_MCTS_Node(MCTS_Node):
             self.user_requirement = user_requirement  # 即每个样本的要求
             self.expected_answer = expected_answer
             self.generator = generator
-            self.disable_a5 = disable_a5
             self.question_index = generator.question_index
             self.max_depth_allowed = max_depth_allowed
-            self.disable_a1 = disable_a1
         else:
             self.verbose = parent.verbose
             self.user_requirement = parent.user_requirement
             self.expected_answer = parent.expected_answer
             self.generator = parent.generator
-            self.disable_a5 = parent.disable_a5
             self.question_index = parent.generator.question_index
             self.max_depth_allowed = parent.max_depth_allowed
-            self.disable_a1 = parent.disable_a1
 
-        #! keep track of paraphrasing
         if node_type is Node_Type.USER_QUESTION:
             self.paraphrased = False
         elif node_type is Node_Type.REPHRASED_USER_QUESTION:
@@ -432,7 +327,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 func_head = re.search(r"def .+?:", code).group(0)
                 test_case = self.task["test_list"][0][7:]
 
-            # TODO user question 应该组合
             (direct_answer_list, value_list) = self.generator.generate_direct_answers(
                 user_requirement=self.user_requirement,
                 paraphrased=self.paraphrased,
@@ -462,19 +356,19 @@ class Reasoning_MCTS_Node(MCTS_Node):
             )
 
             #! ACTION: generate paraphrased question for the root question
-            rephrased_user_question_list = (
+            rephrased_user_requirement_list = (
                 self.generator.generate_rephrased_requirement(
                     user_question=self.user_requirement
                 )
             )
             # TODO 用新生成的需求替换掉原来的 docstring
-            for rephrased_user_question in rephrased_user_question_list:
+            for rephrased_user_requirement in rephrased_user_requirement_list:
                 self.children.append(
                     Reasoning_MCTS_Node(
                         parent=self,
                         depth=self.depth + 1,
                         node_type=Node_Type.REPHRASED_USER_QUESTION,
-                        rephrased_requirement=rephrased_user_question,
+                        rephrased_requirement=rephrased_user_requirement,
                     )
                 )
 
