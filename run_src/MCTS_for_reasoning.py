@@ -124,12 +124,10 @@ class Generator:
         user_requirement: str,
         paraphrased: bool,
         hint: str,
-        is_ost: bool,
         func_head: str,
         test_case: str,
     ):
 
-        # TODO 父节点类型不同, prompt 格式也不一样
         direct_answer_list, value_list = [], []
         num_return = self.mcts_num_last_votes  # 默认为32
         io_input, cleaned_io_output_list = self._generate_impl(
@@ -161,7 +159,7 @@ class Generator:
 
     # NOTE 重述 docstring
     def generate_rephrased_requirement(self, user_question: str):
-        rephrased_user_question_list = []
+        rephrased_user_requirement_list = []
         io_input = f"""
 {rephrase_prompt}
 
@@ -169,24 +167,21 @@ Original requirement:
 {user_question}
 Rephrased requirement:
 """
-        # TODO 直接用模型的回答去替换本来的prompt
         io_output = self.io.generate(
             model_input=io_input,
             max_tokens=1024,
             num_return=1,
             stop_tokens=rephrase_stop_token,
         )[0]
-        rephrased_user_question_list.append(io_output)
+        rephrased_user_requirement_list.append(io_output)
 
-        return rephrased_user_question_list
+        return rephrased_user_requirement_list
 
     # NOTE 给出之前生成的单步思考, 生成下一步思考
     def generate_ost_step(
         self,
         requirement: str,
         solution_trace: Dict[int, Dict[str, str]],
-        paraphrased: bool,
-        parent_is_subquestion: bool,
         func_head: str,
         test_case: str,
     ):
@@ -204,14 +199,13 @@ Rephrased requirement:
 {funchead_and_docstring}
 [Step to implement]
 To implement the {func_name} function, we need to follow these steps:
-{existing_ost_steps}
-Step{next_ost_step_id}:
+{existing_ost_steps}Step{next_ost_step_id}:
 """
         io_output_list = self.io.generate(
             model_input=io_input,
             max_tokens=256,
             num_return=self.num_a1_steps,  # 默认生成3个回复, 每个回复生成一个子节点
-            stop_tokens=["\n\n", f"Step{next_ost_step_id + 1}:"],
+            stop_tokens=["\n", "\n\n", f"Step{next_ost_step_id + 1}:"],
         )
         ost_step_list = [io_output.strip() for io_output in io_output_list]
 
@@ -391,7 +385,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
             else:
                 self.ost_step_counter = parent.ost_step_counter
 
-        # NOTE 在这里更新推理路径
+        # NOTE 更新推理路径
         if parent is None:
             # 0 表示当前这是第 0 个 subquestion
             self.solution_trace: Dict[int, Dict[str, str]] = {

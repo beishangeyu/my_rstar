@@ -139,11 +139,7 @@ def concat_ost_steps(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, in
         solution_trace_str = ""
 
         for step_id, step_text in last_tuple_recording["ost_step"].items():
-            # 第一句话应该是: To implement the max_aggregate function, we need to follow these steps:
-            if step_id == 1:
-                solution_trace_str += step_text + "\n"
-            else:
-                solution_trace_str += f"Step{step_id - 1}: " + step_text + "\n"
+            solution_trace_str += f"Step{step_id}: " + step_text + "\n"
         return solution_trace_str, step_id + 1
     else:
         # 还没有 ost step
