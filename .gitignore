@@ -1,4 +1,4 @@
 *.code-workspace
 unit-test.py
-run_outputs
+*_result
 __pycache__/

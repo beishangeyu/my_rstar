@@ -17,7 +17,7 @@ except:
 
 from models.IO_System import IO_System
 from common.utils import write_jsonl
-from eval_src.Evaluator import Evaluator, GSM8KEvaluator
+from eval_src.Evaluator import Evaluator, PythonEvaluator
 from MCTS_backbone import MCTS_Searcher, MCTS_Node
 from run_src.rstar_utils import (
     Node_Type,
@@ -46,13 +46,10 @@ class Generator:
     def __init__(self, args, tokenizer, model, evaluator: Evaluator) -> None:
         self.io = IO_System(args, tokenizer, model)
         self.evaluator = evaluator
-
-        self.num_subquestions = args.num_subquestions
         # NOTE 默认为3, 在 generate ost step 里生成 3 个回复序列, 每个回复序列生成一个子节点
         self.num_a1_steps = args.num_a1_steps
         # NOTE 设置生成的 max token
         self.max_tokens = 1024
-        self.enable_potential_score = args.enable_potential_score
         self.mcts_num_last_votes = args.mcts_num_last_votes  # 默认是 32
 
     # 从output_list中选择出现次数最多的answer和对应的completion
@@ -74,7 +71,6 @@ class Generator:
     def _generate_impl(
         self,
         requirement: str,
-        paraphrased: bool,
         num_return: int,
         func_head: str,
         test_case: str,
@@ -115,7 +111,6 @@ class Generator:
     def generate_direct_answers(
         self,
         user_requirement: str,
-        paraphrased: bool,
         hint: str,
         func_head: str,
         test_case: str,
@@ -125,7 +120,6 @@ class Generator:
         num_return = self.mcts_num_last_votes  # 默认为32
         io_input, cleaned_io_output_list = self._generate_impl(
             requirement=user_requirement,
-            paraphrased=paraphrased,
             num_return=num_return,
             hint=hint,
             func_head=func_head,
@@ -150,13 +144,13 @@ class Generator:
         return direct_answer_list, value_list
 
     # NOTE 重述 docstring
-    def generate_rephrased_requirement(self, user_question: str):
+    def generate_rephrased_requirement(self, user_requirement: str):
         rephrased_user_requirement_list = []
         io_input = f"""
 {rephrase_prompt}
 
 Original requirement: 
-{user_question}
+{user_requirement}
 Rephrased requirement:
 """
         io_output = self.io.generate(
@@ -211,7 +205,8 @@ class Reasoning_MCTS_Node(MCTS_Node):
         depth: int,
         node_type: Node_Type,
         # 直接把整个样本传进来
-        task: str,
+        task: Dict = None,
+        task_id: int = None,
         verbose: bool = False,
         node_value: float = None,
         generator: Generator = None,
@@ -225,30 +220,31 @@ class Reasoning_MCTS_Node(MCTS_Node):
 
         self.parent = parent  # if parent is None, then the node is the root
         self.children: List["Reasoning_MCTS_Node"] = []
-        self.depth = depth
+
         self.node_type = node_type
         self.node_value = node_value
         self.direct_answer = direct_answer
         self.ost_step = ost_step
-        self.task = task
+        self.depth = depth
 
         if parent is None:
             self.verbose = verbose
             self.user_requirement = user_requirement  # 即每个样本的要求
             self.generator = generator
-            self.question_index = generator.question_index
             self.max_depth_allowed = max_depth_allowed
-
             code = task["code"]
             func_name = re.search(r"def (.+?)\(", code).group(1)
             self.func_name = func_name
+            self.task = task
+            self.task_id = task_id
         else:
             self.verbose = parent.verbose
             self.user_requirement = parent.user_requirement
             self.generator = parent.generator
-            self.question_index = parent.generator.question_index
             self.max_depth_allowed = parent.max_depth_allowed
             self.func_name = parent.func_name
+            self.task = parent.task
+            self.task_id = parent.task_id
 
         if node_type is Node_Type.USER_QUESTION:
             self.paraphrased = False
@@ -318,7 +314,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
 
             (direct_answer_list, value_list) = self.generator.generate_direct_answers(
                 user_requirement=self.user_requirement,
-                paraphrased=self.paraphrased,
                 hint=hint,
                 func_head=func_head,
                 test_case=test_case,
@@ -347,7 +342,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
             #! ACTION: generate paraphrased question for the root question
             rephrased_user_requirement_list = (
                 self.generator.generate_rephrased_requirement(
-                    user_question=self.user_requirement
+                    user_requirement=self.user_requirement
                 )
             )
             for rephrased_user_requirement in rephrased_user_requirement_list:
@@ -361,18 +356,20 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 )
 
         # NOTE 生成单步思考
-        def do_action_generate_ost_step(parent_is_subquestion=False):
+        def do_action_generate_ost_step():
             verbose_print(
                 f"---- Generating one-step thought steps for node {self.id}...",
                 self.verbose,
             )
+            code = self.task["code"]
+            func_head = re.search(r"def .+?:", code).group(0)
+            test_case = self.task["test_list"][0][7:]
 
-            #! ACTION: generate one-step thought step
             ost_step_list = self.generator.generate_ost_step(
                 requirement=self.user_requirement,
                 solution_trace=self.solution_trace,
-                paraphrased=self.paraphrased,
-                parent_is_subquestion=parent_is_subquestion,
+                func_head=func_head,
+                test_case=test_case,
             )
             for ost_step in ost_step_list:
                 self.children.append(
@@ -442,10 +439,10 @@ class Reasoning_MCTS_Node(MCTS_Node):
 
 
 def search_for_answers(
-    args, user_question: str, question_id: int, gt_answer: str, generator: Generator
+    args, user_question: str, task_id: int, generator: Generator, task: Dict
 ):
     verbose_print(
-        f"********************* Searching for answers to question {question_id} ********************* ",
+        f"********************* Searching for answers to question {task_id} ********************* ",
         args.verbose,
     )
 
@@ -465,11 +462,10 @@ def search_for_answers(
         node_type=Node_Type.USER_QUESTION,
         verbose=args.verbose,
         generator=generator,
-        disable_a5=args.disable_a5,
         user_requirement=user_question,
         max_depth_allowed=args.max_depth_allowed,
-        disable_a1=args.disable_a1,
-        enable_potential_score=args.enable_potential_score,
+        task=task,
+        task_id=task_id,
     )
 
     model_solutions = []
@@ -485,7 +481,6 @@ def search_for_answers(
             stochastic_find_best_solution(
                 root_node,
                 generator.evaluator,
-                enable_potential_score=args.enable_potential_score,
             )
         )
         model_solutions.append(best_solution)
@@ -495,7 +490,7 @@ def search_for_answers(
             with open(
                 os.path.join(
                     args.answer_sheets_dir,
-                    f"Question {question_id:04d} - Rollout {i}.tree",
+                    f"Question {task_id:04d} - Rollout {i}.tree",
                 ),
                 "w",
             ) as f:
@@ -509,7 +504,7 @@ def search_for_answers(
 
     # NOTE 记录最终整个树里所有的 solution
     path1 = os.path.join(
-        args.answer_sheets_dir, f"Task_id_{question_id}_all_solutions.jsonl"
+        args.answer_sheets_dir, f"Task_id_{task_id}_all_solutions.jsonl"
     )
     all_solutions = [
         {"trace": node.solution_trace, "rollout_id": node.rollout_id}
@@ -521,7 +516,7 @@ def search_for_answers(
     # XXX 不知道为什么在 eval 的时候会把这两个文件的 json 加在一起, 这样会让其中一些答案重复从而数量增多, 影响到选择最终答案, 但是我还是生成出来
     # TODO 记得 do eval 的时候不要用这个函数
     path2 = os.path.join(
-        args.answer_sheets_dir, f"Task_id_{question_id}_last_node_per_simulate.json"
+        args.answer_sheets_dir, f"Task_id_{task_id}_last_node_per_simulate.json"
     )
     last_node_per_simulate = []
     for i, node in enumerate(model_rollout_nodes):

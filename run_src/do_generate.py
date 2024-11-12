@@ -33,32 +33,25 @@ def main(args):
     generator = Generator(args, tokenizer, model, evaluator)
 
     num_tested = 0
-    start_time = time.time()
 
     for i, data_item in enumerate(dataset):
         print(f"---------------------- Curent task id: {i} ----------------------")
 
-        problem_id, problem, gt_solution = (
-            data_item["task_id"],
-            data_item["adv_text"],
-            data_item["code"],
-        )
+        problem_id, problem = data_item["task_id"], data_item["adv_text"]
 
         model_solutions, stopping_id, model_all_solutions = [], -1, []
         model_solutions, stopping_id, model_all_solutions = search_for_answers(
             args=args,
             user_question=problem,
-            question_id=i,
-            gt_answer=gt_solution,
             generator=generator,
+            task=data_item,
+            task_id=problem_id,
         )
 
         num_tested += 1
 
 
 if __name__ == "__main__":
-    # 指定到 gpu
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     parser = get_parser()
 
     parser.add_argument("--num_rollouts", type=int, default=15)

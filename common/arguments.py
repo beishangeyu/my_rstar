@@ -43,7 +43,6 @@ def get_parser():
 
 def post_process_args(args):
     # Set up logging
-    suffix = "---[" + args.note + "]" if args.note is not None else ""
     model_name = args.model_ckpt.split("/")[-1]  # 模型名称
     args.gene_result = os.path.join(
         args.gene_result,
