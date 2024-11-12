@@ -1,7 +1,6 @@
 # TODO 遇到看不懂的先不要管, 先测试目前动作能否有效, 无效再考虑弄懂那些看不懂的动作
 
 # NOTE 提出单步思考
-# TODO 对于 Mistral-7B-v0.1, ost 的 stop token 应该是 [function haed and docstring] (和 \n\n, 或许?)
 ost_prompt = """
 You are a Python assistant. You are given function head and its docstring. Provide the full implementation of the following function.
 
@@ -80,28 +79,25 @@ ost_stop_token = ["\n\n", "\n"]
 
 
 # NOTE 重述用户的要求
-# TODO stop token 应该是 Original requirement 和 \n\n
 rephrase_prompt = """
 You are an AI assistant to help me rephrase the requirement.
 
-Original requirement: 
+Original requirement:
 Write a python function to check whether the first and last characters of a given string are equal or not.
-Rephrased requirement: 
+Rephrased requirement:
 Write a Python function to check if the first and last characters of a given string are equal.
 
-Original requirement: 
+Original requirement:
 Writing a python function to unearth the first recurrent nature in a given chain
-Rephrased requirement: 
+Rephrased requirement:
 Write a Python function to find the first recurrent element in a given sequence.
 
-Original requirement: 
+Original requirement:
 Write a function to count the same pair in two given lists usage map function.
-Rephrased requirement: W
-rite a Python function using map to count the number of matching pairs in two given lists.
+Rephrased requirement:
+Write a Python function using map to count the number of matching pairs in two given lists.
 """
-rephrase_stop_token = ["\n\n"]
-# TODO 提出下一个子问题并回答
-# XXX 直接回答不需要 prompt
+rephrase_stop_token = ["\n\n", "Original requirement:"]
 
 # 对 prompt 进行测试
 if __name__ == "__main__":
