@@ -28,7 +28,11 @@ def main(args):
         from models.vLLM_API import load_vLLM_model
 
         tokenizer, model = load_vLLM_model(
-            args.model_ckpt, args.seed, args.tensor_parallel_size, args.half_precision
+            args.model_ckpt,
+            args.seed,
+            args.tensor_parallel_size,
+            args.half_precision,
+            max_model_len=args.max_model_len,
         )
     generator = Generator(args, tokenizer, model, evaluator)
 

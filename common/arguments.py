@@ -26,9 +26,8 @@ def get_parser():
     parser.add_argument("--num_beams", type=int, default=1, help="num_beams")
 
     parser.add_argument("--test_batch_size", type=int, default=1)  # batch_size
-    parser.add_argument(
-        "--tensor_parallel_size", type=int, default=1
-    )  # tensor_parallel_size
+    parser.add_argument("--tensor_parallel_size", type=int, default=1)
+    parser.add_argument("--max_model_len", type=int, default=0)
 
     #! dataset settings
     parser.add_argument("--data_root", default="data")

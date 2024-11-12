@@ -8,31 +8,57 @@ import os
 
 
 def load_vLLM_model(
-    model_ckpt, seed, tensor_parallel_size=1, half_precision=False, max_num_seqs=256
+    model_ckpt,
+    seed,
+    tensor_parallel_size=1,
+    half_precision=False,
+    max_num_seqs=256,
+    max_model_len=0,
 ):
     tokenizer = AutoTokenizer.from_pretrained(model_ckpt)
 
-    if half_precision:
-        llm = LLM(
-            model=model_ckpt,
-            dtype="half",
-            tensor_parallel_size=tensor_parallel_size,
-            seed=seed,
-            trust_remote_code=True,
-            max_num_seqs=max_num_seqs,
-            swap_space=16,
-        )
+    if max_model_len > 0:
+        if half_precision:
+            llm = LLM(
+                model=model_ckpt,
+                dtype="half",
+                tensor_parallel_size=tensor_parallel_size,
+                seed=seed,
+                trust_remote_code=True,
+                max_num_seqs=max_num_seqs,
+                swap_space=16,
+                max_model_len=max_model_len,
+            )
+        else:
+            llm = LLM(
+                model=model_ckpt,
+                tensor_parallel_size=tensor_parallel_size,
+                seed=seed,
+                trust_remote_code=True,
+                max_num_seqs=max_num_seqs,
+                swap_space=16,
+                max_model_len=max_model_len,
+            )
     else:
-        llm = LLM(
-            model=model_ckpt,
-            tensor_parallel_size=tensor_parallel_size,
-            seed=seed,
-            trust_remote_code=True,
-            max_num_seqs=max_num_seqs,
-            swap_space=16,
-            max_model_len=30000,  # TODO 不同模型的model_len不同, 在这里更改
-        )
-
+        if half_precision:
+            llm = LLM(
+                model=model_ckpt,
+                dtype="half",
+                tensor_parallel_size=tensor_parallel_size,
+                seed=seed,
+                trust_remote_code=True,
+                max_num_seqs=max_num_seqs,
+                swap_space=16,
+            )
+        else:
+            llm = LLM(
+                model=model_ckpt,
+                tensor_parallel_size=tensor_parallel_size,
+                seed=seed,
+                trust_remote_code=True,
+                max_num_seqs=max_num_seqs,
+                swap_space=16,
+            )
     return tokenizer, llm
 
 
