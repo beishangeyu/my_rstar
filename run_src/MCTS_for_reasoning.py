@@ -381,7 +381,8 @@ class Reasoning_MCTS_Node(MCTS_Node):
             raise ValueError("DIRECT_ANSWER node cannot create children!!")
         elif self.node_type is Node_Type.OST_STEP:
             # 取出当前最后一个ost_step
-            last_ost_step = list(self.solution_trace.items())[-1][1]["ost_step"][-1]
+            last_solution_trace = list(self.solution_trace.values())[-1]
+            last_ost_step = list(last_solution_trace["ost_step"].values())[-1]
             s = f"Implement the {self.func_name} function"
             # 如果没到最后一步才继续生成ost step
             if not s in last_ost_step:
@@ -490,9 +491,7 @@ def search_for_answers(
                 )
 
     # NOTE 记录最终整个树里所有的 solution
-    path1 = os.path.join(
-        args.answer_sheets_dir, f"Task_id_{task_id}_all_solutions.jsonl"
-    )
+    path1 = os.path.join(args.gene_result, f"Task_id_{task_id}_all_solutions.jsonl")
     all_solutions = [
         {"trace": node.solution_trace, "rollout_id": node.rollout_id}
         for node in all_solution_nodes
@@ -503,7 +502,7 @@ def search_for_answers(
     # XXX 不知道为什么在 eval 的时候会把这两个文件的 json 加在一起, 这样会让其中一些答案重复从而数量增多, 影响到选择最终答案, 但是我还是生成出来
     # TODO 记得 do eval 的时候不要用这个函数
     path2 = os.path.join(
-        args.answer_sheets_dir, f"Task_id_{task_id}_last_node_per_simulate.json"
+        args.gene_result, f"Task_id_{task_id}_last_node_per_simulate.json"
     )
     last_node_per_simulate = []
     for i, node in enumerate(model_rollout_nodes):
