@@ -28,6 +28,7 @@ from run_src.rstar_utils import (
     print_tree_from_root,
     stochastic_find_best_solution,
     make_prompt,
+    make_funchead_and_docstring
 )
 from prompts.prompt import (
     ost_prompt,
@@ -96,14 +97,9 @@ class Generator:
         # io_input = self.fewshot_cot_config["prompt_template"].format(
         #     examples=fewshot_cot_prompt, instruction=question
         # )
-
+        funchead_and_docstring = make_funchead_and_docstring(requirement, func_head, test_case)
         # TODO make prompt 或许可以根据类型的不同构造不同的 input
-        io_input = make_prompt(
-            requirement=requirement,
-            hint=hint,
-            func_head=func_head,
-            test_case=test_case,
-        )
+        io_input = make_prompt(hint, funchead_and_docstring)
         io_output_list = self.io.generate(
             model_input=io_input,
             num_return=num_return,
@@ -196,6 +192,7 @@ Rephrased requirement:
 [step to implement]
 {existing_ost_steps}
 Step{next_ost_step_id}:
+To implement the {} function, we need to follow these steps:
 """
         io_output_list = self.io.generate(
             model_input=io_input,
@@ -393,7 +390,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 self.solution_trace[0]["user_requirement"] = rephrased_requirement
             # TODO 这里记录 solution trace 的格式, 更改一下, 或许不要有 step id
             elif node_type is Node_Type.OST_STEP:
-                # XXX 因为当前动作没含有 subquestion, 第一个直接取 0 即可, 后续或需要扩展
                 # solution_trace[0]["ost_step"] 也是一个 dict, key 是思考的步数
                 self.solution_trace[0]["ost_step"][self.ost_step_counter] = ost_step
 
@@ -499,7 +495,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
                     )
                 )
 
-        #! create children
+        # create children
         # NOTE 规定了每种类型的节点可以创造什么类型的子节点
         if self.node_type is Node_Type.USER_QUESTION:
             do_action_generate_ost_step()

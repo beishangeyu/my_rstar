@@ -189,10 +189,10 @@ def concat_ost_steps(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, in
 
         for step_id, step_text in last_tuple_recording["ost_step"].items():
             # 第一句话应该是: To implement the max_aggregate function, we need to follow these steps:
-            if step_id == 0:
+            if step_id == 1:
                 solution_trace_str += step_text + "\n"
             else:
-                solution_trace_str += f"Step{step_id}: " + step_text + "\n"
+                solution_trace_str += f"Step{step_id - 1}: " + step_text + "\n"
         return solution_trace_str, step_id + 1
     else:
         # 还没有 ost step
@@ -695,18 +695,27 @@ def make_hint(
     return hint
 
 
-# 组合成正确格式的 prompt, 让模型根据 function head, docstring, hint 直接生成答案
-def make_prompt(requirement: str, hint: str, func_head: str, test_case: str) -> str:
-    prompt = f"""
-You are a Python assistant. Implement a Python function based on the given function head, docstring, and hint.
-
-[Function head and docstring]:
+def make_funchead_and_docstring(
+    requirement: str, func_head: str, test_case: str
+) -> str:
+    s = f"""
 {func_head}
     '''
     {requirement}
     for example:
     {test_case}
     '''
+"""
+    return s
+
+
+# 组合成正确格式的 prompt, 让模型根据 function head, docstring, hint 直接生成答案
+def make_prompt(hint: str, funchead_and_docstring: str) -> str:
+    prompt = f"""
+You are a Python assistant. Implement a Python function based on the given function head, docstring, and hint.
+
+[Function head and docstring]:
+{funchead_and_docstring}
 
 [Hint]
 {hint}
