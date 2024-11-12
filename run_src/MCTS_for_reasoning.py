@@ -31,9 +31,7 @@ from run_src.rstar_utils import (
 )
 from prompts.prompt import (
     ost_prompt,
-    ost_stop_token,
     rephrase_prompt,
-    rephrase_stop_token,
 )
 
 
@@ -50,17 +48,12 @@ class Generator:
         self.evaluator = evaluator
 
         self.num_subquestions = args.num_subquestions
-        self.num_a1_steps = args.num_a1_steps  # 默认为3
-        self.num_votes = args.num_votes  # 默认是 32
+        # NOTE 默认为3, 在 generate ost step 里生成 3 个回复序列, 每个回复序列生成一个子节点
+        self.num_a1_steps = args.num_a1_steps
         # NOTE 设置生成的 max token
         self.max_tokens = 1024
         self.enable_potential_score = args.enable_potential_score
-
-        self.mcts_num_last_votes = args.mcts_num_last_votes
-
-        with open(args.decompose_template_path, "r") as f:
-            decompose_template = json.load(f)
-            self.question_index = decompose_template["index"]
+        self.mcts_num_last_votes = args.mcts_num_last_votes  # 默认是 32
 
     # 从output_list中选择出现次数最多的answer和对应的completion
     def _get_most_likely_answer(self, io_output_list: List[str]) -> Tuple[str, float]:
@@ -171,7 +164,7 @@ Rephrased requirement:
             model_input=io_input,
             max_tokens=1024,
             num_return=1,
-            stop_tokens=rephrase_stop_token,
+            stop_tokens=["\n\n", "Original requirement:"],
         )[0]
         rephrased_user_requirement_list.append(io_output)
 
@@ -204,7 +197,7 @@ To implement the {func_name} function, we need to follow these steps:
         io_output_list = self.io.generate(
             model_input=io_input,
             max_tokens=256,
-            num_return=self.num_a1_steps,  # 默认生成3个回复, 每个回复生成一个子节点
+            num_return=self.num_a1_steps,
             stop_tokens=["\n", "\n\n", f"Step{next_ost_step_id + 1}:"],
         )
         ost_step_list = [io_output.strip() for io_output in io_output_list]
@@ -362,7 +355,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
                     user_question=self.user_requirement
                 )
             )
-            # TODO 用新生成的需求替换掉原来的 docstring
             for rephrased_user_requirement in rephrased_user_requirement_list:
                 self.children.append(
                     Reasoning_MCTS_Node(
@@ -419,12 +411,10 @@ class Reasoning_MCTS_Node(MCTS_Node):
 
     # 有效的叶结点是子问题类型(回答完了)和直接回答类型
     def is_valid_leaf_node(self):
-        #! a valid solution can only be in SUBQUESTION type or DIRECT_ANSWER type
         self.node_type is Node_Type.DIRECT_ANSWER
 
     # 有效的solution node是子问题节点(回答完了), 单步思考节点(回答完了), 或直接回答节点
     def is_valid_solution_node(self):
-        #! a valid solution can only be in SUBQUESTION type or DIRECT_ANSWER type or OST_STEP type
         return (
             self.node_type is Node_Type.OST_STEP
             and reach_terminal_ost_step(self.ost_step)
