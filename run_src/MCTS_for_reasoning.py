@@ -211,7 +211,7 @@ Step{next_ost_step_id}:
             model_input=io_input,
             max_tokens=256,
             num_return=self.num_a1_steps,  # 默认生成3个回复, 每个回复生成一个子节点
-            stop_tokens=["\n", "\n\n", f"Step{next_ost_step_id + 1}:"],
+            stop_tokens=["\n\n", f"Step{next_ost_step_id + 1}:"],
         )
         ost_step_list = [io_output.strip() for io_output in io_output_list]
 
