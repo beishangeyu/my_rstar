@@ -518,7 +518,8 @@ def search_for_answers(
     write_jsonl(path1, all_solutions, append=True)
 
     # NOTE 记录每次simulate的路径中最后的节点
-    # TODO 这个记录下来有啥用?
+    # XXX 不知道为什么在 eval 的时候会把这两个文件的 json 加在一起, 这样会让其中一些答案重复从而数量增多, 影响到选择最终答案, 但是我还是生成出来
+    # TODO 记得 do eval 的时候不要用这个函数
     path2 = os.path.join(
         args.answer_sheets_dir, f"Task_id_{question_id}_last_node_per_simulate.json"
     )
