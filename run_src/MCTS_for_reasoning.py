@@ -518,6 +518,7 @@ def search_for_answers(
     write_jsonl(path1, all_solutions, append=True)
 
     # NOTE 记录每次simulate的路径中最后的节点
+    # TODO 这个记录下来有啥用?
     path2 = os.path.join(
         args.answer_sheets_dir, f"Task_id_{question_id}_last_node_per_simulate.json"
     )
