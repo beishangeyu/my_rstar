@@ -27,8 +27,7 @@ from run_src.rstar_utils import (
     make_hint,
     print_tree_from_root,
     stochastic_find_best_solution,
-    make_prompt,
-    make_funchead_and_docstring
+    make_funchead_and_docstring,
 )
 from prompts.prompt import (
     ost_prompt,
@@ -97,9 +96,17 @@ class Generator:
         # io_input = self.fewshot_cot_config["prompt_template"].format(
         #     examples=fewshot_cot_prompt, instruction=question
         # )
-        funchead_and_docstring = make_funchead_and_docstring(requirement, func_head, test_case)
-        # TODO make prompt 或许可以根据类型的不同构造不同的 input
-        io_input = make_prompt(hint, funchead_and_docstring)
+        funchead_and_docstring = make_funchead_and_docstring(
+            requirement, func_head, test_case
+        )
+        io_input = f"""
+        You are a Python assistant. Implement a Python function based on the given function head, docstring, and hint.
+[Function head and docstring]:
+{funchead_and_docstring}
+[Hint]
+{hint}
+[Function implementation]
+"""
         io_output_list = self.io.generate(
             model_input=io_input,
             num_return=num_return,
@@ -176,23 +183,29 @@ Rephrased requirement:
     # NOTE 给出之前生成的单步思考, 生成下一步思考
     def generate_ost_step(
         self,
-        user_question: str,
+        requirement: str,
         solution_trace: Dict[int, Dict[str, str]],
         paraphrased: bool,
         parent_is_subquestion: bool,
-        task: str,
+        func_head: str,
+        test_case: str,
     ):
+        funchead_and_docstring = make_funchead_and_docstring(
+            requirement, func_head, test_case
+        )
+        idx = func_head.find("(")
+        func_name = func_head[4:idx]
         ost_step_list = []
         #  也是一步一步提出来的
         existing_ost_steps, next_ost_step_id = concat_ost_steps(solution_trace)
         io_input = f"""
 {ost_prompt}
-[function haed and docstring]
-{task}
-[step to implement]
+[Function haed and docstring]
+{funchead_and_docstring}
+[Step to implement]
+To implement the {func_name} function, we need to follow these steps:
 {existing_ost_steps}
 Step{next_ost_step_id}:
-To implement the {} function, we need to follow these steps:
 """
         io_output_list = self.io.generate(
             model_input=io_input,
@@ -480,7 +493,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
 
             #! ACTION: generate one-step thought step
             ost_step_list = self.generator.generate_ost_step(
-                user_question=self.user_requirement,
+                requirement=self.user_requirement,
                 solution_trace=self.solution_trace,
                 paraphrased=self.paraphrased,
                 parent_is_subquestion=parent_is_subquestion,

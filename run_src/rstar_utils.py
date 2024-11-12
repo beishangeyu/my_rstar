@@ -709,22 +709,6 @@ def make_funchead_and_docstring(
     return s
 
 
-# 组合成正确格式的 prompt, 让模型根据 function head, docstring, hint 直接生成答案
-def make_prompt(hint: str, funchead_and_docstring: str) -> str:
-    prompt = f"""
-You are a Python assistant. Implement a Python function based on the given function head, docstring, and hint.
-
-[Function head and docstring]:
-{funchead_and_docstring}
-
-[Hint]
-{hint}
-
-[Function implementation]
-"""
-    return prompt
-
-
 def make_response_prefix(
     solution_trace: Dict[int, Dict[str, str]],
     node_type: Node_Type,
