@@ -393,9 +393,13 @@ class Reasoning_MCTS_Node(MCTS_Node):
         elif self.node_type is Node_Type.DIRECT_ANSWER:
             raise ValueError("DIRECT_ANSWER node cannot create children!!")
         elif self.node_type is Node_Type.OST_STEP:
-            do_action_generate_ost_step()
+            # 取出当前最后一个ost_step
+            last_ost_step = list(self.solution_trace.items())[-1][1]["ost_step"][-1]
+            s = f"Implement the {self.func_name} function"
+            # 如果没到最后一步才继续生成ost step
+            if not s in last_ost_step:
+                do_action_generate_ost_step()
             do_action_generate_direct_answers()
-            # XXX 在单步思考中途修改 requirement, solution trace 需要更改?
             do_action_generate_rephrased_user_requirement()
 
         assert self.children
