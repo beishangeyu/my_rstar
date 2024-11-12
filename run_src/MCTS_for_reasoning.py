@@ -134,7 +134,6 @@ class Generator:
 
         try:
             # 选择出现次数最多的答案返回, 这个答案次数的占比即 value
-            # TODO 这里的答案需要修改吗? 因为有多行
             most_likely_answer, likelihood = self._get_most_likely_answer(
                 cleaned_io_output_list
             )
@@ -219,7 +218,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
         user_requirement: str = None,
         max_depth_allowed: int = None,
         rephrased_requirement: str = None,  # rephrase后的要求
-        expected_answer: str = None,
         direct_answer: str = None,
         ost_step: str = None,
     ) -> None:
@@ -237,8 +235,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
         if parent is None:
             self.verbose = verbose
             self.user_requirement = user_requirement  # 即每个样本的要求
-            # TODO 这个 expected_answer 是拿来干嘛的?
-            self.expected_answer = expected_answer
             self.generator = generator
             self.question_index = generator.question_index
             self.max_depth_allowed = max_depth_allowed
@@ -249,7 +245,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
         else:
             self.verbose = parent.verbose
             self.user_requirement = parent.user_requirement
-            self.expected_answer = parent.expected_answer
             self.generator = parent.generator
             self.question_index = parent.generator.question_index
             self.max_depth_allowed = parent.max_depth_allowed
@@ -472,7 +467,6 @@ def search_for_answers(
         generator=generator,
         disable_a5=args.disable_a5,
         user_requirement=user_question,
-        expected_answer=gt_answer,
         max_depth_allowed=args.max_depth_allowed,
         disable_a1=args.disable_a1,
         enable_potential_score=args.enable_potential_score,
