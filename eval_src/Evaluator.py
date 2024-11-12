@@ -51,9 +51,7 @@ class Evaluator:
             return text
 
     # 找到出现次数最多的answer, 提供它对应的第一个completion和他在所有completion中的index, 以及confidence
-    def find_most_confident_answer(
-        self, completions: List[str], prior_weights: List[float] = None
-    ):
+    def find_most_confident_answer(self, completions: List[str]):
         """Returns the most confident answer, its completion, its id in the input list, and its confidence."""
         if completions is None or len(completions) == 0:
             return None, None, None, None
@@ -62,65 +60,34 @@ class Evaluator:
         answer2ids = defaultdict(list)
         # 把相同answer的completion放在一起
         for id, c in enumerate(completions):
-            try:
-                # TODO 对于代码而言 code 即 answer, 不用再取出来, 但是要把注释去掉
-                model_answer = self.extract_answer_from_model_completion(c)
-                has_existed = False
-                for existing_answer in answer2completions.keys():
-                    if self.check_answers_equiv(model_answer, existing_answer):
-                        assert not has_existed
-                        has_existed = True
-                        answer2completions[existing_answer].append(c)
-                        answer2ids[existing_answer].append(id)
-                if not has_existed:
-                    answer2completions[model_answer].append(c)
-                    answer2ids[model_answer].append(id)
-            except:
-                pass
+            model_answer = self.extract_answer_from_model_completion(c)
+            has_existed = False
+            for existing_answer in answer2completions.keys():
+                if self.check_answers_equiv(model_answer, existing_answer):
+                    assert not has_existed
+                    has_existed = True
+                    answer2completions[existing_answer].append(c)
+                    answer2ids[existing_answer].append(id)
+            if not has_existed:
+                answer2completions[model_answer].append(c)
+                answer2ids[model_answer].append(id)
 
         assert len(answer2completions.keys()) > 0, "There are no valid completions."
-        if prior_weights is not None:
-            assert len(completions) == len(prior_weights)
-            completion2count = {}
-            for answer, answer_completions in answer2completions.items():
-                count = len(answer_completions)
-                for answer_completion in answer_completions:
-                    completion2count[answer_completion] = count
-
-            completion2score = {}
-            for id, (completion, count) in enumerate(completion2count.items()):
-                prior_weight = prior_weights[id]
-                score = prior_weight * (count / len(completions))
-                completion2score[completion] = score
-
-            most_confident_completion = max(
-                completion2score.keys(), key=lambda x: completion2score[x]
-            )
-
-            return (
-                self.extract_answer_from_model_completion(most_confident_completion),
-                most_confident_completion,
-                completions.index(most_confident_completion),
-                completion2score[most_confident_completion],
-            )
-        else:
-            most_confident_answer = max(
-                answer2completions.keys(), key=lambda x: len(answer2completions[x])
-            )
-            assert (
-                len(answer2completions[most_confident_answer]) > 0
-            ), "There are no completions for the most confident answer."
-            confidence = len(answer2completions[most_confident_answer]) / len(
-                completions
-            )
-            assert confidence > 0
-            return (
-                most_confident_answer,
-                # 选择该出现次数最多的answer的第一个completion
-                answer2completions[most_confident_answer][0],
-                answer2ids[most_confident_answer][0],
-                confidence,  # 该answer出现的次数 / 总的completion数
-            )
+        most_confident_answer = max(
+            answer2completions.keys(), key=lambda x: len(answer2completions[x])
+        )
+        assert (
+            len(answer2completions[most_confident_answer]) > 0
+        ), "There are no completions for the most confident answer."
+        confidence = len(answer2completions[most_confident_answer]) / len(completions)
+        assert confidence > 0
+        return (
+            most_confident_answer,
+            # 选择该出现次数最多的answer的第一个completion
+            answer2completions[most_confident_answer][0],
+            answer2ids[most_confident_answer][0],
+            confidence,  # 该answer出现的次数 / 总的completion数
+        )
 
     def stochastic_select_answer(
         self, completion2score, answer2completions, completions
@@ -154,7 +121,7 @@ class Evaluator:
 
         return selected_answer, most_confident_completion, completion_index, confidence
 
-    def stochastic_calculate_completion_scores(self, prior_weights, answer2completions):
+    def stochastic_calculate_completion_scores(self, answer2completions):
         completion2count = {}
         for answer, comps in answer2completions.items():
             count = len(comps)
@@ -163,7 +130,7 @@ class Evaluator:
 
         completion2score = {}
         for idx, comp in enumerate(completion2count.keys()):
-            weight = prior_weights[idx] if prior_weights is not None else 1
+            weight = 1
             score = weight * completion2count[comp]
             completion2score[comp] = score
         return completion2score
@@ -196,7 +163,6 @@ class Evaluator:
     def stochastic_find_most_confident_answer(
         self,
         completions: List[str],
-        prior_weights: List[float] = None,
     ):
 
         if not completions or len(completions) == 0:
@@ -214,7 +180,7 @@ class Evaluator:
             return None, None, None, None
 
         completion2score = self.stochastic_calculate_completion_scores(
-            prior_weights, answer2completions
+            answer2completions
         )
 
         most_confident_answer, sampled_completion, id_of_most_confident, confidence = (
@@ -241,10 +207,6 @@ class PythonEvaluator(Evaluator):
     # 比较两个函数是否相等
     def check_answers_equiv(self, answer_a: str, answer_b: str):
         return answer_a == answer_b
-
-    # TODO 即 task 的 code 部分
-    def extract_answer_from_gold_solution(self, solution: str) -> str:
-        return self.isolate_answer(solution)
 
     def extract_answer_from_model_completion(self, completion: str) -> str:
         return remove_comments(completion)
