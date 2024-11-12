@@ -464,27 +464,6 @@ def find_best_solution(root_node, evaluator):
 
     solutions = [extract_solution_from_node(node) for node in solution_nodes]
 
-    def calculate_potential_score_for_solution_node(node):
-        model_answer = evaluator.extract_answer_from_model_completion(
-            extract_solution_from_node(node)
-        )
-        potential_answers_history = (
-            node.potential_answers_history
-        )  # {depth -> [potential answers]}
-        assert potential_answers_history[node.depth] is None
-
-        potential_score = 1
-        for depth, depth_potential_answers in potential_answers_history.items():
-            if depth < node.depth:
-                depth_score = sum(
-                    evaluator.check_answers_equiv(dpa, model_answer)
-                    for dpa in depth_potential_answers
-                ) / len(depth_potential_answers)
-                potential_score *= depth_score
-
-        node.set_potential_score(potential_score)
-        return potential_score
-
     top_answer, top_completion, top_completion_id, top_confidence = (
         evaluator.find_most_confident_answer(solutions)
     )
@@ -517,27 +496,6 @@ def stochastic_find_best_solution(
             return None
 
     solutions = [extract_solution_from_node(node) for node in solution_nodes]
-
-    def calculate_potential_score_for_solution_node(node):
-        model_answer = evaluator.extract_answer_from_model_completion(
-            extract_solution_from_node(node)
-        )
-        potential_answers_history = (
-            node.potential_answers_history
-        )  # {depth -> [potential answers]}
-        assert potential_answers_history[node.depth] is None
-
-        potential_score = 1
-        for depth, depth_potential_answers in potential_answers_history.items():
-            if depth < node.depth:
-                depth_score = sum(
-                    evaluator.check_answers_equiv(dpa, model_answer)
-                    for dpa in depth_potential_answers
-                ) / len(depth_potential_answers)
-                potential_score *= depth_score
-
-        node.set_potential_score(potential_score)
-        return potential_score
 
     top_answer, top_completion, top_completion_id, top_confidence = (
         evaluator.stochastic_find_most_confident_answer(completions=solutions)

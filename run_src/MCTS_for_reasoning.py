@@ -259,7 +259,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
             self.user_requirement = parent.user_requirement
 
         # 记录 ost 步数
-        # TODO 一般不能大于 8? 拿几个样本去 gpt 那里试一下, 小模型的思考步骤应该比那个多个一两步
         if parent is None:  # root
             self.ost_step_counter = 0
         else:
@@ -283,18 +282,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 self.solution_trace[0]["ost_step"][self.ost_step_counter] = ost_step
 
             pass
-
-    # TODO 这个只是输出相关, 等有时间了再来考虑
-    # def __str__(self) -> str:
-    #     type2str = {
-    #         Node_Type.USER_QUESTION: "U",
-    #         Node_Type.REPHRASED_USER_QUESTION: "RU",
-    #         Node_Type.DIRECT_ANSWER: "DA",
-    #         Node_Type.SUBQUESTION: "SQ",
-    #         Node_Type.RE_SUBANSWER: "RS",
-    #         Node_Type.OST_STEP: "TS",
-    #     }
-    #     return f"{type2str[self.node_type]}-{self.id}"
 
     def _create_children(self):
         # NOTE 直接生成答案
