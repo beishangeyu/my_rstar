@@ -127,7 +127,7 @@ class Generator:
         )
 
         try:
-            # 选择出现次数最多的答案返回, 这个答案次数的占比即 value
+            # 选择出现次数最多的答案返回, 出现次数 / 回复个数 = value
             most_likely_answer, likelihood = self._get_most_likely_answer(
                 cleaned_io_output_list
             )
@@ -405,16 +405,13 @@ class Reasoning_MCTS_Node(MCTS_Node):
         assert self.children
         return self.children
 
-    # 有效的叶结点是子问题类型(回答完了)和直接回答类型
+    # 有效的叶结点是 direct answer
     def is_valid_leaf_node(self):
         self.node_type is Node_Type.DIRECT_ANSWER
 
-    # 有效的solution node是子问题节点(回答完了), 单步思考节点(回答完了), 或直接回答节点
+    # 有效的 solution node 只会是 direct answer (由于 ost 到了最后会停下来, 还是由 direct answer 生成回复)
     def is_valid_solution_node(self):
-        return (
-            self.node_type is Node_Type.OST_STEP
-            and reach_terminal_ost_step(self.ost_step)
-        ) or self.node_type is Node_Type.DIRECT_ANSWER
+        return self.node_type is Node_Type.DIRECT_ANSWER
 
     def find_children(self, rollout_id: int):
         self.children = self.children or self._create_children()
@@ -425,7 +422,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
 
     def is_terminal(self):
         # return self.depth >= self.max_depth_allowed or self.is_valid_leaf_node()
-        # XXX github上有人说加入ost判定后会稍微增加性能, 测试一下
         return self.depth >= self.max_depth_allowed or self.is_valid_solution_node()
 
     def calculate_reward(self):
