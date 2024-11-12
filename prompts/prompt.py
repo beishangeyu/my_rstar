@@ -75,7 +75,6 @@ def find_Odd_Pair(A, N):
     return odd_count * even_count
 """
 # 因为一次只进行一步思考, 所以读到换行符就要停下来
-ost_stop_token = ["\n\n", "\n"]
 
 
 # NOTE 重述用户的要求
@@ -97,7 +96,6 @@ Write a function to count the same pair in two given lists usage map function.
 Rephrased requirement:
 Write a Python function using map to count the number of matching pairs in two given lists.
 """
-rephrase_stop_token = ["\n\n", "Original requirement:"]
 
 # 对 prompt 进行测试
 if __name__ == "__main__":
