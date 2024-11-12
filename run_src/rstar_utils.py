@@ -444,7 +444,7 @@ def find_valid_solution_nodes(root_node):
     return valid_solution_nodes
 
 
-def find_best_solution(root_node, evaluator, enable_potential_score=False):
+def find_best_solution(root_node, evaluator):
     # todo: what strategy do we use to select best node?
     """The function finds the best solution from the solution nodes in the MCTS tree.
     Return: top answer, top solution, confidence of the top answer, the corresponding node of the answer, all solution nodes
@@ -485,13 +485,8 @@ def find_best_solution(root_node, evaluator, enable_potential_score=False):
         node.set_potential_score(potential_score)
         return potential_score
 
-    prior_weights = (
-        [calculate_potential_score_for_solution_node(node) for node in solution_nodes]
-        if enable_potential_score
-        else None
-    )
     top_answer, top_completion, top_completion_id, top_confidence = (
-        evaluator.find_most_confident_answer(solutions, prior_weights)
+        evaluator.find_most_confident_answer(solutions)
     )
     return (
         top_answer,
@@ -505,7 +500,6 @@ def find_best_solution(root_node, evaluator, enable_potential_score=False):
 def stochastic_find_best_solution(
     root_node,
     evaluator,
-    enable_potential_score,
 ):
     # todo: what strategy do we use to select best node?
     """The function finds the best solution from the solution nodes in the MCTS tree.
@@ -517,9 +511,7 @@ def stochastic_find_best_solution(
         return None, None
 
     def extract_solution_from_node(node):
-        if node.node_type is Node_Type.SUBQUESTION:
-            return node.subanswer
-        elif node.node_type is Node_Type.DIRECT_ANSWER:
+        if node.node_type is Node_Type.DIRECT_ANSWER:
             return node.direct_answer
         else:
             return None
@@ -547,16 +539,8 @@ def stochastic_find_best_solution(
         node.set_potential_score(potential_score)
         return potential_score
 
-    prior_weights = (
-        [calculate_potential_score_for_solution_node(node) for node in solution_nodes]
-        if enable_potential_score
-        else None
-    )
-
     top_answer, top_completion, top_completion_id, top_confidence = (
-        evaluator.stochastic_find_most_confident_answer(
-            completions=solutions, prior_weights=prior_weights
-        )
+        evaluator.stochastic_find_most_confident_answer(completions=solutions)
     )
     return (
         top_answer,
