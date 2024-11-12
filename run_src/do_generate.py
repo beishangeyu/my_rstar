@@ -74,7 +74,6 @@ if __name__ == "__main__":
     parser = get_parser()
 
     parser.add_argument("--num_rollouts", type=int, default=15)
-    parser.add_argument("--num_votes", type=int, default=10)
     parser.add_argument("--max_depth_allowed", type=int, default=5)
 
     # MCTS
@@ -92,7 +91,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # NOTE 一次generate中模型回复的次数
+    # NOTE 在 generate direct answer 的时候模型生成的序列(回复)个数
     if args.mcts_num_last_votes is None:
         args.mcts_num_last_votes = 32
 
