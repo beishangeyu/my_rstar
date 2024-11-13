@@ -39,8 +39,6 @@ def main(args):
     num_tested = 0
 
     for i, data_item in enumerate(dataset):
-        print(f"---------------------- Curent task id: {i} ----------------------")
-
         problem_id, problem = data_item["task_id"], data_item["adv_text"]
 
         model_solutions, stopping_id, model_all_solutions = [], -1, []
@@ -63,26 +61,19 @@ if __name__ == "__main__":
 
     # MCTS
     parser.add_argument("--mcts_discount_factor", type=float, default=1.0)
-    parser.add_argument(
-        "--mcts_exploration_weight", type=float, default=2.0
-    )  # 探索权重
+    # 探索权重
+    parser.add_argument("--mcts_exploration_weight", type=float, default=2.0)
+    # 动态调整探索权重
     parser.add_argument(
         "--mcts_weight_scheduler", choices=["exp", "lin", "const"], default="const"
-    )  # 动态调整探索权重
-    parser.add_argument("--mcts_num_last_votes", type=int, default=None)
+    )
+    # NOTE 在 generate direct answer 的时候模型生成的序列(回复)个数
+    parser.add_argument("--mcts_num_last_votes", type=int, default=32)
     parser.add_argument("--save_tree", action="store_true")
-
-    parser.add_argument("--num_a1_steps", type=int, default=None)
+    # NOTE 采用一次action1生成的子节点数量
+    parser.add_argument("--num_a1_steps", type=int, default=3)
 
     args = parser.parse_args()
-
-    # NOTE 在 generate direct answer 的时候模型生成的序列(回复)个数
-    if args.mcts_num_last_votes is None:
-        args.mcts_num_last_votes = 32
-
-    # NOTE 采用一次action1生成的子节点数量
-    if args.num_a1_steps is None:
-        args.num_a1_steps = 3
 
     args = post_process_args(args)
     print(args)
