@@ -57,7 +57,7 @@ if __name__ == "__main__":
     parser = get_parser()
 
     parser.add_argument("--num_rollouts", type=int, default=15)
-    parser.add_argument("--max_depth_allowed", type=int, default=5)
+    parser.add_argument("--max_depth_allowed", type=int, default=11)
 
     # MCTS
     parser.add_argument("--mcts_discount_factor", type=float, default=1.0)
