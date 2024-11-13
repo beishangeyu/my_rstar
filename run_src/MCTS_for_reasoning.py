@@ -191,7 +191,10 @@ To implement the {func_name} function, we need to follow these steps:
             model_input=io_input,
             max_tokens=256,
             num_return=self.num_a1_steps,
-            stop_tokens=["\n", "\n\n", f"Step{next_ost_step_id + 1}:"],
+            stop_tokens=[
+                "\n\n",
+                f"Step{next_ost_step_id + 1}:",
+            ],  # XXX 怀疑是stop token 问题
         )
         ost_step_list = [io_output.strip() for io_output in io_output_list]
 
@@ -280,7 +283,11 @@ class Reasoning_MCTS_Node(MCTS_Node):
             elif node_type is Node_Type.OST_STEP:
                 # solution_trace[0]["ost_step"] 也是一个 dict, key 是思考的步数
                 self.solution_trace[0]["ost_step"][self.ost_step_counter] = ost_step
-
+            elif node_type is Node_Type.DIRECT_ANSWER:
+                self.solution_trace[0]["direct_answer"] = {
+                    "text": direct_answer,
+                    "value": node_value,  # 即这个答案的置信度, 是所有答案中这个答案出现次数的占比
+                }
             pass
 
     def _create_children(self):
@@ -460,7 +467,7 @@ def search_for_answers(
     model_all_solutions = []
     model_rollout_nodes = []
     # 进行指定次数次 rollout
-    for i in (pbar := trange(args.num_rollouts, disable=True, position=0)):
+    for i in range(args.num_rollouts):
         rollout_node = mcts_searcher.do_rollout(root_node, i)
         model_rollout_nodes.append(rollout_node)
 
