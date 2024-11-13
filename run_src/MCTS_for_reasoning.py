@@ -90,10 +90,13 @@ class Generator:
         )
         io_input = f"""
         You are a Python assistant. Implement a Python function based on the given function head, docstring, and hint.
+
 [Function head and docstring]:
 {funchead_and_docstring}
+
 [Hint]
 {hint}
+
 [Function implementation]
 """
         io_output_list = self.io.generate(
@@ -127,7 +130,7 @@ class Generator:
         )
 
         try:
-            # 选择出现次数最多的答案返回, 出现次数 / 回复个数 = value
+            # 选择出现次数最多的答案返回, value = 出现次数最多的答案次数 / 总次数
             most_likely_answer, likelihood = self._get_most_likely_answer(
                 cleaned_io_output_list
             )
@@ -181,8 +184,10 @@ Rephrased requirement:
         existing_ost_steps, next_ost_step_id = concat_ost_steps(solution_trace)
         io_input = f"""
 {ost_prompt}
+
 [Function haed and docstring]
 {funchead_and_docstring}
+
 [Step to implement]
 To implement the {func_name} function, we need to follow these steps:
 {existing_ost_steps}Step{next_ost_step_id}:
@@ -192,6 +197,7 @@ To implement the {func_name} function, we need to follow these steps:
             max_tokens=256,
             num_return=self.num_a1_steps,
             stop_tokens=[
+                "\n",
                 "\n\n",
                 f"Step{next_ost_step_id + 1}:",
             ],  # XXX 怀疑是stop token 问题
@@ -366,14 +372,16 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 test_case=test_case,
             )
             for ost_step in ost_step_list:
-                self.children.append(
-                    Reasoning_MCTS_Node(
-                        parent=self,
-                        depth=self.depth + 1,
-                        node_type=Node_Type.OST_STEP,
-                        ost_step=ost_step,
+                # 如果 ost step 不为空才添加
+                if len(ost_step):
+                    self.children.append(
+                        Reasoning_MCTS_Node(
+                            parent=self,
+                            depth=self.depth + 1,
+                            node_type=Node_Type.OST_STEP,
+                            ost_step=ost_step,
+                        )
                     )
-                )
 
         # create children
         # NOTE 规定了每种类型的节点可以创造什么类型的子节点
@@ -416,7 +424,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
         return self.children
 
     def is_terminal(self):
-        # return self.depth >= self.max_depth_allowed or self.is_valid_leaf_node()
         return self.depth >= self.max_depth_allowed or self.is_valid_solution_node()
 
     def calculate_reward(self):
@@ -507,7 +514,7 @@ def search_for_answers(
 
     # NOTE 记录每次simulate的路径中最后的节点
     # XXX 不知道为什么在 eval 的时候会把这两个文件的 json 加在一起, 这样会让其中一些答案重复从而数量增多, 影响到选择最终答案, 但是我还是生成出来
-    # TODO 记得 do eval 的时候不要用这个函数
+    # TODO 记得 do eval 的时候不要用这个文件
     path2 = os.path.join(
         args.gene_result, f"Task_id_{task_id}_last_node_per_simulate.json"
     )
