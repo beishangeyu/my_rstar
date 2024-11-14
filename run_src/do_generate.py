@@ -33,12 +33,16 @@ def main(args):
             args.tensor_parallel_size,
             args.half_precision,
             max_model_len=args.max_model_len,
+            gpu_memory_utilization=args.gpu_memory_utilization,
         )
     generator = Generator(args, tokenizer, model, evaluator)
 
     num_tested = 0
 
     for i, data_item in enumerate(dataset):
+        if i > 0:
+            break
+
         problem_id, problem = data_item["task_id"], data_item["adv_text"]
 
         model_solutions, stopping_id, model_all_solutions = [], -1, []
