@@ -487,7 +487,7 @@ def search_for_answers(
     # 进行指定次数次 rollout
     for i in range(args.num_rollouts):
         rollout_node = mcts_searcher.do_rollout(root_node, i)
-        # model_rollout_nodes.append(rollout_node)
+        # model_rollout_nodes.append(rollout_node) # XXX 不知道保存有啥用, 先注释掉
 
         # 每次 rollout 找出 best_solution 和 所有 solution
         _, best_solution, _, chosen_node, all_solution_nodes, all_solutions = (
