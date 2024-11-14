@@ -14,6 +14,7 @@ def load_vLLM_model(
     half_precision=False,
     max_num_seqs=256,
     max_model_len=0,
+    gpu_memory_utilization=0.9,
 ):
     tokenizer = AutoTokenizer.from_pretrained(model_ckpt)
 
@@ -25,9 +26,10 @@ def load_vLLM_model(
                 tensor_parallel_size=tensor_parallel_size,
                 seed=seed,
                 trust_remote_code=True,
-                max_num_seqs=max_num_seqs,
-                swap_space=16,
+                # max_num_seqs=max_num_seqs,
+                # swap_space=16,
                 max_model_len=max_model_len,
+                gpu_memory_utilization=gpu_memory_utilization,
             )
         else:
             llm = LLM(
@@ -35,9 +37,10 @@ def load_vLLM_model(
                 tensor_parallel_size=tensor_parallel_size,
                 seed=seed,
                 trust_remote_code=True,
-                max_num_seqs=max_num_seqs,
-                swap_space=16,
+                # max_num_seqs=max_num_seqs,
+                # swap_space=16,
                 max_model_len=max_model_len,
+                gpu_memory_utilization=gpu_memory_utilization,
             )
     else:
         if half_precision:
@@ -47,8 +50,9 @@ def load_vLLM_model(
                 tensor_parallel_size=tensor_parallel_size,
                 seed=seed,
                 trust_remote_code=True,
-                max_num_seqs=max_num_seqs,
-                swap_space=16,
+                # max_num_seqs=max_num_seqs,
+                # swap_space=16,
+                gpu_memory_utilization=gpu_memory_utilization,
             )
         else:
             llm = LLM(
@@ -56,8 +60,9 @@ def load_vLLM_model(
                 tensor_parallel_size=tensor_parallel_size,
                 seed=seed,
                 trust_remote_code=True,
-                max_num_seqs=max_num_seqs,
-                swap_space=16,
+                # max_num_seqs=max_num_seqs,
+                # swap_space=16,
+                gpu_memory_utilization=gpu_memory_utilization,
             )
     return tokenizer, llm
 
