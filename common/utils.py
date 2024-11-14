@@ -38,7 +38,7 @@ def load_dataset(data: List[Dict]):
     return [item for item in data if item["state"]]
 
 
-def write_jsonl(filename: str, data: Iterable[Dict], append: bool = True):
+def write_jsonl(filename: str, data: Iterable[Dict], append: bool = False):
     if append:
         mode = "ab"
     else:
