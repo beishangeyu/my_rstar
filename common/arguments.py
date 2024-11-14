@@ -28,6 +28,7 @@ def get_parser():
     parser.add_argument("--test_batch_size", type=int, default=1)  # batch_size
     parser.add_argument("--tensor_parallel_size", type=int, default=1)
     parser.add_argument("--max_model_len", type=int, default=0)
+    parser.add_argument("--gpu_memory_utilization", type=float, default=0.9)
 
     #! dataset settings
     parser.add_argument("--data_root", default="data")
