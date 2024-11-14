@@ -40,8 +40,9 @@ def main(args):
     num_tested = 0
 
     for i, data_item in enumerate(dataset):
-        if i > 0:
-            break
+        # 用于测试
+        # if i > 0:
+        #     break
 
         problem_id, problem = data_item["task_id"], data_item["adv_text"]
 
