@@ -22,10 +22,9 @@ from MCTS_backbone import MCTS_Searcher, MCTS_Node
 from run_src.rstar_utils import (
     Node_Type,
     GeneratorError,
-    reach_terminal_ost_step,
+    get_nodetype,
     concat_ost_steps,
     make_hint,
-    print_tree_from_root,
     stochastic_find_best_solution,
     make_funchead_and_docstring,
 )
@@ -91,7 +90,7 @@ class Generator:
         io_input = f"""
         You are a Python assistant. Implement a Python function based on the given function head, docstring, and hint.
 
-[Function head and docstring]:
+[Function head and docstring]
 {funchead_and_docstring}
 
 [Hint]
@@ -103,7 +102,13 @@ class Generator:
             model_input=io_input,
             num_return=num_return,
             max_tokens=self.max_tokens,
-            stop_tokens=["[Function head and docstring]:"],
+            stop_tokens=[
+                "[Function head and docstring]",
+                "You are a Python assistant",
+                "[Function head and docstring]",
+                "[Hint]",
+                "[Function implementation]",
+            ],
         )
         cleaned_io_output_list = [
             io_output.strip() for io_output in io_output_list
@@ -160,7 +165,11 @@ Rephrased requirement:
             model_input=io_input,
             max_tokens=1024,
             num_return=1,
-            stop_tokens=["\n\n", "Original requirement:"],
+            stop_tokens=[
+                "\n\n",
+                "Original requirement:",
+                "You are an AI assistant to help me rephrase the requirement.",
+            ],
         )[0]
         rephrased_user_requirement_list.append(io_output.strip())
 
@@ -199,9 +208,13 @@ To implement the {func_name} function, we need to follow these steps:
             max_tokens=256,
             num_return=self.num_a1_steps,
             stop_tokens=[
+                "\n",
                 "\n\n",
                 f"Step{next_ost_step_id + 1}:",
+                "[Function head and docstring]",
                 "[Function implementation]",
+                "[Step to implement]",
+                "You are a Python assistant.",
             ],
         )
         ost_step_list = [io_output.strip() for io_output in io_output_list]
@@ -410,6 +423,8 @@ class Reasoning_MCTS_Node(MCTS_Node):
 
     # 有效的 solution node 只会是 direct answer (由于 ost 到了最后会停下来, 还是由 direct answer 生成回复)
     def is_valid_solution_node(self):
+        # direct_answer = self.solution_trace[0]["text"]
+        # return len(direct_answer) > 0
         return self.node_type is Node_Type.DIRECT_ANSWER
 
     def find_children(self, rollout_id: int):
@@ -472,7 +487,7 @@ def search_for_answers(
     # 进行指定次数次 rollout
     for i in range(args.num_rollouts):
         rollout_node = mcts_searcher.do_rollout(root_node, i)
-        model_rollout_nodes.append(rollout_node)
+        # model_rollout_nodes.append(rollout_node)
 
         # 每次 rollout 找出 best_solution 和 所有 solution
         _, best_solution, _, chosen_node, all_solution_nodes, all_solutions = (
@@ -484,39 +499,25 @@ def search_for_answers(
         model_solutions.append(best_solution)
         model_all_solutions.append(all_solutions)
 
-        if args.save_tree:
-            with open(
-                os.path.join(
-                    args.answer_sheets_dir,
-                    f"Question {task_id:04d} - Rollout {i}.tree",
-                ),
-                "w",
-            ) as f:
-                print_tree_from_root(
-                    mcts_searcher=mcts_searcher,
-                    rollout_id=i,
-                    root_node=root_node,
-                    chosen_node=chosen_node,
-                    file=f,
-                )
+        # TODO 用来 debug 的, 记得注释
+        # nnnn = 8
+        # print(nnnn * "=" + f" Rollout {i} " + nnnn * "=")
+        # print("--all_solution_nodes:\n")
+        # for it in all_solution_nodes:
+        #     print(it.solution_trace)
+        # print("\n--rollout node:\n")
+        # print(rollout_node.solution_trace)
 
     # NOTE 记录最终整个树里所有的 solution
     path1 = os.path.join(args.gene_result, f"Task_id_{task_id}_all_solutions.jsonl")
-    all_solutions = [
-        {"trace": node.solution_trace, "rollout_id": node.rollout_id}
+    all_solution_nodes_ = [
+        {
+            "trace": node.solution_trace,
+            "rollout_id": node.rollout_id,
+            "type": get_nodetype(node),
+        }
         for node in all_solution_nodes
     ]
-    write_jsonl(path1, all_solutions, append=True)
-
-    # NOTE 记录每次simulate的路径中最后的节点
-    # XXX 不知道为什么在 eval 的时候会把这两个文件的 json 加在一起, 这样会让其中一些答案重复从而数量增多, 影响到选择最终答案, 但是我还是生成出来
-    # TODO 记得 do eval 的时候不要用这个文件
-    path2 = os.path.join(
-        args.gene_result, f"Task_id_{task_id}_last_node_per_simulate.jsonl"
-    )
-    last_node_per_simulate = []
-    for i, node in enumerate(model_rollout_nodes):
-        last_node_per_simulate.append({"trace": node.solution_trace, "rollout_id": i})
-    write_jsonl(path2, last_node_per_simulate, append=True)
+    write_jsonl(path1, all_solution_nodes_)
 
     return model_solutions, i, model_all_solutions
