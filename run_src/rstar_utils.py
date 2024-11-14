@@ -135,6 +135,8 @@ def concat_ost_steps(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, in
     last_tuple = list(solution_trace.items())[-1]  # 取出最后一个 kv pair
     last_tuple_id, last_tuple_recording = last_tuple[0], last_tuple[1]
     assert "ost_step" in last_tuple_recording.keys()
+    # TODO for test
+    print(len(last_tuple_recording["ost_step"]))
     if len(last_tuple_recording["ost_step"]) > 0:
         solution_trace_str = ""
 
@@ -407,8 +409,7 @@ def make_hint(
     if new_ost_step is not None:
         hint += new_ost_step + "\n"
 
-    hint = hint.strip()
-    return hint
+    return hint.strip()
 
 
 def make_funchead_and_docstring(
@@ -422,7 +423,7 @@ def make_funchead_and_docstring(
     {test_case}
     '''
 """
-    return s
+    return s.strip()
 
 
 def find_valid_solution_nodes(root_node):
