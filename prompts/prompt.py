@@ -1,6 +1,7 @@
 # TODO 遇到看不懂的先不要管, 先测试目前动作能否有效, 无效再考虑弄懂那些看不懂的动作
 
 # NOTE 提出单步思考
+# TODO 或许要告诉模型在可以生成函数的时候要结尾 Implement
 ost_prompt = """
 You are a Python assistant. You are given function head and its docstring. Provide the full implementation of the following function.
 
@@ -20,7 +21,7 @@ Step3: Initialize a Variable to Track the Maximum. Before iterating through the 
 Step4: Iterate Through the List of Tuples. For each tuple in the list, calculate the aggregate using the defined method.
 Step5: Update the Maximum Aggregate. Compare the current aggregate with the stored maximum, and update it if the current aggregate is greater.
 Step6: Return the Maximum Aggregate. After iterating through all tuples, return the maximum aggregate value.
-Step7: Implement the max_aggregate function
+Step7: Implement the function
 
 [Function implementation]
 def max_aggregate(stdata):
@@ -54,7 +55,7 @@ Step2: Understand XOR Properties. The XOR of two numbers is odd if and only if o
 Step3: Count Odd and Even Numbers. Initialize two counters: one for odd numbers and one for even numbers. Iterate through the list to populate these counters.
 Step4: Calculate Pairs. The number of valid pairs (one odd, one even) can be calculated by multiplying the count of odd numbers by the count of even numbers.
 Step5: Return the Count. Finally, return the total count of such pairs.
-Step6: Implement the find_Odd_Pair function
+Step6: Implement the function
 
 [Function implementation]
 def find_Odd_Pair(A, N):
@@ -74,7 +75,6 @@ def find_Odd_Pair(A, N):
     # The number of odd pairs is the product of odd_count and even_count
     return odd_count * even_count
 """
-# 因为一次只进行一步思考, 所以读到换行符就要停下来
 
 
 # NOTE 重述用户的要求
@@ -105,10 +105,10 @@ if __name__ == "__main__":
     from models.vLLM_API import *
 
     # 设置使用的显卡
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
     model_ckpt = "mistralai/Mistral-7B-v0.1"
     tokenizer, model = load_vLLM_model(
-        model_ckpt, seed=42, tensor_parallel_size=1, half_precision=False
+        model_ckpt, seed=42, tensor_parallel_size=4, half_precision=False
     )
     #     input = (
     #         ost_prompt
@@ -127,34 +127,37 @@ if __name__ == "__main__":
     # Original requirement: Writing a python function to left rotating the bits of a afforded number
     # Rephrased requirement:
     # """
-    input = """
-You are a Python assistant. Implement a Python function based on the given function head, docstring, and hint.
+    input = (
+        ost_prompt
+        + """
+[Function haed and docstring]
 
-[Function head and docstring]:
-def max_aggregate(stdata):
+def find_char_long(text):
     '''
-    Write a function to calculate the maximum aggregate from the list of tuples.
+    Write a Python function using regex to find all words in a string that have a length of at least 4 characters.
     for example:
-    max_aggregate([('Juan Whelan',90),('Sabah Colley',88),('Peter Nichols',7),('Juan Whelan',122),('Sabah Colley',84)])==('Juan Whelan', 212)
+    find_char_long('Please move back to stream') == ['Please', 'move', 'back', 'stream']
     '''
 
-[Hint]
-To implement the max_aggregate function, we need to follow these steps:
-Step1: Understand the Input. The function takes a list of tuples (stdata). Each tuple represents a set of data points (e.g., scores, measurements).
-Step2: Define the Aggregate Calculation. Determine how to calculate the "aggregate" from each tuple. This could mean summing the values in the tuple, finding the maximum value, or some other form of aggregation.
-Step3: Initialize a Variable to Track the Maximum. Before iterating through the list, initialize a variable to store the maximum aggregate value found.
-Step4: Iterate Through the List of Tuples. For each tuple in the list, calculate the aggregate using the defined method.
-Step5: Update the Maximum Aggregate. Compare the current aggregate with the stored maximum, and update it if the current aggregate is greater.
-Step6: Return the Maximum Aggregate. After iterating through all tuples, return the maximum aggregate value.
-Step7: Implement the max_aggregate function
 
-[Function implementation]
+[Step to implement]
+To implement the find_char_long function, we need to follow these steps:
+Step1: Understand the Input. The function takes a string as input (text).
+Step2: Understand the Regex Pattern. We need to find words that are at least 4 characters long. The regex pattern to match such words is [a-zA-Z0-9]+, which matches one or more alphanumeric characters.
+Step3: Initialize a List to Store Results. Create an empty list to store the results.
+Step4: 
 """
+    )
     # last_output = ""
     # for i in range(10):
     #     input += last_output
     #     output = generate_with_vLLM_model(model, input, stop=ost_stop_token)
     #     last_output = output[0].outputs[0].text
     #     print(output[0].outputs[0].text)
-    output = generate_with_vLLM_model(model, input, stop=[], max_tokens=1024)
+    output = generate_with_vLLM_model(
+        model,
+        input,
+        stop=["\n\n", "Step5", "[Function implementation]"],
+        max_tokens=1024,
+    )
     print(output[0].outputs[0].text)
