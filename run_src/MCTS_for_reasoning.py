@@ -162,7 +162,7 @@ Rephrased requirement:
             num_return=1,
             stop_tokens=["\n\n", "Original requirement:"],
         )[0]
-        rephrased_user_requirement_list.append(io_output)
+        rephrased_user_requirement_list.append(io_output.strip())
 
         return rephrased_user_requirement_list
 
@@ -190,17 +190,19 @@ Rephrased requirement:
 
 [Step to implement]
 To implement the {func_name} function, we need to follow these steps:
-{existing_ost_steps}Step{next_ost_step_id}:
+{existing_ost_steps}Step{next_ost_step_id}: 
 """
+        # TODO 查看一下 ost concat 的内容, 记得删掉
+        print(f"-----------------------------------\n{io_input}\n")
         io_output_list = self.io.generate(
             model_input=io_input,
             max_tokens=256,
             num_return=self.num_a1_steps,
             stop_tokens=[
-                "\n",
                 "\n\n",
                 f"Step{next_ost_step_id + 1}:",
-            ],  # XXX 怀疑是stop token 问题
+                "[Function implementation]",
+            ],
         )
         ost_step_list = [io_output.strip() for io_output in io_output_list]
 
@@ -373,7 +375,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
             )
             for ost_step in ost_step_list:
                 # 如果 ost step 不为空才添加
-                if len(ost_step):
+                if len(ost_step) > 0:
                     self.children.append(
                         Reasoning_MCTS_Node(
                             parent=self,
@@ -395,13 +397,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
         elif self.node_type is Node_Type.DIRECT_ANSWER:
             raise ValueError("DIRECT_ANSWER node cannot create children!!")
         elif self.node_type is Node_Type.OST_STEP:
-            # 取出当前最后一个ost_step
-            last_solution_trace = list(self.solution_trace.values())[-1]
-            last_ost_step = list(last_solution_trace["ost_step"].values())[-1]
-            s = f"Implement the {self.func_name} function"
-            # 如果没到最后一步才继续生成ost step
-            if not s in last_ost_step:
-                do_action_generate_ost_step()
+            do_action_generate_ost_step()
             do_action_generate_direct_answers()
             do_action_generate_rephrased_user_requirement()
 
@@ -516,7 +512,7 @@ def search_for_answers(
     # XXX 不知道为什么在 eval 的时候会把这两个文件的 json 加在一起, 这样会让其中一些答案重复从而数量增多, 影响到选择最终答案, 但是我还是生成出来
     # TODO 记得 do eval 的时候不要用这个文件
     path2 = os.path.join(
-        args.gene_result, f"Task_id_{task_id}_last_node_per_simulate.json"
+        args.gene_result, f"Task_id_{task_id}_last_node_per_simulate.jsonl"
     )
     last_node_per_simulate = []
     for i, node in enumerate(model_rollout_nodes):
