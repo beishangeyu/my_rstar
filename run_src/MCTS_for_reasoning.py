@@ -423,8 +423,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
 
     # 有效的 solution node 只会是 direct answer (由于 ost 到了最后会停下来, 还是由 direct answer 生成回复)
     def is_valid_solution_node(self):
-        # direct_answer = self.solution_trace[0]["text"]
-        # return len(direct_answer) > 0
         return self.node_type is Node_Type.DIRECT_ANSWER
 
     def find_children(self, rollout_id: int):
