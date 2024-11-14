@@ -2,3 +2,4 @@
 unit-test.py
 *_result
 __pycache__/
+*.txt
