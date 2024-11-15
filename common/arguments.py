@@ -37,6 +37,7 @@ def get_parser():
     # do generate 和 do eval 结果的保存路径
     parser.add_argument("--gene_result", type=str, default="gene_result")
     parser.add_argument("--eval_result", type=str, default="eval_result")
+    parser.add_argument("--disc_result", type=str, default="disc_result")
 
     return parser
 
