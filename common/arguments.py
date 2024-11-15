@@ -11,7 +11,7 @@ def get_parser():
 
     parser.add_argument("--api", type=str, default="vllm")
 
-    parser.add_argument("--seed", type=int, default=88)
+    parser.add_argument("--seed", type=int, default=32)
     parser.add_argument("--verbose", action="store_true")
 
     #! LLM settings
