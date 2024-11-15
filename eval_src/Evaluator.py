@@ -4,6 +4,7 @@ from typing import List, Dict, Tuple
 from collections import defaultdict
 import random
 from fuzzywuzzy import fuzz, process
+from threading import Thread
 
 
 class Evaluator:
@@ -202,6 +203,9 @@ class Evaluator:
     def extract_answer_from_model_completion(self, completion: str) -> str:
         raise NotImplementedError
 
+    def chect_correctness(self, code: str, dataset_name: str, test_list: List[str]):
+        raise NotImplementedError
+
 
 class PythonEvaluator(Evaluator):
     # 比较两个函数是否相等
@@ -211,6 +215,47 @@ class PythonEvaluator(Evaluator):
     def extract_answer_from_model_completion(self, completion: str) -> str:
         return remove_comments(completion)
 
+    def test_mbpp(self, test_list, code, timeout=5):
+        test_list_code = "\n".join(test_list)
+        try:
+            template = f"{code}\n{test_list_code}\n"
+            function_with_timeout(exec, (template, globals()), timeout)
+            return 1
+        except:
+            return 0
+
+    def chect_correctness(self, code: str, dataset_name: str, test_list: List[str]):
+        if "mbpp" in dataset_name:
+            self.test_mbpp(test_list, code, timeout=5)
+        else:
+            pass
+
+
+# 扩展线程类, 为了捕获子线程的异常以及设置超时, 防止代码死循环
+class PropagatingThread(Thread):
+    def run(self):
+        self.exc = None  # 存储异常
+        try:
+            self.ret = self._target(*self._args, **self._kwargs)
+        except BaseException as e:
+            self.exc = e
+
+    def join(self, timeout=None):
+        super(PropagatingThread, self).join(timeout)
+        if self.exc:
+            raise self.exc
+        return self.ret
+
+
+def function_with_timeout(func, args, timeout):
+    thread = PropagatingThread(target=func, args=args)
+    thread.start()
+    thread.join(timeout)  # 只等待 timeout 时间
+
+    # is_alive 返回 true 表示线程还在运行, 即超时
+    if thread.is_alive():
+        raise TimeoutError()
+
 
 # 去除注释和空行
 def remove_comments(code: str) -> str:
@@ -219,39 +264,3 @@ def remove_comments(code: str) -> str:
     code = re.sub(pattern, "", code, flags=re.MULTILINE | re.DOTALL)
     # 去除代码内空行和前后空行
     return re.sub(r"\n\s*\n", "\n", code).strip()
-
-
-if __name__ == "__main__":
-    code = """
-def count_differences(str1: str, str2: str) -> int:
-    \"\"\"
-    计算两个字符串中不同字符的个数。
-    
-    参数:
-    str1 (str): 第一个字符串
-    str2 (str): 第二个字符串
-    
-    返回:
-    int: 两个字符串中不同字符的个数。如果字符串长度不同，只比较最短长度的字符。
-
-    示例:
-    >>> count_differences("abcde", "abfde")
-    1
-    >>> count_differences("hello", "hallo")
-    2
-    \"\"\"
-    # 取两个字符串中较小的长度，以防止长度不一致时超出索引范围
-    min_length = min(len(str1), len(str2))
-
-    # 初始化计数器，用于记录不同字符的数量
-    difference_count = 0
-
-    # 遍历每个字符，逐一比较两字符串的字符是否相同
-    for i in range(min_length):
-        if str1[i] != str2[i]:  # 如果字符不同
-            difference_count += 1  # 计数器加一
-
-    # 返回两个字符串不同字符的个数
-    return difference_count
-"""
-    print(remove_comments(code=code))
