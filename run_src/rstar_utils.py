@@ -69,6 +69,7 @@ def concat_ost_steps(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, in
         return "", 1
 
 
+# TODO 这里的concat要更改
 def concat_solution_trace(solution_trace: Dict[int, Dict[str, str]]):
     """Note that the solution trace might be subqs-subas and also one-step thought steps."""
     solution_trace_str = ""

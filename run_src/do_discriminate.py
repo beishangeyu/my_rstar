@@ -10,7 +10,8 @@ from argparse import ArgumentParser
 from models.vLLM_API import load_vLLM_model, generate_with_vLLM_model
 from run_src.rstar_utils import concat_solution_trace, mask_solution_trace
 from eval_src.Evaluator import *
-from common.utils import fix_seeds, read_json, read_txt
+from common.utils import fix_seeds, write_jsonl, read_jsonl, load_dataset
+from common.arguments import get_parser
 import os
 import json
 from tqdm import tqdm
@@ -455,20 +456,11 @@ class MajorityVoteDiscriminator(Discriminator):
 
 
 def main():
+    parser = get_parser()
     parser = ArgumentParser()
-    parser.add_argument("--note", type=str, default="default")
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--api", type=str, default="vllm")
-    parser.add_argument("--model_ckpt", type=str, required=True)
-    parser.add_argument("--root_dir", type=str, required=True)
-    parser.add_argument("--dataset_name", type=str, required=True)
-    parser.add_argument("--resume", type=str, default=None)
-
     parser.add_argument("--threshold", type=float, default=0.999)
-
     # vLLM
     parser.add_argument("--max_num_seqs", type=int, default=256)
-
     # For multi-choice
     parser.add_argument(
         "--multi_choice_prompt_type",
@@ -476,12 +468,11 @@ def main():
         default=None,
         choices=["fewshot", "instruct"],
     )
-
     # For reasoning consistency
-    # mask比例最少占多少和最多占多少
+    # NOTE mask比例最少占多少和最多占多少
     parser.add_argument("--mask_left_boundary", type=float, default=0.2)
     parser.add_argument("--mask_right_boundary", type=float, default=0.5)
-    # 对一条路径要生成多少条mask路径
+    # NOTE 对一条路径要生成多少条mask路径
     parser.add_argument("--num_masked_solution_traces", type=int, default=4)
     parser.add_argument(
         "--rc_mode", type=str, default="mid", choices=["loose", "mid", "strict", "maj"]
@@ -491,14 +482,9 @@ def main():
     parser.add_argument(
         "--rc_criteria", type=str, default="reward", choices=["freq", "reward"]
     )
-
-    # For rollout
-    parser.add_argument("--cutoff_rollout", type=int, default=-1)
-    parser.add_argument("--start_idx", type=int, default=-1)
-    parser.add_argument("--end_idx", type=int, default=-1)
-
     args = parser.parse_args()
 
+    # TODO 改成我的 prompt
     args.fewshot_config_path = os.path.join(
         "prompts", args.dataset_name, "fewshot_cot", "fewshot_cot_config.json"
     )
@@ -509,233 +495,193 @@ def main():
     fix_seeds(args.seed)
     print(args)
 
-    answer_sheets_dir = os.path.join(args.root_dir, "answer_sheets")
-    if args.resume:
-        exp_id = args.resume
-    else:
-        exp_id = f"dis_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}---{args.note}"
-
-    discriminate_out_dir = os.path.join(args.root_dir, exp_id)
+    gene_result_dir = os.path.join(
+        args.gene_result, f"{args.dataset_name}", f"{args.model_ckpt}"
+    )
+    # NOTE discriminate 结果的存放路径
+    discriminate_out_dir = os.path.join(
+        args.disc_result, f"{args.dataset_name}", f"{args.model_ckpt}"
+    )
     os.makedirs(discriminate_out_dir, exist_ok=True)
-    args.discriminate_results_dir = os.path.join(discriminate_out_dir, "results")
-    os.makedirs(args.discriminate_results_dir, exist_ok=True)
 
-    recording_file = os.path.join(discriminate_out_dir, "recording.json")
+    # TODO 换成 task id
+    data_path = f"./data/mbpp_Mistral-7B-v0.1.jsonl"
+    dataset = load_dataset(read_jsonl(data_path))
 
+    # 记录当前的args
+    recording_file = os.path.join(discriminate_out_dir, "args.jsonl")
     recording = vars(args)
 
-    evaluator = eval(f"{args.dataset_name}Evaluator()")
+    evaluator = PythonEvaluator
     discriminator = MajorityVoteDiscriminator(args, evaluator)
 
     #! ------ Select winner candidate for each example ------
 
-    # 从generate生成的多个推理路径中选择最佳的那个
-    answer_sheet_json_files = [
-        os.path.join(answer_sheets_dir, f)
-        for f in os.listdir(answer_sheets_dir)
-        if f.endswith("Answer.json")
-    ]
-    answer_sheet_json_files.sort()
-    if args.start_idx > -1 and args.end_idx > -1:
-        answer_sheet_json_files = answer_sheet_json_files[args.start_idx : args.end_idx]
-
     num_correct, num_correct_majvote, num_correct_limit, num_tested = 0, 0, 0, 0
-    with tqdm(total=len(answer_sheet_json_files), disable=True) as pbar:
-        total_num_candidates = 0
-        for file_idx, answer_js_file in enumerate(answer_sheet_json_files):
-            problem_id = int(
-                answer_js_file.split("/")[-1]
-                .split(".")[0]
-                .replace(" - Answer", "")
-                .replace("Question ", "")
+
+    # 遍历每个 task_id
+    total_num_candidates = 0
+    for item in dataset:
+        task_id = item["task_id"]
+        path = f"Task_id_{task_id}_all_solutions.jsonl"
+        requirement = item["text"]
+        solution_traces = read_jsonl(path)
+        # 遍历同一个 task id 下所有的 solution trace
+        for i, it in enumerate(solution_traces):
+            trace = it["trace"]
+
+    for file_idx, answer_js_file in enumerate(answer_sheet_json_files):
+        print(
+            f"\n[Processing file {file_idx}; Total number of files: {len(answer_sheet_json_files)}]\n"
+        )
+        try:
+            answer_js = read_json(answer_js_file)
+        except:
+            continue
+
+        try:
+            problem = answer_js["problem"]
+            # assert problem_id == answer_js["id"]
+            gold_answer = answer_js["gold_answer"]
+        except:
+            pass
+
+        trace_js = read_json(
+            answer_js_file.replace("Answer", "Final Solutions")
+        ) + read_json(answer_js_file.replace("Answer", "Rollout Solutions"))
+        if args.cutoff_rollout > -1:
+            trace_js = [s for s in trace_js if s["rollout_id"] <= args.cutoff_rollout]
+
+        # ------ Collect all_candidates, answer2candidates answer2confidence ------
+        all_candidates = []
+        solution_trace_dic = {}
+        for id, s in enumerate(trace_js):
+            trace = s["trace"] if "trace" in s else s
+            solution_trace, final_step, _, reward = concat_solution_trace(trace)
+            if solution_trace in solution_trace_dic:
+                solution_trace_dic[solution_trace]["freq"] = (
+                    solution_trace_dic[solution_trace]["freq"] + 1
+                )
+                solution_trace_dic[solution_trace]["reward"] = (
+                    solution_trace_dic[solution_trace]["reward"] + reward
+                )
+                if len(solution_trace_dic[solution_trace]["final_step"]) < len(
+                    final_step
+                ):
+                    solution_trace_dic[solution_trace]["final_step"] = final_step
+            else:
+                solution_trace_dic[solution_trace] = {
+                    "freq": 1,
+                    "reward": reward,
+                    "final_step": final_step,
+                }
+
+        for solution_trace in solution_trace_dic.keys():
+            final_step = solution_trace_dic[solution_trace]["final_step"]
+            trace_freq = solution_trace_dic[solution_trace]["freq"]
+            trace_reward = solution_trace_dic[solution_trace]["reward"]
+
+            masked_solution_trace_list = mask_solution_trace(
+                solution_trace,
+                num_return=args.num_masked_solution_traces,
+                left_boundary=args.mask_left_boundary,
+                right_boundary=args.mask_right_boundary,
             )
-            if args.resume and os.path.exists(
+            final_answer = evaluator.extract_answer_from_model_completion(final_step)
+            candidate = Candidate(
+                solution_trace,
+                deepcopy(masked_solution_trace_list),
+                final_step,
+                final_answer,
+                id,
+                trace_freq,
+                trace_reward,
+            )
+            all_candidates.append(candidate)
+
+        answer2candidates, answer2confidence, _ = group_candidates_by_answer(
+            all_candidates, evaluator, args.rc_criteria
+        )
+        most_confident_answer = max(
+            answer2candidates.keys(), key=lambda x: answer2confidence[x]
+        )
+        highest_confidence = answer2confidence[most_confident_answer]
+        assert highest_confidence > 0
+        # -------------------------------------------------------------------------
+
+        # candidates = [cands[0] for _, cands in answer2candidates.items()]   #! representative
+        candidates = all_candidates  # ! exhaustive
+        total_num_candidates += len(candidates)
+
+        # ------ Get winner answer ------
+        if not any(
+            evaluator.check_answers_equiv(ans, gold_answer)
+            for ans in answer2candidates.keys()
+        ):
+            # In this case, we know that there is no correct answer in the candidates
+            print("Well, no correct answer in candidates. Skipping...")
+            winner_answer = ""
+        else:
+            if highest_confidence > args.threshold:
+                print("You are very confident. Skipping...")
+                winner_answer = most_confident_answer
+            else:
+                winner_candidate = discriminator.select(
+                    problem,
+                    candidates,
+                    gt_answer=gold_answer,
+                    aux={"file_idx": file_idx, "problem_id": problem_id},
+                )
+                if winner_candidate is not None:
+                    winner_answer = winner_candidate.final_answer
+                else:
+                    winner_answer = most_confident_answer
+        # -------------------------------
+        correct = evaluator.check_answers_equiv(winner_answer, gold_answer)
+        correct_majvote = evaluator.check_answers_equiv(
+            most_confident_answer, gold_answer
+        )
+        correct_limit = (
+            1
+            if any(
+                evaluator.check_answers_equiv(ans, gold_answer)
+                for ans in answer2candidates.keys()
+            )
+            else 0
+        )
+        print(f"==> Correct: {correct}")
+        try:
+            with open(
                 os.path.join(
                     args.discriminate_results_dir, f"problem-{problem_id}.json"
-                )
-            ):
-                print(
-                    f"\n[Skip file {file_idx}; Total number of files: {len(answer_sheet_json_files)}]\n"
-                )
-                with open(
-                    os.path.join(
-                        args.discriminate_results_dir, f"problem-{problem_id}.json"
-                    ),
-                    "r",
-                ) as f:
-                    temp_recording = json.load(f)
-                correct = temp_recording["correct"]
-                correct_majvote = temp_recording["correct_majvote"]
-                correct_limit = temp_recording["correct_limit"]
+                ),
+                "r",
+            ) as f:
+                temp_recording = json.load(f)
+        except:
+            temp_recording = {}
+        temp_recording.update(
+            {
+                "correct": correct,
+                "correct_majvote": correct_majvote,
+                "correct_limit": correct_limit,
+            }
+        )
+        with open(
+            os.path.join(args.discriminate_results_dir, f"problem-{problem_id}.json"),
+            "w",
+        ) as f:
+            json.dump(temp_recording, f, indent=4)
+        num_correct += int(correct)
+        num_correct_majvote += int(correct_majvote)
+        num_correct_limit += int(correct_limit)
+        num_tested += 1
 
-                num_correct += int(correct)
-                num_correct_majvote += int(correct_majvote)
-                num_correct_limit += int(correct_limit)
-                num_tested += 1
+        info = f"Acc: {num_correct / num_tested:.4f}; Majority vote acc: {num_correct_majvote / num_tested:.4f}; Limit acc: {num_correct_limit / num_tested:.4f}"
+        print(info)
+        pbar.set_description(info, refresh=True)
 
-                info = f"Acc: {num_correct / num_tested:.4f}; Majority vote acc: {num_correct_majvote / num_tested:.4f}; Limit acc: {num_correct_limit / num_tested:.4f}"
-                print(info)
-                pbar.set_description(info, refresh=True)
-            else:
-                print(
-                    f"\n[Processing file {file_idx}; Total number of files: {len(answer_sheet_json_files)}]\n"
-                )
-                try:
-                    answer_js = read_json(answer_js_file)
-                except:
-                    continue
-
-                try:
-                    problem = answer_js["problem"]
-                    # assert problem_id == answer_js["id"]
-                    gold_answer = answer_js["gold_answer"]
-                except:
-                    pass
-
-                trace_js = read_json(
-                    answer_js_file.replace("Answer", "Final Solutions")
-                ) + read_json(answer_js_file.replace("Answer", "Rollout Solutions"))
-                if args.cutoff_rollout > -1:
-                    trace_js = [
-                        s for s in trace_js if s["rollout_id"] <= args.cutoff_rollout
-                    ]
-
-                # ------ Collect all_candidates, answer2candidates answer2confidence ------
-                all_candidates = []
-                solution_trace_dic = {}
-                for id, s in enumerate(trace_js):
-                    trace = s["trace"] if "trace" in s else s
-                    solution_trace, final_step, _, reward = concat_solution_trace(trace)
-                    if solution_trace in solution_trace_dic:
-                        solution_trace_dic[solution_trace]["freq"] = (
-                            solution_trace_dic[solution_trace]["freq"] + 1
-                        )
-                        solution_trace_dic[solution_trace]["reward"] = (
-                            solution_trace_dic[solution_trace]["reward"] + reward
-                        )
-                        if len(solution_trace_dic[solution_trace]["final_step"]) < len(
-                            final_step
-                        ):
-                            solution_trace_dic[solution_trace][
-                                "final_step"
-                            ] = final_step
-                    else:
-                        solution_trace_dic[solution_trace] = {
-                            "freq": 1,
-                            "reward": reward,
-                            "final_step": final_step,
-                        }
-
-                for solution_trace in solution_trace_dic.keys():
-                    final_step = solution_trace_dic[solution_trace]["final_step"]
-                    trace_freq = solution_trace_dic[solution_trace]["freq"]
-                    trace_reward = solution_trace_dic[solution_trace]["reward"]
-
-                    masked_solution_trace_list = mask_solution_trace(
-                        solution_trace,
-                        num_return=args.num_masked_solution_traces,
-                        left_boundary=args.mask_left_boundary,
-                        right_boundary=args.mask_right_boundary,
-                    )
-                    final_answer = evaluator.extract_answer_from_model_completion(
-                        final_step
-                    )
-                    candidate = Candidate(
-                        solution_trace,
-                        deepcopy(masked_solution_trace_list),
-                        final_step,
-                        final_answer,
-                        id,
-                        trace_freq,
-                        trace_reward,
-                    )
-                    all_candidates.append(candidate)
-
-                answer2candidates, answer2confidence, _ = group_candidates_by_answer(
-                    all_candidates, evaluator, args.rc_criteria
-                )
-                most_confident_answer = max(
-                    answer2candidates.keys(), key=lambda x: answer2confidence[x]
-                )
-                highest_confidence = answer2confidence[most_confident_answer]
-                assert highest_confidence > 0
-                # -------------------------------------------------------------------------
-
-                # candidates = [cands[0] for _, cands in answer2candidates.items()]   #! representative
-                candidates = all_candidates  # ! exhaustive
-                total_num_candidates += len(candidates)
-
-                # ------ Get winner answer ------
-                if not any(
-                    evaluator.check_answers_equiv(ans, gold_answer)
-                    for ans in answer2candidates.keys()
-                ):
-                    # In this case, we know that there is no correct answer in the candidates
-                    print("Well, no correct answer in candidates. Skipping...")
-                    winner_answer = ""
-                else:
-                    if highest_confidence > args.threshold:
-                        print("You are very confident. Skipping...")
-                        winner_answer = most_confident_answer
-                    else:
-                        winner_candidate = discriminator.select(
-                            problem,
-                            candidates,
-                            gt_answer=gold_answer,
-                            aux={"file_idx": file_idx, "problem_id": problem_id},
-                        )
-                        if winner_candidate is not None:
-                            winner_answer = winner_candidate.final_answer
-                        else:
-                            winner_answer = most_confident_answer
-                # -------------------------------
-                correct = evaluator.check_answers_equiv(winner_answer, gold_answer)
-                correct_majvote = evaluator.check_answers_equiv(
-                    most_confident_answer, gold_answer
-                )
-                correct_limit = (
-                    1
-                    if any(
-                        evaluator.check_answers_equiv(ans, gold_answer)
-                        for ans in answer2candidates.keys()
-                    )
-                    else 0
-                )
-                print(f"==> Correct: {correct}")
-                try:
-                    with open(
-                        os.path.join(
-                            args.discriminate_results_dir, f"problem-{problem_id}.json"
-                        ),
-                        "r",
-                    ) as f:
-                        temp_recording = json.load(f)
-                except:
-                    temp_recording = {}
-                temp_recording.update(
-                    {
-                        "correct": correct,
-                        "correct_majvote": correct_majvote,
-                        "correct_limit": correct_limit,
-                    }
-                )
-                with open(
-                    os.path.join(
-                        args.discriminate_results_dir, f"problem-{problem_id}.json"
-                    ),
-                    "w",
-                ) as f:
-                    json.dump(temp_recording, f, indent=4)
-                num_correct += int(correct)
-                num_correct_majvote += int(correct_majvote)
-                num_correct_limit += int(correct_limit)
-                num_tested += 1
-
-                info = f"Acc: {num_correct / num_tested:.4f}; Majority vote acc: {num_correct_majvote / num_tested:.4f}; Limit acc: {num_correct_limit / num_tested:.4f}"
-                print(info)
-                pbar.set_description(info, refresh=True)
-
-            pbar.update(1)
+        pbar.update(1)
     #! --------------------------------------------------------
 
     print(
