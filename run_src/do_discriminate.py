@@ -8,7 +8,11 @@ from copy import deepcopy
 from collections import defaultdict
 from argparse import ArgumentParser
 from models.vLLM_API import load_vLLM_model, generate_with_vLLM_model
-from run_src.rstar_utils import concat_solution_trace, mask_solution_trace
+from run_src.rstar_utils import (
+    concat_solution_trace,
+    mask_solution_trace,
+    make_funchead_and_docstring,
+)
 from eval_src.Evaluator import *
 from common.utils import fix_seeds, write_jsonl, read_jsonl, load_dataset
 from common.arguments import get_parser
@@ -504,10 +508,6 @@ def main():
     )
     os.makedirs(discriminate_out_dir, exist_ok=True)
 
-    # TODO 换成 task id
-    data_path = f"./data/mbpp_Mistral-7B-v0.1.jsonl"
-    dataset = load_dataset(read_jsonl(data_path))
-
     # 记录当前的args
     recording_file = os.path.join(discriminate_out_dir, "args.jsonl")
     recording = vars(args)
@@ -518,17 +518,52 @@ def main():
     #! ------ Select winner candidate for each example ------
 
     num_correct, num_correct_majvote, num_correct_limit, num_tested = 0, 0, 0, 0
-
+    data_path = f"./data/mbpp_Mistral-7B-v0.1.jsonl"
+    dataset = load_dataset(read_jsonl(data_path))
     # 遍历每个 task_id
     total_num_candidates = 0
     for item in dataset:
         task_id = item["task_id"]
-        path = f"Task_id_{task_id}_all_solutions.jsonl"
-        requirement = item["text"]
+        path = os.path.join(
+            args.gene_result,
+            args.dataset_name,
+            f"Task_id_{task_id}_all_solutions.jsonl",
+        )
         solution_traces = read_jsonl(path)
+
+        code = item["code"]
+        func_head = re.search(r"def .+?:", code).group(0)
+        func_name = re.search(r"def (.+?)\(", code).group(1)
+        test_case = item["test_list"][0][7:]
+
+        all_candidates = []
+        solution_trace_dic = {}
         # 遍历同一个 task id 下所有的 solution trace
         for i, it in enumerate(solution_traces):
-            trace = it["trace"]
+            requirement = it["trace"]["user_requirement"]
+            funchead_and_docstring = make_funchead_and_docstring(
+                requirement, func_head, test_case
+            )
+            solution_trace, final_step, _, reward = concat_solution_trace(
+                it, funchead_and_docstring, func_name
+            )
+            if solution_trace in solution_trace_dic:
+                solution_trace_dic[solution_trace]["freq"] = (
+                    solution_trace_dic[solution_trace]["freq"] + 1
+                )
+                solution_trace_dic[solution_trace]["reward"] = (
+                    solution_trace_dic[solution_trace]["reward"] + reward
+                )
+                if len(solution_trace_dic[solution_trace]["final_step"]) < len(
+                    final_step
+                ):
+                    solution_trace_dic[solution_trace]["final_step"] = final_step
+            else:
+                solution_trace_dic[solution_trace] = {
+                    "freq": 1,
+                    "reward": reward,
+                    "final_step": final_step,
+                }
 
     for file_idx, answer_js_file in enumerate(answer_sheet_json_files):
         print(
@@ -558,6 +593,9 @@ def main():
         for id, s in enumerate(trace_js):
             trace = s["trace"] if "trace" in s else s
             solution_trace, final_step, _, reward = concat_solution_trace(trace)
+            # 遍历所有的 solution trace,
+            # 记录相同的 trace 的出现次数, 累积 reward, 取最长的 final step 作为这个solution trace的final step
+            # XXX 为什么要选最长的???
             if solution_trace in solution_trace_dic:
                 solution_trace_dic[solution_trace]["freq"] = (
                     solution_trace_dic[solution_trace]["freq"] + 1
