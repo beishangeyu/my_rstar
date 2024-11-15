@@ -69,183 +69,53 @@ def concat_ost_steps(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, in
         return "", 1
 
 
-# TODO 这里的concat要更改
-def concat_solution_trace(solution_trace: Dict[int, Dict[str, str]]):
-    """Note that the solution trace might be subqs-subas and also one-step thought steps."""
+# TODO 测试一下这个函数
+def concat_solution_trace(
+    solution_trace: Dict[int, Dict[str, str]],
+    funchead_and_docstring: str,
+    func_name: str,
+):
     solution_trace_str = ""
     final_step_str = ""
     end_node_type = None
     reward_value = 0.0
 
-    for item_idx, (subq_id, solution_step) in enumerate(solution_trace.items()):
+    for item_idx, solution_step in enumerate(solution_trace.items()):
         if item_idx == 0:
+            # 没有 ost step 只有 direct answer
             if (
                 len(solution_step["ost_step"]) == 0
                 and "direct_answer" in solution_step.keys()
             ):
-                solution_trace_str += solution_step["direct_answer"]["text"].strip()
-                final_step_str = solution_step["direct_answer"]["text"].strip()
-                reward_value = (
-                    solution_step["direct_answer"]["value"]
-                    if "value" in solution_step["direct_answer"]
-                    else 0.0
-                )
-                end_node_type = Node_Type.DIRECT_ANSWER
-                break
-            elif (
-                len(solution_step["ost_step"]) > 0
-                and "direct_answer" in solution_step.keys()
-            ):
-                for step_id, step_text in solution_step["ost_step"].items():
-                    solution_trace_str += step_text.strip() + " "
-                solution_trace_str += "Now we can answer the question: "
-                solution_trace_str += solution_step["direct_answer"]["text"].strip()
-                final_step_str = solution_step["direct_answer"]["text"].strip()
-                reward_value = (
-                    solution_step["direct_answer"]["value"]
-                    if "value" in solution_step["direct_answer"]
-                    else 0.0
-                )
-                end_node_type = Node_Type.DIRECT_ANSWER
-                break
-            elif (
-                len(solution_step["ost_step"]) > 0
-                and "direct_answer" not in solution_step.keys()
-            ):
-                final_step_str = None
-                for i, (step_id, step_text) in enumerate(
-                    solution_step["ost_step"].items()
-                ):
-                    solution_trace_str += step_text.strip() + " "
-                    if i == len(solution_step["ost_step"].items()) - 1:
-                        final_step_str = step_text.strip()
-                        reward_value = 0.0
-                solution_trace_str = solution_trace_str.strip()
-                end_node_type = Node_Type.OST_STEP
-            else:
-                continue
-        elif 0 < item_idx < len(solution_trace) - 1:
-            intermediate_step = (
-                solution_step["subanswer"]["text"].split("The answer is")[0].strip()
-            )
-            solution_trace_str += intermediate_step + " "
-            # concat trace for one-step thought step after subquestion
-            if (
-                len(solution_step["ost_step"]) > 0
-                and "direct_answer" in solution_step.keys()
-            ):
-                for step_id, step_text in solution_step["ost_step"].items():
-                    solution_trace_str += step_text.strip() + " "
-                solution_trace_str += "Now we can answer the question: "
-                solution_trace_str += solution_step["direct_answer"]["text"].strip()
-                final_step_str = solution_step["direct_answer"]["text"].strip()
-                reward_value = (
-                    solution_step["direct_answer"]["value"]
-                    if "value" in solution_step["direct_answer"]
-                    else 0.0
-                )
-                end_node_type = Node_Type.DIRECT_ANSWER
-                break
-            elif (
-                len(solution_step["ost_step"]) > 0
-                and "direct_answer" not in solution_step.keys()
-            ):
-                final_step_str = None
-                for i, (step_id, step_text) in enumerate(
-                    solution_step["ost_step"].items()
-                ):
-                    solution_trace_str += step_text.strip() + " "
-                    if i == len(solution_step["ost_step"].items()) - 1:
-                        final_step_str = step_text.strip()
-                        reward_value = 0.0
-                solution_trace_str = solution_trace_str.strip()
-                end_node_type = Node_Type.OST_STEP
-        elif item_idx == len(solution_trace) - 1:
-            assert item_idx > 0
-            # 1. subq-suba
-            if (
-                "subanswer" in solution_step.keys()
-                and len(solution_step["ost_step"]) == 0
-                and "direct_answer" not in solution_step.keys()
-            ):
-                solution_trace_str += "Now we can answer the question: "
-                solution_trace_str += solution_step["subanswer"]["text"].strip()
-                final_step_str = solution_step["subanswer"]["text"].strip()
-                reward_value = (
-                    solution_step["subanswer"]["value"]
-                    if "value" in solution_step["subanswer"]
-                    else 0.0
-                )
-                end_node_type = Node_Type.SUBQUESTION
-                break
-            # 2. subq-suba-ost
-            elif (
-                "subanswer" in solution_step.keys()
-                and len(solution_step["ost_step"]) > 0
-                and "direct_answer" not in solution_step.keys()
-            ):
-                intermediate_step = (
-                    solution_step["subanswer"]["text"].split("The answer is")[0].strip()
-                )
-                solution_trace_str += intermediate_step + " "
-                final_step_str = None
-                for i, (step_id, step_text) in enumerate(
-                    solution_step["ost_step"].items()
-                ):
-                    solution_trace_str += step_text.strip() + " "
-                    if i == len(solution_step["ost_step"].items()) - 1:
-                        final_step_str = step_text.strip()
-                        reward_value = 0.0
-                solution_trace_str = solution_trace_str.strip()
-                end_node_type = Node_Type.OST_STEP
-            # 3. subq-suba-ost-diranswer
-            elif (
-                "subanswer" in solution_step.keys()
-                and len(solution_step["ost_step"]) > 0
-                and "direct_answer" in solution_step.keys()
-            ):
-                intermediate_step = (
-                    solution_step["subanswer"]["text"].split("The answer is")[0].strip()
-                )
-                solution_trace_str += intermediate_step + " "
-                for step_id, step_text in solution_step["ost_step"].items():
-                    solution_trace_str += step_text.strip() + " "
-                solution_trace_str += "Now we can answer the question: "
-                solution_trace_str += solution_step["direct_answer"]["text"].strip()
-                final_step_str = solution_step["direct_answer"]["text"].strip()
-                reward_value = (
-                    solution_step["direct_answer"]["value"]
-                    if "value" in solution_step["direct_answer"]
-                    else 0.0
-                )
-                end_node_type = Node_Type.DIRECT_ANSWER
-                break
-            # 4. subq-suba-diranswer
-            elif (
-                "subanswer" in solution_step.keys()
-                and len(solution_step["ost_step"]) == 0
-                and "direct_answer" in solution_step.keys()
-            ):
-                intermediate_step = (
-                    solution_step["subanswer"]["text"].split("The answer is")[0].strip()
-                )
-                solution_trace_str += intermediate_step + " "
-                solution_trace_str += "Now we can answer the question: "
-                solution_trace_str += solution_step["direct_answer"]["text"].strip()
-                final_step_str = solution_step["direct_answer"]["text"].strip()
-                reward_value = (
-                    solution_step["direct_answer"]["value"]
-                    if "value" in solution_step["direct_answer"]
-                    else 0.0
-                )
-                end_node_type = Node_Type.DIRECT_ANSWER
-                break
-            # 5. diranswer
-            elif "direct_answer" in solution_step.keys():
-                assert len(solution_step["ost_step"]) == 0
-                assert "subanswer" not in solution_step.keys()
+                solution_trace_str = f"""
+You are a Python assistant. Implement a Python function based on the given function head, docstring, and hint.
 
-                solution_trace_str += "Now we can answer the question: "
+[Function head and docstring]
+{funchead_and_docstring}
+
+[Hint]
+
+[Function implementation]
+{solution_step["direct_answer"]["text"].strip()}
+"""
+                final_step_str = solution_step["direct_answer"]["text"].strip()
+                reward_value = (
+                    solution_step["direct_answer"]["value"]
+                    if "value" in solution_step["direct_answer"]
+                    else 0.0
+                )
+                end_node_type = Node_Type.DIRECT_ANSWER
+                break
+            # 存在 ost step
+            elif (
+                len(solution_step["ost_step"]) > 0
+                and "direct_answer" in solution_step.keys()
+            ):
+                solution_trace_str = f"[Step to implement]\nTo implement the {func_name} function, we can follow these steps:"
+                for step_id, step_text in solution_step["ost_step"].items():
+                    solution_trace_str += f"Step{step_id}: " + step_text.strip() + "\n"
+                # TODO 这里加哪个格式的prompt呢?
+                solution_trace_str += "\n[Function implementation]\n"
                 solution_trace_str += solution_step["direct_answer"]["text"].strip()
                 final_step_str = solution_step["direct_answer"]["text"].strip()
                 reward_value = (
@@ -255,34 +125,16 @@ def concat_solution_trace(solution_trace: Dict[int, Dict[str, str]]):
                 )
                 end_node_type = Node_Type.DIRECT_ANSWER
                 break
-            else:
-                import pdb
-
-                pdb.set_trace()
-
-    solution_trace_str = solution_trace_str.replace("Let's think step by step. ", "")
-    solution_trace_str = "Let's think step by step. " + solution_trace_str
 
     return (
-        solution_trace_str.strip(),
+        solution_trace_str.strip(),  # NOTE strip 会去掉换行符, 记得加上
         final_step_str.strip(),
         end_node_type,
         min(0, reward_value) + 1,
     )
 
 
-def concat_rap_solution_trace(solution_trace: str):
-    solution_trace_list = solution_trace.split("\n")
-    answer_list = []
-    for item in solution_trace_list:
-        if item.startswith("Answer"):
-            item = re.sub(r"Answer \d+\.\d+: ", "", item)
-            final_step = item
-            item = re.sub(r" The answer is \d+\.", "", item)
-            answer_list.append(item)
-    return " ".join(answer_list).strip(), final_step
-
-
+# NOTE 对 solution trace 进行随机遮蔽
 def mask_solution_trace(
     solution_trace_str: str,
     num_return: int,
