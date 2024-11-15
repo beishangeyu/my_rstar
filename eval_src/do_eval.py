@@ -4,6 +4,7 @@ import sys
 
 sys.path.append(".")
 from common.utils import write_jsonl, read_jsonl, load_dataset
+from common.arguments import get_parser
 from eval_src.Evaluator import *
 
 import warnings
@@ -62,12 +63,12 @@ def eval_exp(
     dataset_name: str,
     eval_result: str,
     num_votes: int = -1,
-    model_ckpts=str,
+    model_ckpt=str,
 ):
     dataset_path = f"./data/{args.dataset_name}.jsonl"
     dataset = load_dataset(read_jsonl(dataset_path))
     evaluator = PythonEvaluator()
-    gene_result_dir = os.path.join(gene_result, f"{dataset_name}", f"{model_ckpts}")
+    gene_result_dir = os.path.join(gene_result, f"{dataset_name}", f"{model_ckpt}")
 
     data_list = []
     for item in dataset:
@@ -82,27 +83,21 @@ def eval_exp(
     accuracy = sum([item["correct"] for item in data_list]) / len(data_list)
     print(f"accuracy: {accuracy}")
 
-    eval_result_dir = os.path.join(eval_result, f"{dataset_name}", f"{model_ckpts}")
+    eval_result_dir = os.path.join(eval_result, f"{dataset_name}", f"{model_ckpt}")
     os.makedirs(eval_result_dir, exist_ok=True)
     write_jsonl(os.path.join(eval_result_dir, "eval_results.jsonl"), data_list)
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser()
+    parser = get_parser()
     parser.add_argument("--num_votes", type=int, default=-1)
     args = parser.parse_args()
+    model_ckpt = args.model_ckpt.split("/")[-1]
 
     eval_exp(
         args.gene_result,
         args.dataset_name,
         args.eval_result,
         args.num_votes,
-        args.model_ckpts,
+        model_ckpt,
     )
-
-# if __name__ == "__main__":
-#     path = "./gene_result/mbpp_Mistral-7B-v0.1/Mistral-7B-v0.1/Task_id_7_all_solutions.jsonl"
-#     data = read_jsonl(path)
-#     for it in data:
-#         print(it)
-#     print(extract_trace(data_item=data, num_votes=-1))
