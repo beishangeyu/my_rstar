@@ -28,7 +28,7 @@ from run_src.rstar_utils import (
     stochastic_find_best_solution,
     make_funchead_and_docstring,
 )
-from prompts.prompt import (
+from run_src.prompt import (
     ost_prompt,
     rephrase_prompt,
 )
