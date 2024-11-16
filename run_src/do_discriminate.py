@@ -473,10 +473,10 @@ def main():
         choices=["fewshot", "instruct"],
     )
     # For reasoning consistency
-    # NOTE mask比例最少占多少和最多占多少
+    # NOTE mask 的最小值和最大值
     parser.add_argument("--mask_left_boundary", type=float, default=0.2)
     parser.add_argument("--mask_right_boundary", type=float, default=0.5)
-    # NOTE 对一条路径要生成多少条mask路径
+    # NOTE 对一个 solution trace 要生成几个 mask trace
     parser.add_argument("--num_masked_solution_traces", type=int, default=4)
     parser.add_argument(
         "--rc_mode", type=str, default="mid", choices=["loose", "mid", "strict", "maj"]
@@ -538,12 +538,14 @@ def main():
 
         all_candidates = []
         solution_trace_dic = {}
-        # 遍历同一个 task id 下所有的 solution trace
-        for i, it in enumerate(solution_traces):
+        # 遍历同一个 task id 下所有的 solution trace, 将它们添加到的 dict 中
+        for id, it in enumerate(solution_traces):
             requirement = it["trace"]["user_requirement"]
             funchead_and_docstring = make_funchead_and_docstring(
                 requirement, func_head, test_case
             )
+            # TODO 打印一下 solution trace
+            # 把 solution trace 组合起来, 添加到 dict 中
             solution_trace, final_step, _, reward = concat_solution_trace(
                 it, funchead_and_docstring, func_name
             )
@@ -564,6 +566,33 @@ def main():
                     "reward": reward,
                     "final_step": final_step,
                 }
+
+        # 遍历所有 solution trace, 对他们进行 mask, 一个 trace 对应一个 Candidate
+        for solution_trace in solution_trace_dic.keys():
+            final_step = solution_trace_dic[solution_trace]["final_step"]
+            # freq 是一条 solution trace 在 all solution traces 中的出现次数
+            trace_freq = solution_trace_dic[solution_trace]["freq"]
+            # reward 是一条 solution trace 在模型生成的多个序列中的出现次数
+            trace_reward = solution_trace_dic[solution_trace]["reward"]
+
+            masked_solution_trace_list = mask_solution_trace(
+                solution_trace,
+                num_return=args.num_masked_solution_traces,
+                left_boundary=args.mask_left_boundary,
+                right_boundary=args.mask_right_boundary,
+            )
+            final_answer = evaluator.extract_answer_from_model_completion(final_step)
+            # 一个 Candidate 记录同一条 trace 的所有 masked trace
+            candidate = Candidate(
+                solution_trace,
+                deepcopy(masked_solution_trace_list),
+                final_step,
+                final_answer,
+                id,  # all solution 中第几条 trace
+                trace_freq,
+                trace_reward,
+            )
+            all_candidates.append(candidate)
 
     for file_idx, answer_js_file in enumerate(answer_sheet_json_files):
         print(
@@ -637,9 +666,12 @@ def main():
             )
             all_candidates.append(candidate)
 
+        # 将所有的 candidate 按照 answer 划分
+        # TODO confidence 是啥? 看 group_candidates_by_answer 内部逻辑
         answer2candidates, answer2confidence, _ = group_candidates_by_answer(
             all_candidates, evaluator, args.rc_criteria
         )
+        # 选出 confidence 最高的 answer
         most_confident_answer = max(
             answer2candidates.keys(), key=lambda x: answer2confidence[x]
         )
@@ -653,6 +685,7 @@ def main():
 
         # ------ Get winner answer ------
         if not any(
+            # TODO 这里要用 check correctness
             evaluator.check_answers_equiv(ans, gold_answer)
             for ans in answer2candidates.keys()
         ):
@@ -660,25 +693,35 @@ def main():
             print("Well, no correct answer in candidates. Skipping...")
             winner_answer = ""
         else:
+            # 如果最高confidence大于阈值, 直接选对应answer作为winner
             if highest_confidence > args.threshold:
                 print("You are very confident. Skipping...")
                 winner_answer = most_confident_answer
+            # 否则调用select
             else:
+                # TODO 这个肯定要改 看看 select 的逻辑
                 winner_candidate = discriminator.select(
                     problem,
                     candidates,
                     gt_answer=gold_answer,
                     aux={"file_idx": file_idx, "problem_id": problem_id},
                 )
+                # 如果选出了 winner, 则 answer 是 winner 的 final answer
                 if winner_candidate is not None:
                     winner_answer = winner_candidate.final_answer
+                # 否则也只能老实使用最高confidence的answer
                 else:
                     winner_answer = most_confident_answer
         # -------------------------------
-        correct = evaluator.check_answers_equiv(winner_answer, gold_answer)
+        # TODO check equiv 改成 check correctness
+
+        correct = evaluator.check_answers_equiv(
+            winner_answer, gold_answer
+        )  # 判别 winner answer 是否正确
+
         correct_majvote = evaluator.check_answers_equiv(
             most_confident_answer, gold_answer
-        )
+        )  # 判别最高置信度answer是否正确
         correct_limit = (
             1
             if any(
