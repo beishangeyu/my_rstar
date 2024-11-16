@@ -27,7 +27,7 @@ def load_vLLM_model(
                 seed=seed,
                 trust_remote_code=True,
                 # max_num_seqs=max_num_seqs,
-                # swap_space=16,
+                swap_space=32,  # 当 num return > 1 的存储临时请求的状态, 应该 num return 越大这个也该多大
                 max_model_len=max_model_len,
                 gpu_memory_utilization=gpu_memory_utilization,
             )
@@ -38,7 +38,7 @@ def load_vLLM_model(
                 seed=seed,
                 trust_remote_code=True,
                 # max_num_seqs=max_num_seqs,
-                # swap_space=16,
+                swap_space=32,
                 max_model_len=max_model_len,
                 gpu_memory_utilization=gpu_memory_utilization,
             )
@@ -51,7 +51,7 @@ def load_vLLM_model(
                 seed=seed,
                 trust_remote_code=True,
                 # max_num_seqs=max_num_seqs,
-                # swap_space=16,
+                swap_space=32,
                 gpu_memory_utilization=gpu_memory_utilization,
             )
         else:
@@ -61,7 +61,7 @@ def load_vLLM_model(
                 seed=seed,
                 trust_remote_code=True,
                 # max_num_seqs=max_num_seqs,
-                # swap_space=16,
+                swap_space=32,
                 gpu_memory_utilization=gpu_memory_utilization,
             )
     return tokenizer, llm
@@ -73,7 +73,6 @@ def generate_with_vLLM_model(
     temperature=0.8,
     top_p=0.95,
     top_k=40,
-    repetition_penalty=1.1,
     n=1,
     max_tokens=1024,
     logprobs=1,
