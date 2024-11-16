@@ -1,11 +1,14 @@
 # Licensed under the MIT license.
+import sys
 
+sys.path.append(".")
 from enum import Enum, unique
 import re
 import math
 from typing import Dict, Tuple
 import math
 from eval_src import Evaluator
+from run_src.prompt import ost_prompt
 
 
 @unique
@@ -69,7 +72,6 @@ def concat_ost_steps(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, in
         return "", 1
 
 
-# TODO 测试一下这个函数
 def concat_solution_trace(
     solution_trace: Dict[int, Dict[str, str]],
     funchead_and_docstring: str,
@@ -111,11 +113,16 @@ You are a Python assistant. Implement a Python function based on the given funct
                 len(solution_step["ost_step"]) > 0
                 and "direct_answer" in solution_step.keys()
             ):
-                solution_trace_str = f"[Step to implement]\nTo implement the {func_name} function, we can follow these steps:"
+                # NOTE 最好使用带 few shot 的 prompt
+                solution_trace_str = ost_prompt + "\n"
+                solution_trace_str += (
+                    f"[Function head and docstring]\n{funchead_and_docstring}\n\n"
+                )
+                solution_trace_str += f"[Step to implement]\nTo implement the {func_name} function, we can follow these steps:"
                 for step_id, step_text in solution_step["ost_step"].items():
                     solution_trace_str += f"Step{step_id}: " + step_text.strip() + "\n"
-                # TODO 这里加哪个格式的prompt呢?
-                solution_trace_str += "\n[Function implementation]\n"
+                solution_trace_str += "\n"
+                solution_trace_str += "[Function implementation]\n"
                 solution_trace_str += solution_step["direct_answer"]["text"].strip()
                 final_step_str = solution_step["direct_answer"]["text"].strip()
                 reward_value = (
@@ -150,11 +157,12 @@ def mask_solution_trace(
         assert (
             right_boundary >= left_boundary
         ), f"right_boundary: {right_boundary} < left_boundary: {left_boundary}"
+        # 每个前缀字符串之间的比例间隔
         interval = (right_boundary - left_boundary) / (num_return - 1)
 
+    # TODO 按照空格划分得到的str是正常的, 就是不知道模型的行为是否会正常...
     words_in_solution_trace = solution_trace_str.split(" ")
     ost_len = len(words_in_solution_trace)
-    # Mask the solution trace string from least to most
     masked_solution_traces = []
     for i in range(num_return):
         prefix_part_ratio = left_boundary + i * interval
@@ -283,3 +291,13 @@ def stochastic_find_best_solution(
         solution_nodes,
         solutions,
     )
+
+
+if __name__ == "__main__":
+    from run_src.prompt import *
+
+    ssss = ost_prompt
+    tl = mask_solution_trace(ssss, 5, 0.2, 0.8)
+    for t in tl:
+        print(t)
+        print(8 * "*")
