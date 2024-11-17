@@ -80,6 +80,7 @@ class Evaluator:
         assert (
             len(answer2completions[most_confident_answer]) > 0
         ), "There are no completions for the most confident answer."
+        # confidence 是这个 answer 占总 completions 的比例
         confidence = len(answer2completions[most_confident_answer]) / len(completions)
         assert confidence > 0
         return (
