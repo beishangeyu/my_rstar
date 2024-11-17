@@ -22,6 +22,7 @@ from tqdm import tqdm
 from prompt import ost_prompt
 
 
+# NOTE 封装一个trace和它所有的masked trace
 class Candidate:
     def __init__(
         self,
@@ -73,6 +74,7 @@ def group_candidates_by_answer(candidates: list[Candidate], evaluator, criteria=
     answer2confidence = defaultdict(float)  # 记录每个answer的confidence
     answer2cnt = defaultdict(int)  # 记录每个answer的出现次数
 
+    # 遍历同一个 task id 的所有 trace 的所有的 masked trace
     for c in candidates:
         has_existed = False  # 表示是否已经记录相同的answer
 
@@ -84,7 +86,10 @@ def group_candidates_by_answer(candidates: list[Candidate], evaluator, criteria=
                 has_existed = True
                 # 是在把相同answer的candidate放在一起
                 answer2candidates[str(existing_answer)].extend([c] * c.freq)
-                # 默认以出现次数作为confidence
+                # NOTE 默认以 original trace 的 reward 作为 confidence
+                # XXX 改成 freq 试试呢? reward 是 trace 在模型生成序列时候的出现次数, freq 是同一个 trace 在所有 trace 中的出现次数
+                # XXX 所以 reward 针对单次生成而言, freq 则是针对整个搜索而言的
+                # XXX 那一个 answer 的 confidence 理应是 freq
                 answer2confidence[str(existing_answer)] += (
                     c.trace_reward if criteria == "reward" else c.freq
                 )
@@ -110,11 +115,10 @@ def group_candidates_by_answer(candidates: list[Candidate], evaluator, criteria=
         sum([answer2confidence[ans] for ans in answer2confidence.keys()])
     )
 
+    # 即 all_solution.jsonl 中的 trace 个数
     candidates_count = sum([candidate.freq for candidate in candidates])
     for ans in answer2confidence.keys():
-        answer2confidence[
-            ans
-        ] /= candidates_count  # 当前answer的confidence是当前answer的出现次数 / 所有answer的出现次数
+        answer2confidence[ans] /= candidates_count
 
     return answer2candidates, answer2confidence, answer2cnt
 
@@ -135,10 +139,12 @@ class Discriminator:
         return candidates
 
     def _filter_reasoning_consistency(
-        self, gen_model, problem: str, candidates: list[Candidate], aux={}
+        self,
+        gen_model,
+        problem: str,
+        candidates: list[Candidate],
+        funchead_and_docstring: str,  # TAG
     ) -> list[Candidate]:
-        problem_id = aux["problem_id"]
-        file_idx = aux["file_idx"]
 
         prompt_template = self.fewshot_template
         fewshot_examples = self.fewshot_prompt
@@ -164,8 +170,9 @@ class Discriminator:
                         mask_solution_trace = ost_prompt + "\n" + mask_solution_trace
                         pass
                     # 如果只有 direct answer
-                    # TODO 这里要加 prompt 吗?
+
                     else:
+                        # TODO 这里要加 prompt 吗?
                         pass
                     gen_input_list.append(
                         prompt_template.format(
@@ -434,10 +441,10 @@ class MajorityVoteDiscriminator(Discriminator):
                 args.model_ckpt, args.seed, max_num_seqs=args.max_num_seqs
             )
 
+    # TODO 直接把 task 传进来, 要什么直接在里边取就好了
     def select(
-        self, problem: str, candidates: list[Candidate], gt_answer: str = None, aux={}
+        self, task: dict, candidates: list[Candidate], funchead_and_docstring: str
     ) -> Candidate:
-        print(f"==> Ground truth answer: {gt_answer}")
 
         unfiltered_candidates = candidates
         print(
@@ -454,7 +461,7 @@ class MajorityVoteDiscriminator(Discriminator):
         # 过滤掉一致性不够的答案
         # TODO 这里的 problem 应该用的是 trace 中的, 可能 rephrase 过
         filtered_candidates = self._filter_reasoning_consistency(
-            self.model, problem, prefiltered_candidates, aux
+            self.model, task, prefiltered_candidates, aux
         )
         # filtered_candidates: [1, 2, 3]
         print(
@@ -490,18 +497,12 @@ def main():
     parser.add_argument("--rc_temperature", type=float, default=1.0)
     # NOTE 对一个 masked trace 要生成几个补全答案
     parser.add_argument("--rc_n_completions", type=int, default=1)
+    # NOTE group candidates by answer 时 confidence 的评判标准
+    # TODO 改成 freq 试试呢
     parser.add_argument(
         "--rc_criteria", type=str, default="reward", choices=["freq", "reward"]
     )
     args = parser.parse_args()
-
-    # TODO 改成我的 prompt
-    args.fewshot_config_path = os.path.join(
-        "prompts", args.dataset_name, "fewshot_cot", "fewshot_cot_config.json"
-    )
-    args.fewshot_prompt_path = os.path.join(
-        "prompts", args.dataset_name, "fewshot_cot", "fewshot_cot_prompt.txt"
-    )
 
     fix_seeds(args.seed)
     print(args)
@@ -539,11 +540,14 @@ def main():
         solution_traces = read_jsonl(path)
 
         code = item["code"]
-        func_head = re.search(r"def .+?:", code).group(0)
         func_name = re.search(r"def (.+?)\(", code).group(1)
+        func_head = re.search(r"def .+?:", code).group(0)
         test_case = item["test_list"][0][7:]
-        # XXX select的时候的problem就是requirement, 纠结的是如果有rephrased要不要用rephrased的
         requirement = item["text"]
+        funchead_and_docstring = make_funchead_and_docstring(
+            requirement, func_head, test_case
+        )
+        # XXX select的时候的problem就是requirement, 纠结的是如果有rephrased要不要用rephrased的
 
         all_candidates = []
         solution_trace_dic = {}
@@ -596,82 +600,8 @@ def main():
                 trace_reward,
             )
             all_candidates.append(candidate)
-    # NOTE ------------------------------------ 从这以上是自己写的 以下是本来自带的
-
-    for file_idx, answer_js_file in enumerate(answer_sheet_json_files):
-        print(
-            f"\n[Processing file {file_idx}; Total number of files: {len(answer_sheet_json_files)}]\n"
-        )
-        try:
-            answer_js = read_json(answer_js_file)
-        except:
-            continue
-
-        try:
-            problem = answer_js["problem"]
-            # assert problem_id == answer_js["id"]
-            gold_answer = answer_js["gold_answer"]
-        except:
-            pass
-
-        trace_js = read_json(
-            answer_js_file.replace("Answer", "Final Solutions")
-        ) + read_json(answer_js_file.replace("Answer", "Rollout Solutions"))
-        if args.cutoff_rollout > -1:
-            trace_js = [s for s in trace_js if s["rollout_id"] <= args.cutoff_rollout]
-
-        # ------ Collect all_candidates, answer2candidates answer2confidence ------
-        all_candidates = []
-        solution_trace_dic = {}
-        for id, s in enumerate(trace_js):
-            trace = s["trace"] if "trace" in s else s
-            solution_trace, final_step, _, reward = concat_solution_trace(trace)
-            # 遍历所有的 solution trace,
-            # 记录相同的 trace 的出现次数, 累积 reward, 取最长的 final step 作为这个solution trace的final step
-            if solution_trace in solution_trace_dic:
-                solution_trace_dic[solution_trace]["freq"] = (
-                    solution_trace_dic[solution_trace]["freq"] + 1
-                )
-                solution_trace_dic[solution_trace]["reward"] = (
-                    solution_trace_dic[solution_trace]["reward"] + reward
-                )
-                # XXX 为什么要选最长的? 最长的代码一定是最好的吗? 可以优化吗?
-                if len(solution_trace_dic[solution_trace]["final_step"]) < len(
-                    final_step
-                ):
-                    solution_trace_dic[solution_trace]["final_step"] = final_step
-            else:
-                solution_trace_dic[solution_trace] = {
-                    "freq": 1,
-                    "reward": reward,
-                    "final_step": final_step,
-                }
-
-        for solution_trace in solution_trace_dic.keys():
-            final_step = solution_trace_dic[solution_trace]["final_step"]
-            trace_freq = solution_trace_dic[solution_trace]["freq"]
-            trace_reward = solution_trace_dic[solution_trace]["reward"]
-
-            masked_solution_trace_list = mask_solution_trace(
-                solution_trace,
-                num_return=args.num_masked_solution_traces,
-                left_boundary=args.mask_left_boundary,
-                right_boundary=args.mask_right_boundary,
-            )
-            final_answer = evaluator.extract_answer_from_model_completion(final_step)
-            candidate = Candidate(
-                solution_trace,
-                deepcopy(masked_solution_trace_list),
-                final_step,
-                final_answer,
-                id,
-                trace_freq,
-                trace_reward,
-            )
-            all_candidates.append(candidate)
 
         # 将所有的 candidate 按照 answer 划分
-        # TODO confidence 是啥? 看 group_candidates_by_answer 内部逻辑
         answer2candidates, answer2confidence, _ = group_candidates_by_answer(
             all_candidates, evaluator, args.rc_criteria
         )
@@ -681,23 +611,19 @@ def main():
         )
         highest_confidence = answer2confidence[most_confident_answer]
         assert highest_confidence > 0
-        # -------------------------------------------------------------------------
-
-        # candidates = [cands[0] for _, cands in answer2candidates.items()]   #! representative
-        candidates = all_candidates  # ! exhaustive
+        candidates = all_candidates
+        # len(candidates) 也是当前 task id 下 trace 种类数
         total_num_candidates += len(candidates)
-
-        # ------ Get winner answer ------
         if not any(
-            # TODO 这里要用 check correctness
-            evaluator.check_answers_equiv(ans, gold_answer)
-            for ans in answer2candidates.keys()
+            evaluator.chect_correctness(ans) for ans in answer2candidates.keys()
         ):
             # In this case, we know that there is no correct answer in the candidates
             print("Well, no correct answer in candidates. Skipping...")
             winner_answer = ""
+        # 否则选出 confidence 最高的看看对不对
         else:
             # 如果最高confidence大于阈值, 直接选对应answer作为winner
+            # XXX 这里的 threshold 在哪里设置的?
             if highest_confidence > args.threshold:
                 print("You are very confident. Skipping...")
                 winner_answer = most_confident_answer
@@ -706,10 +632,9 @@ def main():
                 # TODO 这个肯定要改 看看 select 的逻辑
                 # TODO 这里的 problem 用的是 original requirement, 如果有rephrased是否要换成rephrased的?
                 winner_candidate = discriminator.select(
-                    problem,
+                    item,
                     candidates,
-                    gt_answer=gold_answer,
-                    aux={"file_idx": file_idx, "problem_id": problem_id},
+                    funchead_and_docstring,
                 )
                 # 如果选出了 winner, 则 answer 是 winner 的 final answer
                 if winner_candidate is not None:
@@ -718,34 +643,21 @@ def main():
                 else:
                     winner_answer = most_confident_answer
         # -------------------------------
+
         # TODO check equiv 改成 check correctness
-
-        correct = evaluator.check_answers_equiv(
-            winner_answer, gold_answer
-        )  # 判别 winner answer 是否正确
-
-        correct_majvote = evaluator.check_answers_equiv(
-            most_confident_answer, gold_answer
-        )  # 判别最高置信度answer是否正确
+        # 判别 winner answer 是否正确
+        correct = evaluator.chect_correctness(winner_answer)
+        # 判别最高置信度answer是否正确
+        correct_majvote = evaluator.chect_correctness(winner_answer)
+        # 在所有 answer 里边是否有正确的 (对应于 winner answer 不对但是别的 answer 对了的情况)
         correct_limit = (
             1
-            if any(
-                evaluator.check_answers_equiv(ans, gold_answer)
-                for ans in answer2candidates.keys()
-            )
+            if any(evaluator.chect_correctness(ans) for ans in answer2candidates.keys())
             else 0
         )
         print(f"==> Correct: {correct}")
-        try:
-            with open(
-                os.path.join(
-                    args.discriminate_results_dir, f"problem-{problem_id}.json"
-                ),
-                "r",
-            ) as f:
-                temp_recording = json.load(f)
-        except:
-            temp_recording = {}
+        # 保存数据
+        temp_recording = {}
         temp_recording.update(
             {
                 "correct": correct,
@@ -753,11 +665,9 @@ def main():
                 "correct_limit": correct_limit,
             }
         )
-        with open(
-            os.path.join(args.discriminate_results_dir, f"problem-{problem_id}.json"),
-            "w",
-        ) as f:
-            json.dump(temp_recording, f, indent=4)
+        # TODO discriminate_results_dir 应该要包含 model_ckpt 和 dataset_name
+        discriminate_results_dir = f"Task_id-{task_id}.jsonl"
+        write_jsonl(discriminate_results_dir, [temp_recording])
         num_correct += int(correct)
         num_correct_majvote += int(correct_majvote)
         num_correct_limit += int(correct_limit)
@@ -765,9 +675,7 @@ def main():
 
         info = f"Acc: {num_correct / num_tested:.4f}; Majority vote acc: {num_correct_majvote / num_tested:.4f}; Limit acc: {num_correct_limit / num_tested:.4f}"
         print(info)
-        pbar.set_description(info, refresh=True)
-
-        pbar.update(1)
+    # NOTE ------------------------------------ 从这以上是自己写的 以下是本来自带的
     #! --------------------------------------------------------
 
     print(
