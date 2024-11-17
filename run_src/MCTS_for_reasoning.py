@@ -115,7 +115,7 @@ class Generator:
         ]  #! cleaning
         return io_input, cleaned_io_output_list
 
-    # NOTE 直接生成答案
+    # NOTE 直接生成答案, value=出现次数最多的答案次数/总次数
     def generate_direct_answers(
         self,
         user_requirement: str,
@@ -135,7 +135,6 @@ class Generator:
         )
 
         try:
-            # 选择出现次数最多的答案返回, value = 出现次数最多的答案次数 / 总次数
             most_likely_answer, likelihood = self._get_most_likely_answer(
                 cleaned_io_output_list
             )
