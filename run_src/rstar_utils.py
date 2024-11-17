@@ -89,17 +89,10 @@ def concat_solution_trace(
                 len(solution_step["ost_step"]) == 0
                 and "direct_answer" in solution_step.keys()
             ):
-                solution_trace_str = f"""
-You are a Python assistant. Implement a Python function based on the given function head, docstring, and hint.
-
-[Function head and docstring]
-{funchead_and_docstring}
-
-[Hint]
-
-[Function implementation]
-{solution_step["direct_answer"]["text"].strip()}
-"""
+                # TODO 如何保证不会mask prompt但是也要加上标签?
+                # TODO direct answer 要加入 few shot? 测试一下
+                # direct answer 的 trace str 设置为空
+                solution_trace_str = ""
                 final_step_str = solution_step["direct_answer"]["text"].strip()
                 reward_value = (
                     solution_step["direct_answer"]["value"]
@@ -113,12 +106,13 @@ You are a Python assistant. Implement a Python function based on the given funct
                 len(solution_step["ost_step"]) > 0
                 and "direct_answer" in solution_step.keys()
             ):
-                # NOTE 最好使用带 few shot 的 prompt
-                solution_trace_str = ost_prompt + "\n"
-                solution_trace_str += (
-                    f"[Function head and docstring]\n{funchead_and_docstring}\n\n"
-                )
-                solution_trace_str += f"[Step to implement]\nTo implement the {func_name} function, we can follow these steps:"
+                # TODO 这里只 concat trace, 避免 prompt 被mask
+                # solution_trace_str = ost_prompt + "\n"
+                # solution_trace_str += (
+                #     f"[Function head and docstring]\n{funchead_and_docstring}\n\n"
+                # )
+                # solution_trace_str += f"[Step to implement]\nTo implement the {func_name} function, we can follow these steps:" # 这一段是不应该被mask的
+                solution_trace_str = ""
                 for step_id, step_text in solution_step["ost_step"].items():
                     solution_trace_str += f"Step{step_id}: " + step_text.strip() + "\n"
                 solution_trace_str += "\n"
@@ -160,7 +154,6 @@ def mask_solution_trace(
         # 每个前缀字符串之间的比例间隔
         interval = (right_boundary - left_boundary) / (num_return - 1)
 
-    # TODO 按照空格划分得到的str是正常的, 就是不知道模型的行为是否会正常...
     words_in_solution_trace = solution_trace_str.split(" ")
     ost_len = len(words_in_solution_trace)
     masked_solution_traces = []
