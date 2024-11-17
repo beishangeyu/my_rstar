@@ -74,7 +74,6 @@ def concat_ost_steps(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, in
 
 def concat_solution_trace(
     solution_trace: Dict[int, Dict[str, str]],
-    funchead_and_docstring: str,
     func_name: str,
 ):
     solution_trace_str = ""
@@ -89,10 +88,7 @@ def concat_solution_trace(
                 len(solution_step["ost_step"]) == 0
                 and "direct_answer" in solution_step.keys()
             ):
-                # TODO 如何保证不会mask prompt但是也要加上标签?
-                # TODO direct answer 要加入 few shot? 测试一下
-                # direct answer 的 trace str 设置为空
-                solution_trace_str = ""
+                solution_trace_str = f"[Function implementation]\n{solution_step["direct_answer"]["text"].strip()}"
                 final_step_str = solution_step["direct_answer"]["text"].strip()
                 reward_value = (
                     solution_step["direct_answer"]["value"]
@@ -106,13 +102,7 @@ def concat_solution_trace(
                 len(solution_step["ost_step"]) > 0
                 and "direct_answer" in solution_step.keys()
             ):
-                # TODO 这里只 concat trace, 避免 prompt 被mask
-                # solution_trace_str = ost_prompt + "\n"
-                # solution_trace_str += (
-                #     f"[Function head and docstring]\n{funchead_and_docstring}\n\n"
-                # )
-                # solution_trace_str += f"[Step to implement]\nTo implement the {func_name} function, we can follow these steps:" # 这一段是不应该被mask的
-                solution_trace_str = ""
+                solution_trace_str = f"[Step to implement]\nTo implement the {func_name} function, we can follow these steps:" # 这一段是不应该被mask的
                 for step_id, step_text in solution_step["ost_step"].items():
                     solution_trace_str += f"Step{step_id}: " + step_text.strip() + "\n"
                 solution_trace_str += "\n"
