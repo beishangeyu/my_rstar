@@ -19,6 +19,7 @@ from common.arguments import get_parser
 import os
 import json
 from tqdm import tqdm
+from prompt import ost_prompt
 
 
 class Candidate:
@@ -123,13 +124,6 @@ class Discriminator:
         self.args = args
         self.evaluator = evaluator
 
-        # XXX 这里的fewshot_config跟generate之间的是一样的?
-        self.fewshot_config = read_json(args.fewshot_config_path)
-        self.fewshot_template = self.fewshot_config["prompt_template"]
-        self.stop_tokens = self.fewshot_config["stop_tokens"]
-
-        self.fewshot_prompt = read_txt(args.fewshot_prompt_path)
-
     # 过滤掉没有答案的
     def _filter_none(self, candidates: list[Candidate]) -> list[Candidate]:
         candidates = [c for c in candidates if c.final_answer is not None]
@@ -153,15 +147,26 @@ class Discriminator:
         assert all(
             len(c.masked_solution_trace_list) == self.args.num_masked_solution_traces
             for c in candidates
-            if c.c_type == "default"
+            if c.c_type == "default"  # TODO 这里的 type 有什么含义?
         )
         gen_input_list = []
         ground_truth_list = []
         c_completion_num_list = []
         for c in candidates:
-            # 对一个mask solution trace补全rc_n_completions次
+            # NOTE 对一个mask solution trace补全rc_n_completions次
             for masked_solution_trace in c.masked_solution_trace_list:
+                # TODO 不只要加 prompt 还要加 funchead 和 docstring, 修改candidate
+                # 那 trace 要不要加入 func head 和 docstring 呢?
                 for _ in range(self.args.rc_n_completions):
+                    # TODO 应该在这里添加prompt, 不要在 concat 的时候添加
+                    # 如果有 ost step
+                    if "[Step to implement]" in c.solution_trace:
+                        mask_solution_trace = ost_prompt + "\n" + mask_solution_trace
+                        pass
+                    # 如果只有 direct answer
+                    # TODO 这里要加 prompt 吗?
+                    else:
+                        pass
                     gen_input_list.append(
                         prompt_template.format(
                             examples=fewshot_examples, instruction=problem
@@ -174,7 +179,7 @@ class Discriminator:
                 len(c.masked_solution_trace_list) * self.args.rc_n_completions
             )
 
-        # XXX 对每个candidate会被mask多次(每次长度不同?)
+        # NOTE 对每个candidate会被mask多次
         """gen_input_list:
         [c1_mask1, c1_mask2, ..., c2_mask1, c2_mask2, ..., ......, ct_mask1, ct_mask2, ...]
         """
@@ -447,6 +452,7 @@ class MajorityVoteDiscriminator(Discriminator):
             f"==> Pre-filtered answers: {[c.final_answer for c in prefiltered_candidates]}"
         )
         # 过滤掉一致性不够的答案
+        # TODO 这里的 problem 应该用的是 trace 中的, 可能 rephrase 过
         filtered_candidates = self._filter_reasoning_consistency(
             self.model, problem, prefiltered_candidates, aux
         )
@@ -482,6 +488,7 @@ def main():
         "--rc_mode", type=str, default="mid", choices=["loose", "mid", "strict", "maj"]
     )
     parser.add_argument("--rc_temperature", type=float, default=1.0)
+    # NOTE 对一个 masked trace 要生成几个补全答案
     parser.add_argument("--rc_n_completions", type=int, default=1)
     parser.add_argument(
         "--rc_criteria", type=str, default="reward", choices=["freq", "reward"]
@@ -535,20 +542,16 @@ def main():
         func_head = re.search(r"def .+?:", code).group(0)
         func_name = re.search(r"def (.+?)\(", code).group(1)
         test_case = item["test_list"][0][7:]
+        # XXX select的时候的problem就是requirement, 纠结的是如果有rephrased要不要用rephrased的
+        requirement = item["text"]
 
         all_candidates = []
         solution_trace_dic = {}
         # 遍历同一个 task id 下所有的 solution trace, 将它们添加到的 dict 中
         for id, it in enumerate(solution_traces):
-            requirement = it["trace"]["user_requirement"]
-            funchead_and_docstring = make_funchead_and_docstring(
-                requirement, func_head, test_case
-            )
-            # TODO 打印一下 solution trace
+            # TODO 打印一下 solution trace 看一下是否正常
             # 把 solution trace 组合起来, 添加到 dict 中
-            solution_trace, final_step, _, reward = concat_solution_trace(
-                it, funchead_and_docstring, func_name
-            )
+            solution_trace, final_step, _, reward = concat_solution_trace(it, func_name)
             if solution_trace in solution_trace_dic:
                 solution_trace_dic[solution_trace]["freq"] = (
                     solution_trace_dic[solution_trace]["freq"] + 1
@@ -593,6 +596,7 @@ def main():
                 trace_reward,
             )
             all_candidates.append(candidate)
+    # NOTE ------------------------------------ 从这以上是自己写的 以下是本来自带的
 
     for file_idx, answer_js_file in enumerate(answer_sheet_json_files):
         print(
@@ -624,7 +628,6 @@ def main():
             solution_trace, final_step, _, reward = concat_solution_trace(trace)
             # 遍历所有的 solution trace,
             # 记录相同的 trace 的出现次数, 累积 reward, 取最长的 final step 作为这个solution trace的final step
-            # XXX 为什么要选最长的???
             if solution_trace in solution_trace_dic:
                 solution_trace_dic[solution_trace]["freq"] = (
                     solution_trace_dic[solution_trace]["freq"] + 1
@@ -632,6 +635,7 @@ def main():
                 solution_trace_dic[solution_trace]["reward"] = (
                     solution_trace_dic[solution_trace]["reward"] + reward
                 )
+                # XXX 为什么要选最长的? 最长的代码一定是最好的吗? 可以优化吗?
                 if len(solution_trace_dic[solution_trace]["final_step"]) < len(
                     final_step
                 ):
@@ -700,6 +704,7 @@ def main():
             # 否则调用select
             else:
                 # TODO 这个肯定要改 看看 select 的逻辑
+                # TODO 这里的 problem 用的是 original requirement, 如果有rephrased是否要换成rephrased的?
                 winner_candidate = discriminator.select(
                     problem,
                     candidates,
