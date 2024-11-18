@@ -141,19 +141,14 @@ class Discriminator:
     def _filter_reasoning_consistency(
         self,
         gen_model,
-        problem: str,
+        funchead_and_docstring: str,
         candidates: list[Candidate],
-        funchead_and_docstring: str,  # TAG
     ) -> list[Candidate]:
-
-        prompt_template = self.fewshot_template
-        fewshot_examples = self.fewshot_prompt
-        stop_tokens = self.stop_tokens
 
         assert all(
             len(c.masked_solution_trace_list) == self.args.num_masked_solution_traces
             for c in candidates
-            if c.c_type == "default"  # TODO 这里的 type 有什么含义?
+            if c.c_type == "default"  # XXX 这里的 type 有什么含义?
         )
         gen_input_list = []
         ground_truth_list = []
@@ -161,32 +156,29 @@ class Discriminator:
         for c in candidates:
             # NOTE 对一个mask solution trace补全rc_n_completions次
             for masked_solution_trace in c.masked_solution_trace_list:
-                # TODO 不只要加 prompt 还要加 funchead 和 docstring, 修改candidate
-                # 那 trace 要不要加入 func head 和 docstring 呢?
+                masked_solution_trace = (
+                    f"[Function haed and docstring]\n{funchead_and_docstring}\n\n"
+                    + masked_solution_trace
+                )
                 for _ in range(self.args.rc_n_completions):
-                    # TODO 应该在这里添加prompt, 不要在 concat 的时候添加
                     # 如果有 ost step
                     if "[Step to implement]" in c.solution_trace:
-                        mask_solution_trace = ost_prompt + "\n" + mask_solution_trace
+                        masked_solution_trace = (
+                            ost_prompt + "\n" + masked_solution_trace
+                        )
                         pass
                     # 如果只有 direct answer
-
                     else:
-                        # TODO 这里要加 prompt 吗?
+                        # TODO 这里先不加 prompt, 让场景跟 MCTS 的时候一致
                         pass
-                    gen_input_list.append(
-                        prompt_template.format(
-                            examples=fewshot_examples, instruction=problem
-                        )
-                        + masked_solution_trace
-                    )
+
+                    gen_input_list.append(masked_solution_trace)
                     # 这里以candidates的final_answer作为标准答案
                     ground_truth_list.append(c.final_answer)
             c_completion_num_list.append(
                 len(c.masked_solution_trace_list) * self.args.rc_n_completions
             )
 
-        # NOTE 对每个candidate会被mask多次
         """gen_input_list:
         [c1_mask1, c1_mask2, ..., c2_mask1, c2_mask2, ..., ......, ct_mask1, ct_mask2, ...]
         """
@@ -459,9 +451,9 @@ class MajorityVoteDiscriminator(Discriminator):
             f"==> Pre-filtered answers: {[c.final_answer for c in prefiltered_candidates]}"
         )
         # 过滤掉一致性不够的答案
-        # TODO 这里的 problem 应该用的是 trace 中的, 可能 rephrase 过
+        # TODO 这里的 problem 应该用的是 trace 中的, 可能 rephrase 过, 可以优化吗?
         filtered_candidates = self._filter_reasoning_consistency(
-            self.model, task, prefiltered_candidates, aux
+            self.model, funchead_and_docstring, prefiltered_candidates
         )
         # filtered_candidates: [1, 2, 3]
         print(
@@ -623,13 +615,12 @@ def main():
         # 否则选出 confidence 最高的看看对不对
         else:
             # 如果最高confidence大于阈值, 直接选对应answer作为winner
-            # XXX 这里的 threshold 在哪里设置的?
+            # TODO 这里的 threshold 在哪里设置的?
             if highest_confidence > args.threshold:
                 print("You are very confident. Skipping...")
                 winner_answer = most_confident_answer
             # 否则调用select
             else:
-                # TODO 这个肯定要改 看看 select 的逻辑
                 # TODO 这里的 problem 用的是 original requirement, 如果有rephrased是否要换成rephrased的?
                 winner_candidate = discriminator.select(
                     item,
@@ -644,7 +635,6 @@ def main():
                     winner_answer = most_confident_answer
         # -------------------------------
 
-        # TODO check equiv 改成 check correctness
         # 判别 winner answer 是否正确
         correct = evaluator.chect_correctness(winner_answer)
         # 判别最高置信度answer是否正确
@@ -666,8 +656,8 @@ def main():
             }
         )
         # TODO discriminate_results_dir 应该要包含 model_ckpt 和 dataset_name
-        discriminate_results_dir = f"Task_id-{task_id}.jsonl"
-        write_jsonl(discriminate_results_dir, [temp_recording])
+        result_path = os.path.join(discriminate_out_dir, f"Task_id-{task_id}.jsonl")
+        write_jsonl(result_path, [temp_recording])
         num_correct += int(correct)
         num_correct_majvote += int(correct_majvote)
         num_correct_limit += int(correct_limit)
@@ -675,8 +665,6 @@ def main():
 
         info = f"Acc: {num_correct / num_tested:.4f}; Majority vote acc: {num_correct_majvote / num_tested:.4f}; Limit acc: {num_correct_limit / num_tested:.4f}"
         print(info)
-    # NOTE ------------------------------------ 从这以上是自己写的 以下是本来自带的
-    #! --------------------------------------------------------
 
     print(
         f"Accuracy: {num_correct / num_tested:.4f}; Majority vote accuracy: {num_correct_majvote / num_tested:.4f}; Limit accuracy: {num_correct_limit / num_tested:.4f}"
