@@ -124,9 +124,10 @@ def group_candidates_by_answer(candidates: list[Candidate], evaluator, criteria=
 
 
 class Discriminator:
-    def __init__(self, args, evaluator):
+    def __init__(self, args, evaluator, discriminate_out_dir):
         self.args = args
         self.evaluator = evaluator
+        self.disc_out_dir = discriminate_out_dir
 
     # 过滤掉没有答案的
     def _filter_none(self, candidates: list[Candidate]) -> list[Candidate]:
@@ -150,139 +151,64 @@ class Discriminator:
             for c in candidates
             if c.c_type == "default"  # XXX 这里的 type 有什么含义?
         )
-        gen_input_list = []
-        ground_truth_list = []
-        c_completion_num_list = []
+        consistent_candidates = []
+        # NOTE 这里所有的 candidate 都对应同一个 task_id
         for c in candidates:
-            # NOTE 对一个mask solution trace补全rc_n_completions次
+            completion_list = []
             for masked_solution_trace in c.masked_solution_trace_list:
+                # 补上问题
                 masked_solution_trace = (
                     f"[Function haed and docstring]\n{funchead_and_docstring}\n\n"
                     + masked_solution_trace
                 )
-                for _ in range(self.args.rc_n_completions):
-                    # 如果有 ost step
-                    if "[Step to implement]" in c.solution_trace:
-                        masked_solution_trace = (
-                            ost_prompt + "\n" + masked_solution_trace
-                        )
-                        pass
-                    # 如果只有 direct answer
-                    else:
-                        # TODO 这里先不加 prompt, 让场景跟 MCTS 的时候一致
-                        pass
+                # 如果有 ost step, 就补上 ost 的 prompt
+                if "[Step to implement]" in c.solution_trace:
+                    masked_solution_trace = ost_prompt + "\n" + masked_solution_trace
+                completions = self._gen_func(
+                    gen_model=gen_model,
+                    gen_input=masked_solution_trace,
+                    temperature=self.args.rc_temperature,
+                    n=self.args.rc_n_completions,  # NOTE 生成 rc_n_completions 个补全答案
+                    max_tokens=1024,
+                    stop_tokens=[
+                        "[[Function haed and docstring]]",
+                        "You are a Python assistant.",
+                    ],
+                )
+                completion_list.append(completions)
+            # 把 list of str 展开成 list of str
+            completion_list = [
+                c for cps in completion_list for c in cps if c is not None
+            ]
+            answer_list = [
+                self.evaluator.extract_answer_from_model_completion(completion)
+                for completion in completion_list
+            ]
 
-                    gen_input_list.append(masked_solution_trace)
-                    # 这里以candidates的final_answer作为标准答案
-                    ground_truth_list.append(c.final_answer)
-            c_completion_num_list.append(
-                len(c.masked_solution_trace_list) * self.args.rc_n_completions
-            )
-
-        """gen_input_list:
-        [c1_mask1, c1_mask2, ..., c2_mask1, c2_mask2, ..., ......, ct_mask1, ct_mask2, ...]
-        """
-
-        # Manually split into batches
-        batch_size = self.args.max_num_seqs // self.args.rc_n_completions // 2
-        gen_output_list = []
-        # 按批量处理
-        for start_idx in range(0, len(gen_input_list), batch_size):
-            end_idx = start_idx + batch_size
-            sub_gen_input_list = gen_input_list[start_idx:end_idx]
-            sub_gen_output_list = self._gen_func(
-                gen_model=gen_model,
-                gen_input=sub_gen_input_list,
-                temperature=self.args.rc_temperature,
-                n=1,
-                max_tokens=512,
-                stop_tokens=stop_tokens + ["\n"],
-            )
-            # extend函数不会将sub_gen_output_list作为一个元素加入, 而是和gen_output_list合并
-            gen_output_list.extend(sub_gen_output_list)
-
-        with open(
-            os.path.join(
-                self.args.discriminate_results_dir, f"problem-{problem_id}.json"
-            ),
-            "w",
-        ) as f:
-            js = {
-                "problem_id": problem_id,
-                "file_idx": file_idx,
-                "gen_output_list": gen_output_list,
-            }
-            json.dump(js, f)
-
-        # gen_output_list 长这样, 按照不同的mask来划分
-        """gen_output_list:
-        [[c1_mask1_o1, c1_mask1_o2, ...], [c1_mask2_o1, c1_mask2_o2, ...], ..., [ct_mask1_o1, ct_mask1_o2, ...], [ct_mask2_o1, ct_mask2_o2, ...], ...]
-        """
-
-        # 把gen_output_list展开
-        if all(isinstance(item, list) for item in gen_output_list):
-            completion_list = []
-            for n_completions in gen_output_list:
-                for completion in n_completions:
-                    completion_list.append(completion)
-            assert len(
-                completion_list
-            ) == self.args.rc_n_completions * self.args.num_masked_solution_traces * len(
-                candidates
-            )
-            # 每个被mask的推理轨迹会让模型补全多次
-            candidate_group_size = (
-                self.args.rc_n_completions * self.args.num_masked_solution_traces
-            )
-        elif all(isinstance(item, str) for item in gen_output_list):
-            completion_list = gen_output_list
-            candidate_group_size = self.args.num_masked_solution_traces
-
-        answer_list = [
-            self.evaluator.extract_answer_from_model_completion(completion)
-            for completion in completion_list
-        ]
-
-        count = 0
-        completion_group_list = []
-        answer_group_list = []
-        gt_group_list = []
-        # 再按照不同的candidate划分成多个list, list of list中每个list对应一个candidate
-        # 每个list中包含不同的mask的补全结果
-        for num in c_completion_num_list:
-            completion_group_list.append(completion_list[count : count + num])
-            answer_group_list.append(answer_list[count : count + num])
-            gt_group_list.append(ground_truth_list[count : count + num])
-            count += num
-        assert count == len(completion_list) == len(answer_list)
-
-        consistent_candidates = []
-
-        # 每个candidate对应一个group_list
-        for c, completion_group, answer_group, gt_answer in zip(
-            candidates, completion_group_list, answer_group_list, gt_group_list
-        ):
-            candidate_group_size = len(c.masked_solution_trace_list)
             num_consistent = 0
+            candidate_count = len(completion_list)
+            # 多数投票策略
             if self.args.rc_mode == "maj":
-                answer = self.evaluator.find_most_confident_answer(completion_group)[0]
-                if self.evaluator.check_answers_equiv(gt_answer[-1], answer):
+                answer = self.evaluator.find_most_confident_answer(completion_list)
+                if self.evaluator.check_answers_equiv(c.final_answer, answer):
                     consistent_candidates.append(c)
             else:
                 # 把candidate和discriminator的补全答案一个个比较, 如果相等, num_consistent就加1
-                for answer, gt_a in zip(answer_group, gt_answer):
-                    if self.evaluator.check_answers_equiv(gt_a, answer):
+                for answer in answer_list:
+                    if self.evaluator.check_answers_equiv(c.final_answer, answer):
                         num_consistent += 1
 
-                # 三种不同的策略, num_consistent的阈值不同, 一致的数量超过阈值的时候, 认为由generator生成的这个candidate是有效的
+                # 只要有一个补全答案跟本来的答案一样, 这个 candidate 就有效
                 if self.args.rc_mode == "loose":
                     if num_consistent > 0:
                         consistent_candidates.append(c)
+                # 过半的的补全答案和本来的答案一样, 这个 candidate 才有效
                 elif self.args.rc_mode == "mid":
-                    if num_consistent >= candidate_group_size // 2:
+                    if num_consistent >= candidate_count // 2:
                         consistent_candidates.append(c)
+                # 所有的补全答案和本来的答案一样, 这个 candidate 才有效
                 elif self.args.rc_mode == "strict":
-                    if num_consistent == candidate_group_size:
+                    if num_consistent == candidate_count:
                         consistent_candidates.append(c)
 
         # 返回所有达到一致性要求的candidate
@@ -319,7 +245,6 @@ class Discriminator:
             elif isinstance(gen_input, list):
                 return [[o.text for o in r.outputs] for r in response]
 
-    # XXX 是怎么计算分数的?
     def _calculate_scores(
         self,
         unfiltered_candidates: list[Candidate],
@@ -433,9 +358,8 @@ class MajorityVoteDiscriminator(Discriminator):
                 args.model_ckpt, args.seed, max_num_seqs=args.max_num_seqs
             )
 
-    # TODO 直接把 task 传进来, 要什么直接在里边取就好了
     def select(
-        self, task: dict, candidates: list[Candidate], funchead_and_docstring: str
+        self, candidates: list[Candidate], funchead_and_docstring: str
     ) -> Candidate:
 
         unfiltered_candidates = candidates
@@ -481,7 +405,7 @@ def main():
     # NOTE mask 的最小值和最大值
     parser.add_argument("--mask_left_boundary", type=float, default=0.2)
     parser.add_argument("--mask_right_boundary", type=float, default=0.5)
-    # NOTE 对一个 solution trace 要生成几个 mask trace
+    # NOTE 对一个 solution trace 要生成几个 masked trace
     parser.add_argument("--num_masked_solution_traces", type=int, default=4)
     parser.add_argument(
         "--rc_mode", type=str, default="mid", choices=["loose", "mid", "strict", "maj"]
@@ -513,7 +437,7 @@ def main():
     recording = vars(args)
 
     evaluator = PythonEvaluator
-    discriminator = MajorityVoteDiscriminator(args, evaluator)
+    discriminator = MajorityVoteDiscriminator(args, evaluator, discriminate_out_dir)
 
     #! ------ Select winner candidate for each example ------
 
@@ -621,9 +545,7 @@ def main():
                 winner_answer = most_confident_answer
             # 否则调用select
             else:
-                # TODO 这里的 problem 用的是 original requirement, 如果有rephrased是否要换成rephrased的?
                 winner_candidate = discriminator.select(
-                    item,
                     candidates,
                     funchead_and_docstring,
                 )
@@ -655,7 +577,6 @@ def main():
                 "correct_limit": correct_limit,
             }
         )
-        # TODO discriminate_results_dir 应该要包含 model_ckpt 和 dataset_name
         result_path = os.path.join(discriminate_out_dir, f"Task_id-{task_id}.jsonl")
         write_jsonl(result_path, [temp_recording])
         num_correct += int(correct)
