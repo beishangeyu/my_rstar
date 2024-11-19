@@ -84,10 +84,8 @@ def concat_solution_trace(
     for item_idx, solution_step in enumerate(solution_trace.items()):
         if item_idx == 0:
             # 没有 ost step 只有 direct answer
-            if (
-                len(solution_step["ost_step"]) == 0
-                and "direct_answer" in solution_step.keys()
-            ):
+            solution_step = solution_step[1]
+            if not solution_step["ost_step"]:
                 direct_answer = solution_step["direct_answer"]["text"].strip()
                 solution_trace_str = f"[Function implementation]\n{direct_answer}"
                 final_step_str = solution_step["direct_answer"]["text"].strip()
