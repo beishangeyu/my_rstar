@@ -15,7 +15,7 @@ from run_src.rstar_utils import (
 )
 from eval_src.Evaluator import *
 from common.utils import fix_seeds, write_jsonl, read_jsonl, load_dataset
-from common.arguments import get_parser
+from common.arguments import get_parser, post_process_args
 import os
 import json
 from tqdm import tqdm
@@ -407,25 +407,25 @@ def main():
     parser.add_argument(
         "--rc_criteria", type=str, default="reward", choices=["freq", "reward"]
     )
+    # NOTE do generate 结果的存放路径
+    parser.add_argument("--gene_result_dir", type=str)
     args = parser.parse_args()
 
     fix_seeds(args.seed)
     print(args)
 
-    gene_result_dir = os.path.join(
-        args.gene_result, f"{args.dataset_name}", f"{args.model_ckpt}"
-    )
+    gene_result_dir = args.gene_result_dir
     # NOTE discriminate 结果的存放路径
+    model_name = args.model_ckpt.split("/")[-1]
     discriminate_out_dir = os.path.join(
-        args.disc_result, f"{args.dataset_name}", f"{args.model_ckpt}"
+        args.disc_result, f"{args.dataset_name}", f"{model_name}"
     )
     os.makedirs(discriminate_out_dir, exist_ok=True)
 
     # 记录当前的args
-    recording_file = os.path.join(discriminate_out_dir, "args.jsonl")
     recording = vars(args)
 
-    evaluator = PythonEvaluator
+    evaluator = PythonEvaluator()
     discriminator = MajorityVoteDiscriminator(args, evaluator, discriminate_out_dir)
 
     #! ------ Select winner candidate for each example ------
@@ -443,6 +443,7 @@ def main():
         )
         solution_traces = read_jsonl(path)
 
+        test_list = item["test_list"]
         code = item["code"]
         func_name = re.search(r"def (.+?)\(", code).group(1)
         func_head = re.search(r"def .+?:", code).group(0)
@@ -458,7 +459,9 @@ def main():
         # 遍历同一个 task id 下所有的 solution trace, 将它们添加到的 dict 中
         for id, it in enumerate(solution_traces):
             # 把 solution trace 组合起来, 添加到 dict 中
-            solution_trace, final_step, _, reward = concat_solution_trace(it, func_name)
+            solution_trace, final_step, _, reward = concat_solution_trace(
+                it["trace"], func_name
+            )
             if solution_trace in solution_trace_dic:
                 solution_trace_dic[solution_trace]["freq"] = (
                     solution_trace_dic[solution_trace]["freq"] + 1
@@ -519,7 +522,8 @@ def main():
         total_num_candidates += len(candidates)
         # 如果所有 trace 的 answer 都不对, 就不继续找了
         if not any(
-            evaluator.chect_correctness(ans) for ans in answer2candidates.keys()
+            evaluator.check_correctness(ans, args.dataset_name, test_list)
+            for ans in answer2candidates.keys()
         ):
             print("Well, no correct answer in candidates. Skipping...")
             winner_answer = ""
@@ -544,13 +548,20 @@ def main():
         # -------------------------------
 
         # 判别 winner answer 是否正确
-        correct = evaluator.chect_correctness(winner_answer)
+        correct = evaluator.check_correctness(
+            winner_answer, args.dataset_name, test_list
+        )
         # 判别最高置信度answer是否正确
-        correct_majvote = evaluator.chect_correctness(winner_answer)
+        correct_majvote = evaluator.check_correctness(
+            winner_answer, args.dataset_name, test_list
+        )
         # 在所有 answer 里边是否有正确的 (对应于 winner answer 不对但是别的 answer 对了的情况)
         correct_limit = (
             1
-            if any(evaluator.chect_correctness(ans) for ans in answer2candidates.keys())
+            if any(
+                evaluator.check_correctness(ans, args.dataset_name, test_list)
+                for ans in answer2candidates.keys()
+            )
             else 0
         )
         print(f"==> Correct: {correct}")
