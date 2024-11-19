@@ -204,7 +204,7 @@ class Evaluator:
     def extract_answer_from_model_completion(self, completion: str) -> str:
         raise NotImplementedError
 
-    def chect_correctness(self, code: str, dataset_name: str, test_list: List[str]):
+    def check_correctness(self, code: str, dataset_name: str, test_list: List[str]):
         raise NotImplementedError
 
 
@@ -225,7 +225,7 @@ class PythonEvaluator(Evaluator):
         except:
             return 0
 
-    def chect_correctness(self, code: str, dataset_name: str, test_list: List[str]):
+    def check_correctness(self, code: str, dataset_name: str, test_list: List[str]):
         if "mbpp" in dataset_name:
             return self.test_mbpp(test_list, code, timeout=5)
         else:
