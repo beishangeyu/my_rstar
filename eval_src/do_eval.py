@@ -49,7 +49,7 @@ def eval_single_item(
 
     solution_candidates = extract_trace(solution_candidates, num_votes)
     model_answer, _, _, _ = evaluator.find_most_confident_answer(solution_candidates)
-    result = evaluator.chect_correctness(model_answer, dataset_name, test_list)
+    result = evaluator.check_correctness(model_answer, dataset_name, test_list)
     # TODO 多添加几个 key?
     data_item["task_id"] = task_id
     data_item["correct"] = result
