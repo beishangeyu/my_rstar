@@ -407,6 +407,7 @@ def main():
     parser.add_argument("--mask_right_boundary", type=float, default=0.5)
     # NOTE 对一个 solution trace 要生成几个 masked trace
     parser.add_argument("--num_masked_solution_traces", type=int, default=4)
+    # NOTE fillter consistency 的严格程度, loose: 有一个一样就行, mid: 大于一半一样就行, strict: 全一样才行
     parser.add_argument(
         "--rc_mode", type=str, default="mid", choices=["loose", "mid", "strict", "maj"]
     )
