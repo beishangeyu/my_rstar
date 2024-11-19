@@ -1,5 +1,5 @@
-CUDA_VISIBLE_DEVICES=0 python run_src/do_discriminate.py \
+CUDA_VISIBLE_DEVICES=3 python run_src/do_discriminate.py \
+    --gene_result_dir gene_result/mbpp_Mistral-7B-v0.1/Mistral-7B-v0.1_1 \
     --model_ckpt microsoft/Phi-3-mini-4k-instruct \
-    --root_dir run_outputs/GSM8K/Mistral-7B-v0.1/put_your_file_here \
-    --dataset_name GSM8K \
-    --note default
+    --dataset_name mbpp_Mistral-7B-v0.1 \
+    --tensor_parallel_size 1
