@@ -31,7 +31,6 @@ def get_parser():
     parser.add_argument("--gpu_memory_utilization", type=float, default=0.9)
 
     #! dataset settings
-    parser.add_argument("--data_root", default="data")
     parser.add_argument("--dataset_name", required=True)
 
     # do generate 和 do eval 结果的保存路径
