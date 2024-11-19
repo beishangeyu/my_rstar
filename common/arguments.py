@@ -5,7 +5,6 @@ from argparse import ArgumentParser
 from datetime import datetime
 
 
-# NOTE 在这里设置基本参数, do_generator 和 do_discriminator 中都会用到, 那里边还设置了别的额外的参数
 def get_parser():
     parser = ArgumentParser()
 
@@ -33,7 +32,7 @@ def get_parser():
     #! dataset settings
     parser.add_argument("--dataset_name", required=True)
 
-    # do generate 和 do eval 结果的保存路径
+    # do generate 和 do eval 结果的保存根路径
     parser.add_argument("--gene_result", type=str, default="gene_result")
     parser.add_argument("--eval_result", type=str, default="eval_result")
     parser.add_argument("--disc_result", type=str, default="disc_result")
@@ -43,7 +42,7 @@ def get_parser():
 
 def post_process_args(args):
     # Set up logging
-    model_name = args.model_ckpt.split("/")[-1]  # 模型名称
+    model_name = args.model_ckpt.split("/")[-1]
     args.gene_result = os.path.join(
         args.gene_result,
         args.dataset_name,
