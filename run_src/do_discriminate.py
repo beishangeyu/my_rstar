@@ -124,7 +124,7 @@ def group_candidates_by_answer(candidates: list[Candidate], evaluator, criteria=
 
 
 class Discriminator:
-    def __init__(self, args, evaluator, discriminate_out_dir):
+    def __init__(self, args, evaluator: Evaluator, discriminate_out_dir: str):
         self.args = args
         self.evaluator = evaluator
         self.disc_out_dir = discriminate_out_dir
@@ -149,7 +149,7 @@ class Discriminator:
         assert all(
             len(c.masked_solution_trace_list) == self.args.num_masked_solution_traces
             for c in candidates
-            if c.c_type == "default"  # XXX 这里的 type 有什么含义?
+            if c.c_type == "default"
         )
         consistent_candidates = []
         # NOTE 这里所有的 candidate 都对应同一个 task_id
@@ -304,7 +304,6 @@ class Discriminator:
         self,
         unfiltered_candidates: list[Candidate],
         filtered_candidates: list[Candidate],
-        gt_answer: str = None,
     ) -> Candidate:
         # 如果没有一致性达到要求的candidate, 就从prefiltered的candidate中选最好(出现次数最多)的那个作为winner
         if len(filtered_candidates) == 0:
@@ -322,7 +321,7 @@ class Discriminator:
             print(f"==> Winner answer: {winner.final_answer}\n")
         # 如果所有的达到一致性要求的candidate的answer都和user question的标准答案不一样, winner为none
         elif not any(
-            self.evaluator.check_answers_equiv(c.final_answer, gt_answer)
+            self.evaluator.chect_correctness(c.final_answer)
             for c in filtered_candidates
         ):
             winner = None
@@ -383,9 +382,7 @@ class MajorityVoteDiscriminator(Discriminator):
         print(
             f"==> RC-filtered answers: {[c.final_answer for c in filtered_candidates]}"
         )
-        return self._find_winner_filtered(
-            prefiltered_candidates, filtered_candidates, gt_answer
-        )
+        return self._find_winner_filtered(prefiltered_candidates, filtered_candidates)
 
 
 def main():
@@ -401,7 +398,6 @@ def main():
         default=None,
         choices=["fewshot", "instruct"],
     )
-    # For reasoning consistency
     # NOTE mask 的最小值和最大值
     parser.add_argument("--mask_left_boundary", type=float, default=0.2)
     parser.add_argument("--mask_right_boundary", type=float, default=0.5)
@@ -450,8 +446,7 @@ def main():
     for item in dataset:
         task_id = item["task_id"]
         path = os.path.join(
-            args.gene_result,
-            args.dataset_name,
+            gene_result_dir,
             f"Task_id_{task_id}_all_solutions.jsonl",
         )
         solution_traces = read_jsonl(path)
@@ -470,7 +465,6 @@ def main():
         solution_trace_dic = {}
         # 遍历同一个 task id 下所有的 solution trace, 将它们添加到的 dict 中
         for id, it in enumerate(solution_traces):
-            # TODO 打印一下 solution trace 看一下是否正常
             # 把 solution trace 组合起来, 添加到 dict 中
             solution_trace, final_step, _, reward = concat_solution_trace(it, func_name)
             if solution_trace in solution_trace_dic:
@@ -531,10 +525,10 @@ def main():
         candidates = all_candidates
         # len(candidates) 也是当前 task id 下 trace 种类数
         total_num_candidates += len(candidates)
+        # 如果所有 trace 的 answer 都不对, 就不继续找了
         if not any(
             evaluator.chect_correctness(ans) for ans in answer2candidates.keys()
         ):
-            # In this case, we know that there is no correct answer in the candidates
             print("Well, no correct answer in candidates. Skipping...")
             winner_answer = ""
         # 否则选出 confidence 最高的看看对不对
