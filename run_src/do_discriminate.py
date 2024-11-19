@@ -124,7 +124,7 @@ def group_candidates_by_answer(candidates: list[Candidate], evaluator, criteria=
 
 
 class Discriminator:
-    def __init__(self, args, evaluator: Evaluator, discriminate_out_dir: str):
+    def __init__(self, args, evaluator, discriminate_out_dir):
         self.args = args
         self.evaluator = evaluator
         self.disc_out_dir = discriminate_out_dir
@@ -349,8 +349,8 @@ class Discriminator:
 
 
 class MajorityVoteDiscriminator(Discriminator):
-    def __init__(self, args, evaluator):
-        super().__init__(args, evaluator)
+    def __init__(self, args, evaluator, discriminate_out_dir):
+        super().__init__(args, evaluator, discriminate_out_dir)
         self.tokenizer, self.model = None, None
         if self.args.api == "vllm":
             self.tokenizer, self.model = load_vLLM_model(
@@ -387,17 +387,9 @@ class MajorityVoteDiscriminator(Discriminator):
 
 def main():
     parser = get_parser()
-    parser = ArgumentParser()
     parser.add_argument("--threshold", type=float, default=0.999)
     # vLLM
     parser.add_argument("--max_num_seqs", type=int, default=256)
-    # For multi-choice
-    parser.add_argument(
-        "--multi_choice_prompt_type",
-        type=str,
-        default=None,
-        choices=["fewshot", "instruct"],
-    )
     # NOTE mask 的最小值和最大值
     parser.add_argument("--mask_left_boundary", type=float, default=0.2)
     parser.add_argument("--mask_right_boundary", type=float, default=0.5)
@@ -534,7 +526,6 @@ def main():
         # 否则选出 confidence 最高的看看对不对
         else:
             # 如果最高confidence大于阈值, 直接选对应answer作为winner
-            # TODO 这里的 threshold 在哪里设置的?
             if highest_confidence > args.threshold:
                 print("You are very confident. Skipping...")
                 winner_answer = most_confident_answer
@@ -564,6 +555,7 @@ def main():
         )
         print(f"==> Correct: {correct}")
         # 保存数据
+        # TODO 修改为 jsonl
         temp_recording = {}
         temp_recording.update(
             {
@@ -585,7 +577,7 @@ def main():
     print(
         f"Accuracy: {num_correct / num_tested:.4f}; Majority vote accuracy: {num_correct_majvote / num_tested:.4f}; Limit accuracy: {num_correct_limit / num_tested:.4f}"
     )
-
+    path = os.path.join(discriminate_out_dir, f"summarize.jsonl")
     recording.update(
         {
             "num_correct": num_correct,
@@ -598,11 +590,9 @@ def main():
             "avg_num_candidates": total_num_candidates / num_tested,
         }
     )
+    write_jsonl(path, [recording])
 
     print(f"Recording: \n{recording}")
-
-    with open(recording_file, "w") as f:
-        json.dump(recording, f, indent=4)
 
 
 if __name__ == "__main__":
