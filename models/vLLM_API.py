@@ -82,9 +82,6 @@ def generate_with_vLLM_model(
         temperature=temperature,
         top_p=top_p,
         top_k=top_k,
-        # TODO 在生成代码的时对重复内容惩罚会导致奇怪的行为, 测试一下去掉这个参数是否会影响别的action,
-        # TODO 如果会那就在代码生成时禁用, 别的时候还是启用
-        # repetition_penalty=repetition_penalty,
         n=n,
         logprobs=logprobs,
         max_tokens=max_tokens,
