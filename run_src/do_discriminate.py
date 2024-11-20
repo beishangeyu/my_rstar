@@ -87,9 +87,7 @@ def group_candidates_by_answer(candidates: list[Candidate], evaluator, criteria=
                 # 是在把相同answer的candidate放在一起
                 answer2candidates[str(existing_answer)].extend([c] * c.freq)
                 # NOTE 默认以 original trace 的 reward 作为 confidence
-                # XXX 改成 freq 试试呢? reward 是 trace 在模型生成序列时候的出现次数, freq 是同一个 trace 在所有 trace 中的出现次数
-                # XXX 所以 reward 针对单次生成而言, freq 则是针对整个搜索而言的
-                # XXX 那一个 answer 的 confidence 理应是 freq
+                # XXX 如果改成 freq 就和 do eval 一样了
                 answer2confidence[str(existing_answer)] += (
                     c.trace_reward if criteria == "reward" else c.freq
                 )
@@ -310,7 +308,6 @@ class Discriminator:
             answer2candidates, answer2confidence, _ = group_candidates_by_answer(
                 unfiltered_candidates, self.evaluator, self.args.rc_criteria
             )
-            # BUG 在 task id 为 425 的时候这里报错, 说 answer2confidence 是一个空的序列
             most_confident_answer = max(
                 answer2confidence.keys(), key=lambda x: answer2confidence[x]
             )
@@ -402,8 +399,7 @@ def main():
     parser.add_argument("--rc_temperature", type=float, default=1.0)
     # NOTE 对一个 masked trace 要生成几个补全答案
     parser.add_argument("--rc_n_completions", type=int, default=1)
-    # NOTE group candidates by answer 时 confidence 的评判标准
-    # TODO 改成 freq 试试呢
+    # NOTE group candidates by answer 时 confidence 的评判标准, 如果是 freq 就跟 do eval 一样了, 没意义
     parser.add_argument(
         "--rc_criteria", type=str, default="reward", choices=["freq", "reward"]
     )
