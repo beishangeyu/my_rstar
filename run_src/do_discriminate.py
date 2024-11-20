@@ -310,6 +310,7 @@ class Discriminator:
             answer2candidates, answer2confidence, _ = group_candidates_by_answer(
                 unfiltered_candidates, self.evaluator, self.args.rc_criteria
             )
+            # BUG 在 task id 为 425 的时候这里报错, 说 answer2confidence 是一个空的序列
             most_confident_answer = max(
                 answer2confidence.keys(), key=lambda x: answer2confidence[x]
             )
@@ -368,7 +369,6 @@ class MajorityVoteDiscriminator(Discriminator):
         # candidate: [1, 2, 3, 4, 5, None, paosdifjpsod]
         # 先把没有答案的和答案太长的过滤掉
         prefiltered_candidates = self._filter_none(candidates)
-        prefiltered_candidates = self._filter_long(prefiltered_candidates)
         # prefiltered_candidates: [1, 2, 3, 4, 5]
         print(
             f"==> Pre-filtered answers: {[c.final_answer for c in prefiltered_candidates]}"
@@ -437,6 +437,9 @@ def main():
     total_num_candidates = 0
     for item in dataset:
         task_id = item["task_id"]
+        # TAG for resume
+        # if task_id < 426:
+        #     continue
         path = os.path.join(
             gene_result_dir,
             f"Task_id_{task_id}_all_solutions.jsonl",
@@ -546,14 +549,14 @@ def main():
                 else:
                     winner_answer = most_confident_answer
         # -------------------------------
-
+        # winner answer 是经过补全之后选出来的, most_confident_answer 只是计算原 trace 的 confidence 之后选的, 不涉及一致性
         # 判别 winner answer 是否正确
         correct = evaluator.check_correctness(
             winner_answer, args.dataset_name, test_list
         )
         # 判别最高置信度answer是否正确
         correct_majvote = evaluator.check_correctness(
-            winner_answer, args.dataset_name, test_list
+            most_confident_answer, args.dataset_name, test_list
         )
         # 在所有 answer 里边是否有正确的 (对应于 winner answer 不对但是别的 answer 对了的情况)
         correct_limit = (
@@ -566,7 +569,6 @@ def main():
         )
         print(f"==> Correct: {correct}")
         # 保存数据
-        # TODO 修改为 jsonl
         temp_recording = {}
         temp_recording.update(
             {
