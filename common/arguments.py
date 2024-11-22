@@ -10,7 +10,7 @@ def get_parser():
 
     parser.add_argument("--api", type=str, default="vllm")
 
-    parser.add_argument("--seed", type=int, default=32)
+    parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--verbose", action="store_true")
 
     #! LLM settings
@@ -19,7 +19,7 @@ def get_parser():
     parser.add_argument("--half_precision", action="store_true")
 
     parser.add_argument("--max_tokens", type=int, default=1024, help="max_tokens")
-    parser.add_argument("--temperature", type=float, default=0.8, help="temperature")
+    parser.add_argument("--temperature", type=float, default=0.5, help="temperature")
     parser.add_argument("--top_k", type=int, default=40, help="top_k")
     parser.add_argument("--top_p", type=float, default=0.95, help="top_p")
     parser.add_argument("--num_beams", type=int, default=1, help="num_beams")
