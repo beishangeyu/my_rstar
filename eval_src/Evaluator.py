@@ -74,6 +74,12 @@ class Evaluator:
                 answer2ids[model_answer].append(id)
 
         assert len(answer2completions.keys()) > 0, "There are no valid completions."
+        # TODO 打印一下所有answer的占比呢?
+        print("*" * 10 + "Print answer count" + "*" * 10)
+        for answer in answer2completions.keys():
+            print(f"count: {len(answer2completions[answer])} / {len(completions)}")
+        print("*" * 30)
+        # ---------------------
         most_confident_answer = max(
             answer2completions.keys(), key=lambda x: len(answer2completions[x])
         )
