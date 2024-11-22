@@ -72,7 +72,7 @@ def generate_with_vLLM_model(
     input,
     temperature=0.8,
     top_p=0.95,
-    top_k=40,
+    top_k=40,  # XXX 降低 top k 可以降低丰富性, 代码生成需要那么大的丰富性吗? 因为关键词就那么几个
     n=1,
     max_tokens=1024,
     logprobs=1,
