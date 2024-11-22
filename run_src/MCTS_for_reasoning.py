@@ -75,15 +75,6 @@ class Generator:
         test_case: str,
         hint: str = None,
     ):
-        # fewshot_cot_prompt = (
-        #     self.fewshot_cot_prompt
-        #     if not paraphrased
-        #     else self.fewshot_cot_prompt_rephrased
-        # )
-        # question += "\n\n" + hint if hint is not None else ""
-        # io_input = self.fewshot_cot_config["prompt_template"].format(
-        #     examples=fewshot_cot_prompt, instruction=question
-        # )
         funchead_and_docstring = make_funchead_and_docstring(
             requirement, func_head, test_case
         )
