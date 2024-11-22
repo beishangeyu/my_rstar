@@ -568,13 +568,14 @@ def main():
         temp_recording = {}
         temp_recording.update(
             {
+                "task_id": task_id,
                 "correct": correct,
                 "correct_majvote": correct_majvote,
                 "correct_limit": correct_limit,
             }
         )
-        result_path = os.path.join(discriminate_out_dir, f"Task_id-{task_id}.jsonl")
-        write_jsonl(result_path, [temp_recording])
+        result_path = os.path.join(discriminate_out_dir, f"Task_result.jsonl")
+        write_jsonl(result_path, [temp_recording], append=True)
         num_correct += int(correct)
         num_correct_majvote += int(correct_majvote)
         num_correct_limit += int(correct_limit)
@@ -586,7 +587,7 @@ def main():
     print(
         f"Accuracy: {num_correct / num_tested:.4f}; Majority vote accuracy: {num_correct_majvote / num_tested:.4f}; Limit accuracy: {num_correct_limit / num_tested:.4f}"
     )
-    path = os.path.join(discriminate_out_dir, f"summarize.jsonl")
+    path = os.path.join(discriminate_out_dir, f"summary.jsonl")
     recording.update(
         {
             "num_correct": num_correct,
