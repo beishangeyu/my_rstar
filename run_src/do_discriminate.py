@@ -352,7 +352,10 @@ class MajorityVoteDiscriminator(Discriminator):
         self.tokenizer, self.model = None, None
         if self.args.api == "vllm":
             self.tokenizer, self.model = load_vLLM_model(
-                args.model_ckpt, args.seed, max_num_seqs=args.max_num_seqs
+                args.model_ckpt,
+                args.seed,
+                max_num_seqs=args.max_num_seqs,
+                tensor_parallel_size=args.tensor_parallel_size,
             )
 
     def select(
