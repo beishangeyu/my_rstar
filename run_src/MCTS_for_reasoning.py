@@ -100,6 +100,9 @@ class Generator:
                 "[Hint]",
                 "[Function implementation]",
             ],
+            top_p=0.9,
+            top_k=10,
+            temperature=0.75,
         )
         cleaned_io_output_list = [
             io_output.strip() for io_output in io_output_list

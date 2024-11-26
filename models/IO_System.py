@@ -36,38 +36,55 @@ class IO_System:
         self.call_counter = 0
         self.token_counter = 0
 
-    def generate(self, model_input, max_tokens: int, num_return: int, stop_tokens):
+    def generate(
+        self,
+        model_input,
+        max_tokens: int,
+        num_return: int,
+        stop_tokens,
+        top_p: float = None,
+        top_k: float = None,
+        temperature: float = None,
+    ):
+        top_p = top_p if top_p is not None else self.top_p
+        top_k = top_k if top_k is not None else self.top_k
+        temperature = temperature if temperature is not None else self.temperature
         if isinstance(model_input, str):
             if self.api == "vllm":
                 vllm_response = generate_with_vLLM_model(
                     self.model,
                     input=model_input,
-                    temperature=self.temperature,
-                    top_p=self.top_p,
-                    top_k=self.top_k,
+                    temperature=temperature,
+                    top_p=top_p,
+                    top_k=top_k,
                     n=num_return,
                     max_tokens=max_tokens,
                     stop=stop_tokens,
                 )
                 io_output_list = [o.text for o in vllm_response[0].outputs]
                 self.call_counter += 1
-                self.token_counter += sum([len(o.token_ids) for o in vllm_response[0].outputs])
+                self.token_counter += sum(
+                    [len(o.token_ids) for o in vllm_response[0].outputs]
+                )
             elif self.api == "gpt3.5-turbo":
                 gpt_response = generate_n_with_OpenAI_model(
                     prompt=model_input,
                     n=num_return,
                     model_ckpt=self.model,
                     max_tokens=max_tokens,
-                    temperature=self.temperature,
-                    top_p=self.top_p,
-                    top_k=self.top_k,
+                    temperature=temperature,
+                    top_p=top_p,
+                    top_k=top_k,
                     stop=["\n", "Answer"],
                 )
                 io_output_list = gpt_response
                 self.call_counter += num_return
                 self.token_counter += 0
             elif self.api == "debug":
-                io_output_list = ["Debug: The answer is generated with debug mode, 233." for _ in range(num_return)]
+                io_output_list = [
+                    "Debug: The answer is generated with debug mode, 233."
+                    for _ in range(num_return)
+                ]
             else:
                 raise NotImplementedError(f"API {self.api} is not implemented.")
         elif isinstance(model_input, list):
@@ -75,15 +92,16 @@ class IO_System:
                 vllm_response = generate_with_vLLM_model(
                     self.model,
                     input=model_input,
-                    temperature=self.temperature,
-                    top_p=self.top_p,
-                    top_k=self.top_k,
+                    temperature=temperature,
+                    top_p=top_p,
+                    top_k=top_k,
                     n=num_return,
                     max_tokens=max_tokens,
                     stop=stop_tokens,
                 )
                 io_output_list = [
-                    [o.text for o in resp_to_single_input.outputs] for resp_to_single_input in vllm_response
+                    [o.text for o in resp_to_single_input.outputs]
+                    for resp_to_single_input in vllm_response
                 ]
                 self.call_counter += 1
                 self.token_counter += sum(
@@ -100,9 +118,9 @@ class IO_System:
                         n=num_return,
                         model_ckpt=self.model,
                         max_tokens=max_tokens,
-                        temperature=self.temperature,
-                        top_p=self.top_p,
-                        top_k=self.top_k,
+                        temperature=temperature,
+                        top_p=top_p,
+                        top_k=top_k,
                         stop=["\n", "Answer"],
                     )
                     io_output_list.append(gpt_response)
@@ -110,7 +128,10 @@ class IO_System:
                     self.token_counter += 0
             elif self.api == "debug":
                 io_output_list = [
-                    ["Debug: The answer is generated with debug mode, 233." for _ in range(num_return)]
+                    [
+                        "Debug: The answer is generated with debug mode, 233."
+                        for _ in range(num_return)
+                    ]
                     for _ in model_input
                 ]
             else:
