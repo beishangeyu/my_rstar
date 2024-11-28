@@ -100,6 +100,7 @@ class Generator:
                 "[Hint]",
                 "[Function implementation]",
             ],
+            # TODO 测试一下生成代码的时候修改一下超参数是否好用
             top_p=0.9,
             top_k=10,
             temperature=0.75,
