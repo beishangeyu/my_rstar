@@ -416,17 +416,19 @@ def main():
         "--rc_criteria", type=str, default="reward", choices=["freq", "reward"]
     )
     # NOTE do generate 结果的存放路径
-    parser.add_argument("--gene_result_dir", type=str)
+    parser.add_argument("--gene_result_name", type=str)
     args = parser.parse_args()
 
     fix_seeds(args.seed)
     print(args)
 
-    gene_result_dir = args.gene_result_dir
+    gene_result_dir = os.path.join(
+        args.gene_result, args.dataset_name, args.gene_result_name
+    )
     # NOTE discriminate 结果的存放路径
     model_name = args.model_ckpt.split("/")[-1]
     discriminate_out_dir = os.path.join(
-        args.disc_result, f"{args.dataset_name}", f"{model_name}"
+        args.disc_result, args.gene_result_name, f"{model_name}"
     )
     os.makedirs(discriminate_out_dir, exist_ok=True)
 
