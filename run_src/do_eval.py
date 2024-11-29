@@ -5,7 +5,7 @@ import sys
 sys.path.append(".")
 from common.utils import write_jsonl, read_jsonl, load_dataset
 from common.arguments import get_parser
-from eval_src.Evaluator import *
+from Evaluator import *
 
 import warnings
 

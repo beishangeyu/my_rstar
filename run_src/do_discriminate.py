@@ -13,7 +13,7 @@ from run_src.rstar_utils import (
     mask_solution_trace,
     make_funchead_and_docstring,
 )
-from eval_src.Evaluator import *
+from run_src.Evaluator import *
 from common.utils import fix_seeds, write_jsonl, read_jsonl, load_dataset
 from common.arguments import get_parser, post_process_args
 import os
