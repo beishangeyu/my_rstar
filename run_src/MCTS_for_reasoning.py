@@ -195,8 +195,6 @@ Rephrased requirement:
 To implement the {func_name} function, we need to follow these steps:
 {existing_ost_steps}Step{next_ost_step_id}: 
 """
-        # TODO 查看一下 ost concat 的内容, 记得删掉
-        print(f"-----------------------------------\n{io_input}\n")
         io_output_list = self.io.generate(
             model_input=io_input,
             max_tokens=256,
@@ -479,7 +477,6 @@ def search_for_answers(
     # 进行指定次数次 rollout
     for i in range(args.num_rollouts):
         rollout_node = mcts_searcher.do_rollout(root_node, i)
-        # model_rollout_nodes.append(rollout_node) # XXX 不知道保存有啥用, 先注释掉
 
         # 每次 rollout 找出 best_solution 和 所有 solution
         _, best_solution, _, chosen_node, all_solution_nodes, all_solutions = (
@@ -490,15 +487,6 @@ def search_for_answers(
         )
         model_solutions.append(best_solution)
         model_all_solutions.append(all_solutions)
-
-        # TODO 用来 debug 的, 记得注释
-        # nnnn = 8
-        # print(nnnn * "=" + f" Rollout {i} " + nnnn * "=")
-        # print("--all_solution_nodes:\n")
-        # for it in all_solution_nodes:
-        #     print(it.solution_trace)
-        # print("\n--rollout node:\n")
-        # print(rollout_node.solution_trace)
 
     # NOTE 记录最终整个树里所有的 solution
     path1 = os.path.join(args.gene_result, f"Task_id_{task_id}_all_solutions.jsonl")
