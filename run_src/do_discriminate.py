@@ -351,12 +351,21 @@ class MajorityVoteDiscriminator(Discriminator):
         super().__init__(args, evaluator, discriminate_out_dir)
         self.tokenizer, self.model = None, None
         if self.args.api == "vllm":
-            self.tokenizer, self.model = load_vLLM_model(
-                args.model_ckpt,
-                args.seed,
-                max_num_seqs=args.max_num_seqs,
-                tensor_parallel_size=args.tensor_parallel_size,
-            )
+            if args.max_model_len > 0:
+                self.tokenizer, self.model = load_vLLM_model(
+                    args.model_ckpt,
+                    args.seed,
+                    max_num_seqs=args.max_num_seqs,
+                    tensor_parallel_size=args.tensor_parallel_size,
+                    max_model_len=args.max_model_len,
+                )
+            else:
+                self.tokenizer, self.model = load_vLLM_model(
+                    args.model_ckpt,
+                    args.seed,
+                    max_num_seqs=args.max_num_seqs,
+                    tensor_parallel_size=args.tensor_parallel_size,
+                )
 
     def select(
         self, candidates: list[Candidate], funchead_and_docstring: str
@@ -416,7 +425,6 @@ def main():
     gene_result_dir = args.gene_result_dir
     # NOTE discriminate 结果的存放路径
     model_name = args.model_ckpt.split("/")[-1]
-    # TODO 在确定 disc 的模型之后, 不要把 disc 的模型名字放在文件夹名字里
     discriminate_out_dir = os.path.join(
         args.disc_result, f"{args.dataset_name}", f"{model_name}"
     )
@@ -594,7 +602,6 @@ def main():
     path = os.path.join(discriminate_out_dir, f"summary.jsonl")
     recording.update(
         {
-            "disc_model": model_name,
             "num_correct": num_correct,
             "num_correct_majvote": num_correct_majvote,
             "num_correct_limit": num_correct_limit,
