@@ -7,11 +7,7 @@ from eval_src.Evaluator import *
 from MCTS_for_reasoning import Generator, search_for_answers
 from run_src.rstar_utils import GeneratorError
 from common.arguments import get_parser, post_process_args, save_args
-from common.utils import fix_seeds, read_jsonl, write_jsonl, load_dataset
-import os
-import json
-import time
-from tqdm import tqdm
+from common.utils import fix_seeds, read_jsonl, load_dataset, enumerate_resume
 
 
 def main(args):
@@ -38,12 +34,7 @@ def main(args):
     generator = Generator(args, tokenizer, model, evaluator)
 
     num_tested = 0
-
-    for i, data_item in enumerate(dataset):
-        # 用于测试
-        # if i > 0:
-        #     break
-
+    for i, data_item in enumerate_resume(dataset, args.gene_result):
         problem_id, problem = data_item["task_id"], data_item["adv_text"]
 
         model_solutions, stopping_id, model_all_solutions = [], -1, []

@@ -33,7 +33,7 @@ def read_jsonl(filename: str) -> List[Dict]:
     return data
 
 
-def load_dataset(data: List[Dict]):
+def load_dataset(data: List[Dict]) -> List[Dict]:
     # 只保留 state 为 true 的 item
     return [item for item in data if item["state"]]
 
@@ -54,3 +54,17 @@ def shuffleDict(d):
     random.shuffle(keys)
     shuffled_dict = {key: d[key] for key in keys}
     return shuffled_dict
+
+
+# 支持中断后恢复
+def enumerate_resume(dataset: List[Dict], result_path: str):
+    file_list = os.listdir(result_path)
+    if len(file_list) == 1 and file_list[0] == "args.json":
+        for i, item in enumerate(dataset):
+            yield i, item
+    else:
+        count = len(file_list) - 1
+        for i, item in enumerate(dataset):
+            if i < count:
+                continue
+            yield i, item
