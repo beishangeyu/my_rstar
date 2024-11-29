@@ -86,6 +86,16 @@ def eval_exp(
     eval_result_dir = os.path.join(eval_result, f"{dataset_name}", f"{model_ckpt}")
     os.makedirs(eval_result_dir, exist_ok=True)
     write_jsonl(os.path.join(eval_result_dir, "eval_results.jsonl"), data_list)
+    with open(os.path.join(args.gene_result, "acc.json"), "w") as f:
+        js = {"acc": accuracy}
+        json.dump(js, f, indent=4)
+
+
+# 保存调用脚本时候的参数, 是好的要学习
+def save_args(args):
+    # Save args as json
+    with open(os.path.join(args.gene_result, "args.json"), "w") as f:
+        json.dump(vars(args), f, indent=4)
 
 
 if __name__ == "__main__":

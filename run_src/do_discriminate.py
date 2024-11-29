@@ -599,7 +599,7 @@ def main():
     print(
         f"Accuracy: {num_correct / num_tested:.4f}; Majority vote accuracy: {num_correct_majvote / num_tested:.4f}; Limit accuracy: {num_correct_limit / num_tested:.4f}"
     )
-    path = os.path.join(discriminate_out_dir, f"summary.jsonl")
+    path = os.path.join(discriminate_out_dir, f"summary.json")
     recording.update(
         {
             "num_correct": num_correct,
@@ -612,7 +612,8 @@ def main():
             "avg_num_candidates": total_num_candidates / num_tested,
         }
     )
-    write_jsonl(path, [recording])
+    with open(path, "w") as f:
+        json.dump(recording, f, indent=4)
 
     print(f"Recording: \n{recording}")
 
