@@ -438,9 +438,9 @@ def main():
 
     #! ------ Select winner candidate for each example ------
 
-    num_correct, num_correct_majvote, num_correct_limit, num_tested = 0, 0, 0, 0
-    data_path = f"./data/mbpp_Mistral-7B-v0.1.jsonl"
+    data_path = f"./data/{args.dataset_name}.jsonl"
     dataset = load_dataset(read_jsonl(data_path))
+    num_correct, num_correct_majvote, num_correct_limit, num_tested = 0, 0, 0, 0
     # 遍历每个 task_id
     total_num_candidates = 0
     for item in dataset:
