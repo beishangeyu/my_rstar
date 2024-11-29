@@ -30,7 +30,7 @@ def get_parser():
     parser.add_argument("--gpu_memory_utilization", type=float, default=0.9)
 
     #! dataset settings
-    parser.add_argument("--dataset_name", required=True)
+    parser.add_argument("--dataset_name", required=True, type=str)
 
     # do generate 和 do eval 结果的保存根路径
     parser.add_argument("--gene_result", type=str, default="gene_result")
