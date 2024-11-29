@@ -4,3 +4,4 @@ unit-test.py
 __pycache__/
 *.txt
 scripts/
+data/
