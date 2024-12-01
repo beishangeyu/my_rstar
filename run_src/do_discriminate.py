@@ -14,8 +14,14 @@ from run_src.rstar_utils import (
     make_funchead_and_docstring,
 )
 from run_src.Evaluator import *
-from common.utils import fix_seeds, write_jsonl, read_jsonl, load_dataset
-from common.arguments import get_parser, post_process_args
+from common.utils import (
+    fix_seeds,
+    write_jsonl,
+    read_jsonl,
+    load_dataset,
+    enumerate_resume,
+)
+from common.arguments import get_parser, post_process_args, save_args
 import os
 import json
 from tqdm import tqdm
@@ -420,7 +426,6 @@ def main():
     args = parser.parse_args()
 
     fix_seeds(args.seed)
-    print(args)
 
     gene_result_dir = os.path.join(
         args.gene_result, args.dataset_name, args.gene_result_name
@@ -434,6 +439,8 @@ def main():
 
     # 记录当前的args
     recording = vars(args)
+    with open(os.path.join(discriminate_out_dir, "summary.json"), "w") as f:
+        json.dump(recording, f, indent=4)
 
     evaluator = PythonEvaluator()
     discriminator = MajorityVoteDiscriminator(args, evaluator, discriminate_out_dir)
@@ -445,11 +452,8 @@ def main():
     num_correct, num_correct_majvote, num_correct_limit, num_tested = 0, 0, 0, 0
     # 遍历每个 task_id
     total_num_candidates = 0
-    for item in dataset:
+    for i, item in enumerate_resume(dataset, discriminate_out_dir):
         task_id = item["task_id"]
-        # TAG for resume
-        # if task_id < 426:
-        #     continue
         path = os.path.join(
             gene_result_dir,
             f"Task_id_{task_id}_all_solutions.jsonl",
