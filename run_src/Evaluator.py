@@ -65,8 +65,8 @@ class Evaluator:
             has_existed = False
             for existing_answer in answer2completions.keys():
                 if self.check_answers_equiv(model_answer, existing_answer):
-                    assert not has_existed
-                    has_existed = True
+                    if model_answer == existing_answer:
+                        has_existed = True
                     answer2completions[existing_answer].append(c)
                     answer2ids[existing_answer].append(id)
             if not has_existed:
@@ -74,12 +74,15 @@ class Evaluator:
                 answer2ids[model_answer].append(id)
 
         assert len(answer2completions.keys()) > 0, "There are no valid completions."
-        # TODO 打印一下所有answer的占比呢?
+        sum_num = 0
+        for x in answer2completions.keys():
+            sum_num += len(answer2completions[x])
+        # TODO 打印一下所有answer的占比, 记得删掉
         print("*" * 10 + "Print answer count" + "*" * 10)
         for answer in answer2completions.keys():
-            print(f"count: {len(answer2completions[answer])} / {len(completions)}")
+            print(f"count: {len(answer2completions[answer])} / {sum_num}")
         print("*" * 30)
-        # ---------------------
+        # -------------------------------------------
         most_confident_answer = max(
             answer2completions.keys(), key=lambda x: len(answer2completions[x])
         )
@@ -87,7 +90,7 @@ class Evaluator:
             len(answer2completions[most_confident_answer]) > 0
         ), "There are no completions for the most confident answer."
         # confidence 是这个 answer 占总 completions 的比例
-        confidence = len(answer2completions[most_confident_answer]) / len(completions)
+        confidence = len(answer2completions[most_confident_answer]) / sum_num
         assert confidence > 0
         return (
             most_confident_answer,
@@ -215,9 +218,25 @@ class Evaluator:
 
 
 class PythonEvaluator(Evaluator):
+    def __init__(self):
+        super().__init__()
+        from transformers import pipeline
+
+        self.pipe = pipeline(
+            model="Lazyhope/python-clone-detection",
+            trust_remote_code=True,
+            device="cuda:0",
+        )
+
     # 比较两个函数是否相等
     def check_answers_equiv(self, answer_a: str, answer_b: str):
-        return answer_a == answer_b
+        # NOTE 使用 code clone 工具判断代码是否相同
+        is_clone = self.pipe((answer_a, answer_b))
+        # TODO 测试一下阈值
+        if is_clone[True] > 0.9:
+            return True
+        else:
+            return False
 
     def extract_answer_from_model_completion(self, completion: str) -> str:
         return remove_comments(completion)
