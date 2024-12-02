@@ -1,2 +1,0 @@
-{"trace": {"0": {"user_requirement": "Write a python function to convert the given chain to lower case", "ost_step": {}, "direct_answer": {"text": "def is_lower(string):\n    return string.lower()", "value": 0.65625}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}
-{"trace": {"0": {"user_requirement": "Write a Python function to convert a given string to lower case.", "ost_step": {}, "direct_answer": {"text": "def is_lower(string):\n    return string.lower()", "value": 0.8125}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}

@@ -1,2 +1,0 @@
-{"trace": {"0": {"user_requirement": "Write a python functioning to transforms a chain to a lists", "ost_step": {}, "direct_answer": {"text": "def Convert(string):\n    return string.split()", "value": 0.21875}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}
-{"trace": {"0": {"user_requirement": "Write a Python function to convert a chain into a list.", "ost_step": {}, "direct_answer": {"text": "def Convert(string):\n    return string.split()", "value": 0.1875}}}, "rollout_id": 1, "type": "DIRECT_ANSWER"}

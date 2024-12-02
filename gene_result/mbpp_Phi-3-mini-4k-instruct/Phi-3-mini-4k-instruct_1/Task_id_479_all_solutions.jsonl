@@ -1,2 +1,0 @@
-{"trace": {"0": {"user_requirement": "Write a python function to find the first figures of a given number", "ost_step": {}, "direct_answer": {"text": "def first_Digit(n):\n    return int(str(n)[0])", "value": 0.25}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}
-{"trace": {"0": {"user_requirement": "Write a Python function to retrieve the first digit of a given number.", "ost_step": {}, "direct_answer": {"text": "def first_Digit(n):\n    return int(str(n)[0])", "value": 0.125}}}, "rollout_id": 1, "type": "DIRECT_ANSWER"}

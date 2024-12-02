@@ -1,2 +1,0 @@
-{"trace": {"0": {"user_requirement": "Writing a python functioning to conversions the given string to upper cases", "ost_step": {}, "direct_answer": {"text": "def is_upper(string):\n    return string.upper()", "value": 0.71875}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}
-{"trace": {"0": {"user_requirement": "Write a Python function to convert a given string to uppercase.", "ost_step": {}, "direct_answer": {"text": "def is_upper(string):\n    return string.upper()", "value": 0.59375}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}

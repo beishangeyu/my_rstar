@@ -1,2 +1,0 @@
-{"trace": {"0": {"user_requirement": "Writing a function to removing leading zeros from an ip tackle", "ost_step": {}, "direct_answer": {"text": "def removezero_ip(ip):\n    return '.'.join(map(str, ip.split('.')))", "value": 0.03125}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}
-{"trace": {"0": {"user_requirement": "Write a Python function to remove leading zeros from an IP address.", "ost_step": {}, "direct_answer": {"text": "def removezero_ip(ip):\n    return '.'.join(map(str, ip.split('.')))", "value": 0.09375}}}, "rollout_id": 1, "type": "DIRECT_ANSWER"}

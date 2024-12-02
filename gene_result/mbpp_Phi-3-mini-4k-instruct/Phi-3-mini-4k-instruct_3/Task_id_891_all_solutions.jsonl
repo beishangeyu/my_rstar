@@ -1,2 +1,0 @@
-{"trace": {"0": {"user_requirement": "Write a python function to verify whether the given two figures ha same number of figures or not", "ost_step": {}, "direct_answer": {"text": "def same_Length(A,B):\n    return A == B", "value": 0.375}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}
-{"trace": {"0": {"user_requirement": "Write a Python function to check if two given figures have the same number of digits.", "ost_step": {}, "direct_answer": {"text": "def same_Length(A,B):\n    return len(str(A)) == len(str(B))", "value": 0.4375}}}, "rollout_id": 1, "type": "DIRECT_ANSWER"}

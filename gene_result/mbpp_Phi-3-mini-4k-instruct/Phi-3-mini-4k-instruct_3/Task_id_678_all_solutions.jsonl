@@ -1,2 +1,0 @@
-{"trace": {"0": {"user_requirement": "Writing a python functions to removing spaces from a given strings", "ost_step": {}, "direct_answer": {"text": "def remove_spaces(str1):\n    return ''.join(str1.split())", "value": 0.4375}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}
-{"trace": {"0": {"user_requirement": "Write a Python function to remove spaces from a given string.", "ost_step": {}, "direct_answer": {"text": "def remove_spaces(str1):\n    return ''.join(str1.split())", "value": 0.46875}}}, "rollout_id": 1, "type": "DIRECT_ANSWER"}

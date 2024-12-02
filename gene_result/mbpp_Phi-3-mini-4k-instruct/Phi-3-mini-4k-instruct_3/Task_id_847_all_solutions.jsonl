@@ -1,2 +1,0 @@
-{"trace": {"0": {"user_requirement": "Writing a python function to copied a listing from a singleton tuple", "ost_step": {}, "direct_answer": {"text": "def lcopy(xs):\n    return list(xs)", "value": 0.46875}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}
-{"trace": {"0": {"user_requirement": "Write a Python function to copy a list from a singleton tuple.", "ost_step": {}, "direct_answer": {"text": "def lcopy(xs):\n    return list(xs)", "value": 0.59375}}}, "rollout_id": 1, "type": "DIRECT_ANSWER"}

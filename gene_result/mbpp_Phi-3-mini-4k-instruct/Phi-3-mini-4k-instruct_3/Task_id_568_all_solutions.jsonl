@@ -1,2 +1,0 @@
-{"trace": {"0": {"user_requirement": "Writing a function to engender a listing of empty dictionaries", "ost_step": {}, "direct_answer": {"text": "def empty_list(length):\n    return [{}] * length", "value": 0.46875}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}
-{"trace": {"0": {"user_requirement": "Write a Python function to generate a list of empty dictionaries.", "ost_step": {}, "direct_answer": {"text": "def empty_list(length):\n    return [{}] * length", "value": 0.5625}}}, "rollout_id": 1, "type": "DIRECT_ANSWER"}

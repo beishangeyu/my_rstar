@@ -1,2 +1,0 @@
-{"trace": {"0": {"user_requirement": "Write a python function to unearth quotient of two numbers", "ost_step": {}, "direct_answer": {"text": "def find(n,m):\n    return n // m", "value": 0.34375}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}
-{"trace": {"0": {"user_requirement": "Write a Python function to calculate the quotient of two numbers.", "ost_step": {}, "direct_answer": {"text": "def find(n,m):\n    return n // m", "value": 0.25}}}, "rollout_id": 1, "type": "DIRECT_ANSWER"}

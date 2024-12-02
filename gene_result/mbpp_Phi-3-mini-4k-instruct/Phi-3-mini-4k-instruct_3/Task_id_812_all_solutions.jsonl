@@ -1,2 +1,0 @@
-{"trace": {"0": {"user_requirement": "Write a function to abbreviate route as rd in a given string", "ost_step": {}, "direct_answer": {"text": "def road_rd(street):\n    return street.replace(' Road', ' Rd.')", "value": 0.0625}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}
-{"trace": {"0": {"user_requirement": "Write a Python function to abbreviate all occurrences of 'route' to 'rd' in a given string.", "ost_step": {}, "direct_answer": {"text": "def road_rd(street):\n    return street.replace('route', 'rd')", "value": 0.34375}}}, "rollout_id": 1, "type": "DIRECT_ANSWER"}
