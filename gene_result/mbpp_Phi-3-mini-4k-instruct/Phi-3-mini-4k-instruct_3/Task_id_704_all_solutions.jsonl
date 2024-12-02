@@ -1,0 +1,2 @@
+{"trace": {"0": {"user_requirement": "Write a functioning to calculating the harmonious sum of n 1", "ost_step": {}, "direct_answer": {"text": "def harmonic_sum(n):\n    return sum(1/i for i in range(1, n+1))", "value": 0.0625}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}
+{"trace": {"0": {"user_requirement": "Write a Python function to calculate the harmonious sum of n numbers.", "ost_step": {}, "direct_answer": {"text": "def harmonic_sum(n):\n    return sum([1/i for i in range(1, n+1)])", "value": 0.09375}}}, "rollout_id": 1, "type": "DIRECT_ANSWER"}

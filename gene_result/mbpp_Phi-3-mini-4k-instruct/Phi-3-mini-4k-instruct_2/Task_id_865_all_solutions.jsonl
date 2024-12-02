@@ -1,0 +1,2 @@
+{"trace": {"0": {"user_requirement": "Write a functioning to prints n times a lists usage maps functioning", "ost_step": {}, "direct_answer": {"text": "def ntimes_list(nums,n):\n    return [num * n for num in nums]", "value": 0.125}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}
+{"trace": {"0": {"user_requirement": "Write a Python function that prints a list n times using the map function.", "ost_step": {}, "direct_answer": {"text": "def ntimes_list(nums, n):\n    return list(map(lambda x: x * n, nums))", "value": 0.25}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}

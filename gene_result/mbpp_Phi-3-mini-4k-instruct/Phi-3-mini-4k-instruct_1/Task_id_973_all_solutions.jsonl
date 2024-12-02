@@ -1,0 +1,2 @@
+{"trace": {"0": {"user_requirement": "Writing a python functioning to left rotate the string", "ost_step": {}, "direct_answer": {"text": "def left_rotate(s,d):\n    return s[d:] + s[:d]", "value": 0.40625}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}
+{"trace": {"0": {"user_requirement": "Write a Python function to perform left rotation on a given string.", "ost_step": {}, "direct_answer": {"text": "def left_rotate(s,d):\n    return s[d:] + s[:d]", "value": 0.375}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}

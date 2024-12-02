@@ -1,0 +1,2 @@
+{"trace": {"0": {"user_requirement": "Writing a functioning to get the duration of a knotty number", "ost_step": {}, "direct_answer": {"text": "def len_complex(a,b):\n    return float(abs(a-b))", "value": 0.0625}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}
+{"trace": {"0": {"user_requirement": "Write a Python function to calculate the duration of a complex number.", "ost_step": {}, "direct_answer": {"text": "import math\ndef len_complex(a, b):\n    return math.sqrt(a**2 + b**2)", "value": 0.125}}}, "rollout_id": 1, "type": "DIRECT_ANSWER"}

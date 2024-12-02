@@ -1,0 +1,2 @@
+{"trace": {"0": {"user_requirement": "Writing a python function to find resting of two figures", "ost_step": {}, "direct_answer": {"text": "def find(n,m):\n    return abs(n-m)", "value": 0.09375}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}
+{"trace": {"0": {"user_requirement": "Write a Python function to calculate the difference between two given figures.", "ost_step": {}, "direct_answer": {"text": "def find(n,m):\n    return abs(n-m)", "value": 0.25}}}, "rollout_id": 1, "type": "DIRECT_ANSWER"}

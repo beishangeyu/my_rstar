@@ -1,6 +1,5 @@
 *.code-workspace
 unit-test.py
-*_result
 __pycache__/
 *.txt
 scripts/

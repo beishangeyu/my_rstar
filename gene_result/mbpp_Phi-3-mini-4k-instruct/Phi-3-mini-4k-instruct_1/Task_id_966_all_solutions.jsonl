@@ -1,0 +1,2 @@
+{"trace": {"0": {"user_requirement": "Write a function to removing an empty tuple from a listings of tuples", "ost_step": {}, "direct_answer": {"text": "def remove_empty(tuple1):\n    return [t for t in tuple1 if not t == ()]", "value": 0.0625}}}, "rollout_id": 0, "type": "DIRECT_ANSWER"}
+{"trace": {"0": {"user_requirement": "Write a Python function to remove empty tuples from a list of tuples.", "ost_step": {}, "direct_answer": {"text": "def remove_empty(tuple1):\n    return [t for t in tuple1 if t]", "value": 0.25}}}, "rollout_id": 1, "type": "DIRECT_ANSWER"}
