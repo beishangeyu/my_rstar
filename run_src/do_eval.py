@@ -14,8 +14,7 @@ from tqdm import tqdm
 from argparse import ArgumentParser
 
 
-# TODO 传入 List[Dict] 类型, 需要修改逻辑?
-def extract_trace(data_item: List[Dict], num_votes: int):
+def extract_trace(data_item: List[Dict], num_votes: int) -> List[str]:
     res = []
     for item in data_item:
         trace = item["trace"]["0"]
@@ -46,14 +45,22 @@ def eval_single_item(
     solution_candidates = read_jsonl(
         os.path.join(gene_result_dir, f"Task_id_{task_id}_all_solutions.jsonl")
     )
-
+    print("*" * 30 + f" Task_{task_id} " + "*" * 30)
     solution_candidates = extract_trace(solution_candidates, num_votes)
     model_answer, _, _, _ = evaluator.find_most_confident_answer(solution_candidates)
     result = evaluator.check_correctness(model_answer, dataset_name, test_list)
-    # TODO 多添加几个 key?
+    # 查看所有的 answer 中是否有正确的并统计正确的占比
+    correct_num = 0
+    for id, c in enumerate(solution_candidates):
+        answer = evaluator.extract_answer_from_model_completion(c)
+        correct_num += evaluator.check_correctness(answer, dataset_name, test_list)
+
     data_item["task_id"] = task_id
     data_item["correct"] = result
     data_item["predict_answer"] = model_answer
+    data_item["acc_limit"] = 1 if correct_num > 0 else 0
+    # 记录一共有几个trace是正确的
+    data_item["pass_prob"] = correct_num / len(solution_candidates)
 
     return data_item
 
@@ -81,13 +88,14 @@ def eval_exp(
 
     # Calculate accuracy
     accuracy = sum([item["correct"] for item in data_list]) / len(data_list)
+    acc_limit = sum([item["acc_limit"] for item in data_list]) / len(data_list)
     print(f"accuracy: {accuracy}")
 
     eval_result_dir = os.path.join(eval_result, f"{dataset_name}", f"{model_ckpt}")
     os.makedirs(eval_result_dir, exist_ok=True)
     write_jsonl(os.path.join(eval_result_dir, "eval_results.jsonl"), data_list)
     with open(os.path.join(eval_result_dir, "acc.json"), "w") as f:
-        js = {"acc": accuracy}
+        js = {"acc": accuracy, "acc_limit": acc_limit}
         json.dump(js, f, indent=4)
 
 
