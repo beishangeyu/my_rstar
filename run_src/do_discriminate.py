@@ -308,6 +308,7 @@ class Discriminator:
         self,
         unfiltered_candidates: list[Candidate],
         filtered_candidates: list[Candidate],
+        test_list: list[str],
     ) -> Candidate:
         # 如果没有一致性达到要求的candidate, 就从prefiltered的candidate中选最好(出现次数最多)的那个作为winner
         if len(filtered_candidates) == 0:
@@ -325,7 +326,9 @@ class Discriminator:
             print(f"==> Winner answer: {winner.final_answer}\n")
         # 如果所有的达到一致性要求的candidate的answer都和user question的标准答案不一样, winner为none
         elif not any(
-            self.evaluator.chect_correctness(c.final_answer)
+            self.evaluator.check_correctness(
+                c.final_answer, self.args.dataset_name, test_list
+            )
             for c in filtered_candidates
         ):
             winner = None
@@ -374,7 +377,10 @@ class MajorityVoteDiscriminator(Discriminator):
                 )
 
     def select(
-        self, candidates: list[Candidate], funchead_and_docstring: str
+        self,
+        candidates: list[Candidate],
+        funchead_and_docstring: str,
+        test_list: list[str],
     ) -> Candidate:
 
         unfiltered_candidates = candidates
@@ -397,7 +403,9 @@ class MajorityVoteDiscriminator(Discriminator):
         print(
             f"==> RC-filtered answers: {[c.final_answer for c in filtered_candidates]}"
         )
-        return self._find_winner_filtered(prefiltered_candidates, filtered_candidates)
+        return self._find_winner_filtered(
+            prefiltered_candidates, filtered_candidates, test_list
+        )
 
 
 def main():
@@ -451,7 +459,6 @@ def main():
     dataset = load_dataset(read_jsonl(data_path))
     num_correct, num_correct_majvote, num_correct_limit, num_tested = 0, 0, 0, 0
     # 遍历每个 task_id
-    total_num_candidates = 0
     for i, item in enumerate_resume(dataset, discriminate_out_dir):
         task_id = item["task_id"]
         path = os.path.join(
@@ -535,8 +542,6 @@ def main():
         highest_confidence = answer2confidence[most_confident_answer]
         assert highest_confidence > 0
         candidates = all_candidates
-        # len(candidates) 也是当前 task id 下 trace 种类数
-        total_num_candidates += len(candidates)
         # 如果所有 trace 的 answer 都不对, 就不继续找了
         if not any(
             evaluator.check_correctness(ans, args.dataset_name, test_list)
@@ -553,8 +558,7 @@ def main():
             # 否则调用select
             else:
                 winner_candidate = discriminator.select(
-                    candidates,
-                    funchead_and_docstring,
+                    candidates, funchead_and_docstring, test_list
                 )
                 # 如果选出了 winner, 则 answer 是 winner 的 final answer
                 if winner_candidate is not None:
@@ -594,31 +598,27 @@ def main():
         )
         result_path = os.path.join(discriminate_out_dir, f"Task_result.jsonl")
         write_jsonl(result_path, [temp_recording], append=True)
-        num_correct += int(correct)
-        num_correct_majvote += int(correct_majvote)
-        num_correct_limit += int(correct_limit)
-        num_tested += 1
 
-        info = f"Acc: {num_correct / num_tested:.4f}; Majority vote acc: {num_correct_majvote / num_tested:.4f}; Limit acc: {num_correct_limit / num_tested:.4f}"
-        print(info)
-
-    print(
-        f"Accuracy: {num_correct / num_tested:.4f}; Majority vote accuracy: {num_correct_majvote / num_tested:.4f}; Limit accuracy: {num_correct_limit / num_tested:.4f}"
-    )
-    path = os.path.join(discriminate_out_dir, f"summary.json")
+    # TODO 如果中断重传应该考虑全部, 而不是只考虑重传之后的
+    data_list = read_jsonl(os.path.join(discriminate_out_dir, "Task_result.jsonl"))
+    data_size = len(data_list)
+    for d in data_list:
+        num_correct += d["correct"]
+        num_correct_majvote += d["correct_majvote"]
+        num_correct_limit += d["correct_limit"]
     recording.update(
         {
             "num_correct": num_correct,
             "num_correct_majvote": num_correct_majvote,
             "num_correct_limit": num_correct_limit,
-            "num_tested": num_tested,
-            "accuracy": num_correct / num_tested,
-            "majority_vote_accuracy": num_correct_majvote / num_tested,
-            "limit_accuracy": num_correct_limit / num_tested,
-            "avg_num_candidates": total_num_candidates / num_tested,
+            "num_tested": data_size,
+            "accuracy": num_correct / data_size,
+            "majority_vote_accuracy": num_correct_majvote / data_size,
+            "limit_accuracy": num_correct_limit / data_size,
         }
     )
-    with open(path, "w") as f:
+    s_path = os.path.join(discriminate_out_dir, f"summary.json")
+    with open(s_path, "w") as f:
         json.dump(recording, f, indent=4)
 
     print(f"Recording: \n{recording}")
