@@ -74,7 +74,8 @@ def eval_exp(
 ):
     dataset_path = f"./data/{args.dataset_name}.jsonl"
     dataset = load_dataset(read_jsonl(dataset_path))
-    evaluator = PythonEvaluator()
+    # NOTE 在这里更改 clone 工具使用的 device
+    evaluator = PythonEvaluator(device="cuda:2")
     gene_result_dir = os.path.join(gene_result, f"{dataset_name}", f"{model_ckpt}")
 
     data_list = []

@@ -218,14 +218,15 @@ class Evaluator:
 
 
 class PythonEvaluator(Evaluator):
-    def __init__(self):
+    def __init__(self, device: str = "cuda:0"):
         super().__init__()
         from transformers import pipeline
 
+        # NOTE 加载 code clone 工具
         self.pipe = pipeline(
             model="Lazyhope/python-clone-detection",
             trust_remote_code=True,
-            device="cuda:0",
+            device=device,
         )
 
     # 比较两个函数是否相等
