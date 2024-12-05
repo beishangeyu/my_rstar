@@ -17,7 +17,10 @@ def load_vLLM_model(
     gpu_memory_utilization=0.9,
 ):
     tokenizer = AutoTokenizer.from_pretrained(model_ckpt)
-
+    # TODO 偷懒不设置 max model len, 记得删掉
+    if "Mistral" in model_ckpt:
+        max_model_len = 30000
+    # -------------------------------------
     if max_model_len > 0:
         if half_precision:
             llm = LLM(
