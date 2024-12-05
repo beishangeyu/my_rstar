@@ -218,7 +218,7 @@ class Evaluator:
 
 
 class PythonEvaluator(Evaluator):
-    def __init__(self, device: str = "cuda:0"):
+    def __init__(self, device: str = "cpu", threshold: float = 0.9):
         super().__init__()
         from transformers import pipeline
 
@@ -228,13 +228,14 @@ class PythonEvaluator(Evaluator):
             trust_remote_code=True,
             device=device,
         )
+        self.threshold = threshold
 
     # 比较两个函数是否相等
     def check_answers_equiv(self, answer_a: str, answer_b: str):
         # NOTE 使用 code clone 工具判断代码是否相同
         is_clone = self.pipe((answer_a, answer_b))
         # TODO 测试一下阈值
-        if is_clone[True] > 0.9:
+        if is_clone[True] > self.threshold:
             return True
         else:
             return False

@@ -450,7 +450,9 @@ def main():
     with open(os.path.join(discriminate_out_dir, "summary.json"), "w") as f:
         json.dump(recording, f, indent=4)
 
-    evaluator = PythonEvaluator()
+    evaluator = PythonEvaluator(
+        device=args.evaluator_device, threshold=args.evaluator_threshold
+    )
     discriminator = MajorityVoteDiscriminator(args, evaluator, discriminate_out_dir)
 
     #! ------ Select winner candidate for each example ------

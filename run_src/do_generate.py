@@ -17,7 +17,9 @@ def main(args):
 
     dataset_path = f"./data/{args.dataset_name}.jsonl"
     dataset = load_dataset(read_jsonl(dataset_path))
-    evaluator = PythonEvaluator()
+    evaluator = PythonEvaluator(
+        device=args.evaluator_device, threshold=args.evaluator_threshold
+    )
 
     tokenizer, model = None, None
     if args.api == "vllm":
