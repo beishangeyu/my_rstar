@@ -37,6 +37,8 @@ def get_parser():
     parser.add_argument("--eval_result", type=str, default="eval_result")
     parser.add_argument("--disc_result", type=str, default="disc_result")
 
+    # 是否使用 clone detector
+    parser.add_argument("--disable_clone_detector", action="store_true")
     # clone detector 要放在哪个 device
     parser.add_argument("--evaluator_device", type=str, default="cuda:0")
     # clone detector 的阈值

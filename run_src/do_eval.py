@@ -69,13 +69,20 @@ def eval_exp(
     gene_result: str,
     dataset_name: str,
     eval_result: str,
+    evaluator_threshold: float,
     num_votes: int = -1,
+    disable_clone_detector=False,
+    evaluator_device: str = "cpu",
     model_ckpt=str,
 ):
     dataset_path = f"./data/{args.dataset_name}.jsonl"
     dataset = load_dataset(read_jsonl(dataset_path))
     # NOTE 在这里更改 clone 工具使用的 device
-    evaluator = PythonEvaluator(device="cuda:2")
+    evaluator = PythonEvaluator(
+        device=evaluator_device,
+        threshold=evaluator_threshold,
+        disable_clone_detector=disable_clone_detector,
+    )
     gene_result_dir = os.path.join(gene_result, f"{dataset_name}", f"{model_ckpt}")
 
     data_list = []
@@ -103,13 +110,17 @@ def eval_exp(
 if __name__ == "__main__":
     parser = get_parser()
     parser.add_argument("--num_votes", type=int, default=-1)
+
     args = parser.parse_args()
     model_ckpt = args.model_ckpt.split("/")[-1]
 
     eval_exp(
-        args.gene_result,
-        args.dataset_name,
-        args.eval_result,
-        args.num_votes,
-        model_ckpt,
+        gene_result=args.gene_result,
+        dataset_name=args.dataset_name,
+        eval_result=args.eval_result,
+        num_votes=args.num_votes,
+        disable_clone_detector=args.disable_clone_detector,
+        evaluator_device=args.evaluator_device,
+        evaluator_threshold=args.evaluator_threshold,
+        model_ckpt=model_ckpt,
     )
