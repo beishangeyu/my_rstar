@@ -367,6 +367,7 @@ class MajorityVoteDiscriminator(Discriminator):
                     max_num_seqs=args.max_num_seqs,
                     tensor_parallel_size=args.tensor_parallel_size,
                     max_model_len=args.max_model_len,
+                    gpu_memory_utilization=args.gpu_memory_utilization,
                 )
             else:
                 self.tokenizer, self.model = load_vLLM_model(
@@ -374,6 +375,7 @@ class MajorityVoteDiscriminator(Discriminator):
                     args.seed,
                     max_num_seqs=args.max_num_seqs,
                     tensor_parallel_size=args.tensor_parallel_size,
+                    gpu_memory_utilization=args.gpu_memory_utilization,
                 )
 
     def select(
