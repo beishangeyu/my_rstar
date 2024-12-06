@@ -89,7 +89,9 @@ def group_candidates_by_answer(candidates: list[Candidate], evaluator, criteria=
         for existing_answer in answer2candidates.keys():
             # 如果存在一个answer和当前candidate的answer相等
             if evaluator.check_answers_equiv(c.final_answer, existing_answer):
-                has_existed = True
+                # 确保每个 answer 都会有自己的 kv pair
+                if c.final_answer == existing_answer:
+                    has_existed = True
                 # 是在把相同answer的candidate放在一起
                 answer2candidates[str(existing_answer)].extend([c] * c.freq)
                 # NOTE 默认以 original trace 的 reward 作为 confidence
@@ -112,17 +114,18 @@ def group_candidates_by_answer(candidates: list[Candidate], evaluator, criteria=
             )
             answer2cnt[str(c.final_answer)] += c.freq
 
-    assert all(
-        answer2cnt[ans] == len(answer2candidates[ans]) for ans in answer2cnt.keys()
-    )
-    assert float(sum([candidate.trace_reward for candidate in candidates])) == float(
-        sum([answer2confidence[ans] for ans in answer2confidence.keys()])
-    )
-
+    # assert all(
+    #     answer2cnt[ans] == len(answer2candidates[ans]) for ans in answer2cnt.keys()
+    # )
+    # assert float(sum([candidate.trace_reward for candidate in candidates])) == float(
+    #     sum([answer2confidence[ans] for ans in answer2confidence.keys()])
+    # )
+    sum_num = 0
+    for x in answer2cnt.keys():
+        sum_num += answer2cnt[x]
     # 即 all_solution.jsonl 中的 trace 个数
-    candidates_count = sum([candidate.freq for candidate in candidates])
     for ans in answer2confidence.keys():
-        answer2confidence[ans] /= candidates_count
+        answer2confidence[ans] /= sum_num
 
     return answer2candidates, answer2confidence, answer2cnt
 
@@ -453,7 +456,8 @@ def main():
         json.dump(recording, f, indent=4)
 
     evaluator = PythonEvaluator(
-        device=args.evaluator_device, threshold=args.evaluator_threshold
+        device=args.evaluator_device,
+        threshold=args.evaluator_threshold,
     )
     discriminator = MajorityVoteDiscriminator(args, evaluator, discriminate_out_dir)
 

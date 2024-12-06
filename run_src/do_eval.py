@@ -3,7 +3,7 @@
 import sys
 
 sys.path.append(".")
-from common.utils import write_jsonl, read_jsonl, load_dataset
+from common.utils import write_jsonl, read_jsonl, load_dataset, enumerate_resume
 from common.arguments import get_parser
 from Evaluator import *
 
@@ -84,24 +84,27 @@ def eval_exp(
         disable_clone_detector=disable_clone_detector,
     )
     gene_result_dir = os.path.join(gene_result, f"{dataset_name}", f"{model_ckpt}")
+    eval_result_dir = os.path.join(eval_result, f"{dataset_name}", f"{model_ckpt}")
+    os.makedirs(eval_result_dir, exist_ok=True)
 
-    data_list = []
-    for item in dataset:
+    for i, item in enumerate_resume(dataset, eval_result_dir):
         task_id = item["task_id"]
+        # if task_id < 371:
+        #     continue
         test_list = item["test_list"]
         dta = eval_single_item(
             task_id, gene_result_dir, dataset_name, test_list, evaluator, num_votes
         )
-        data_list.append(dta)
+        write_jsonl(
+            os.path.join(eval_result_dir, "eval_results.jsonl"), [dta], append=True
+        )
 
+    data_list = read_jsonl(os.path.join(eval_result_dir, "eval_results.jsonl"))
     # Calculate accuracy
     accuracy = sum([item["correct"] for item in data_list]) / len(data_list)
     acc_limit = sum([item["acc_limit"] for item in data_list]) / len(data_list)
     print(f"accuracy: {accuracy}")
 
-    eval_result_dir = os.path.join(eval_result, f"{dataset_name}", f"{model_ckpt}")
-    os.makedirs(eval_result_dir, exist_ok=True)
-    write_jsonl(os.path.join(eval_result_dir, "eval_results.jsonl"), data_list)
     with open(os.path.join(eval_result_dir, "acc.json"), "w") as f:
         js = {"acc": accuracy, "acc_limit": acc_limit}
         json.dump(js, f, indent=4)

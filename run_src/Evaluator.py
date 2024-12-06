@@ -225,7 +225,7 @@ class PythonEvaluator(Evaluator):
         disable_clone_detector: bool = False,
     ):
         super().__init__()
-        self.is_simple = disable_clone_detector
+        self.disable_clone_detector = disable_clone_detector
         if not disable_clone_detector:
             from transformers import pipeline
 
