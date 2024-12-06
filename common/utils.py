@@ -59,19 +59,29 @@ def shuffleDict(d):
 # 支持中断后恢复
 def enumerate_resume(dataset: List[Dict], result_path: str):
     file_list = os.listdir(result_path)
-    if file_list[0] == "args.json":
-        count = len(file_list) - 1
-        for i, item in enumerate(dataset):
-            if i < count:
-                continue
-            yield i, item
+    if len(file_list) > 0:
+        if file_list[0] == "args.json":
+            count = len(file_list) - 1
+            for i, item in enumerate(dataset):
+                if i < count:
+                    continue
+                yield i, item
+        elif file_list[0] == "summary.jsonl":
+            count = (
+                len(read_jsonl(os.path.join(result_path, "Task_result.jsonl")))
+                if len(file_list) > 1
+                else 0
+            )
+            for i, item in enumerate(dataset):
+                if i < count:
+                    continue
+                yield i, item
+        else:
+            count = len(read_jsonl(os.path.join(result_path, "eval_results.jsonl")))
+            for i, item in enumerate(dataset):
+                if i < count:
+                    continue
+                yield i, item
     else:
-        count = (
-            len(read_jsonl(os.path.join(result_path, "Task_result.jsonl")))
-            if len(file_list) > 1
-            else 0
-        )
         for i, item in enumerate(dataset):
-            if i < count:
-                continue
             yield i, item
