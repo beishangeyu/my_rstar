@@ -66,7 +66,7 @@ def enumerate_resume(dataset: List[Dict], result_path: str):
                 if i < count:
                     continue
                 yield i, item
-        elif file_list[0] == "summary.jsonl":
+        elif file_list[0] == "summary.json":
             count = (
                 len(read_jsonl(os.path.join(result_path, "Task_result.jsonl")))
                 if len(file_list) > 1
