@@ -105,10 +105,17 @@ if __name__ == "__main__":
     from models.vLLM_API import *
 
     # 设置使用的显卡
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+    # model_ckpt = "microsoft/Phi-3-mini-4k-instruct"
     model_ckpt = "mistralai/Mistral-7B-v0.1"
+
     tokenizer, model = load_vLLM_model(
-        model_ckpt, seed=42, tensor_parallel_size=4, half_precision=False
+        model_ckpt,
+        seed=42,
+        tensor_parallel_size=1,
+        half_precision=False,
+        max_model_len=30000,
+        gpu_memory_utilization=0.95,
     )
     #     input = (
     #         ost_prompt
@@ -142,10 +149,7 @@ def find_char_long(text):
 
 [Step to implement]
 To implement the find_char_long function, we need to follow these steps:
-Step1: Understand the Input. The function takes a string as input (text).
-Step2: Understand the Regex Pattern. We need to find words that are at least 4 characters long. The regex pattern to match such words is [a-zA-Z0-9]+, which matches one or more alphanumeric characters.
-Step3: Initialize a List to Store Results. Create an empty list to store the results.
-Step4: 
+Step1: Understand the Input. The function takes a string (text).
 """
     )
     # last_output = ""
@@ -154,10 +158,21 @@ Step4:
     #     output = generate_with_vLLM_model(model, input, stop=ost_stop_token)
     #     last_output = output[0].outputs[0].text
     #     print(output[0].outputs[0].text)
-    output = generate_with_vLLM_model(
+    resp = generate_with_vLLM_model(
         model,
         input,
-        stop=["\n\n", "Step5", "[Function implementation]"],
+        n=10,
+        stop=[
+            "\n",
+            "\n\n",
+            f"Step3",
+            "[Function head and docstring]",
+            "[Function implementation]",
+            "[Step to implement]",
+            "You are a Python assistant.",
+        ],
         max_tokens=1024,
     )
-    print(output[0].outputs[0].text)
+    output_list = [o.text.strip()[7:] for o in resp[0].outputs]
+    for it in output_list:
+        print(it)

@@ -193,23 +193,23 @@ Rephrased requirement:
 
 [Step to implement]
 To implement the {func_name} function, we need to follow these steps:
-{existing_ost_steps}Step{next_ost_step_id}: 
+{existing_ost_steps} 
 """
         io_output_list = self.io.generate(
             model_input=io_input,
-            max_tokens=256,
+            max_tokens=1024,
             num_return=self.num_a1_steps,
             stop_tokens=[
                 "\n",
                 "\n\n",
-                f"Step{next_ost_step_id + 1}:",
+                f"Step{next_ost_step_id + 1}",
                 "[Function head and docstring]",
                 "[Function implementation]",
                 "[Step to implement]",
                 "You are a Python assistant.",
             ],
         )
-        ost_step_list = [io_output.strip() for io_output in io_output_list]
+        ost_step_list = [io_output.strip()[7:] for io_output in io_output_list]
 
         return ost_step_list
 
