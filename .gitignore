@@ -2,6 +2,7 @@
 unit-test.py
 __pycache__/
 *.txt
+*.ipynb
 scripts/
 data/
 *result
