@@ -4,7 +4,7 @@ from typing import List, Dict, Tuple
 from collections import defaultdict
 import random
 from fuzzywuzzy import fuzz, process
-from threading import Thread
+import multiprocessing
 
 
 class Evaluator:
@@ -244,55 +244,54 @@ class PythonEvaluator(Evaluator):
             return answer_a == answer_b
         # NOTE 使用 code clone 工具判断代码是否相同
         is_clone = self.pipe((answer_a, answer_b))
-        # TODO 测试一下阈值
         if is_clone[True] > self.threshold:
             return True
         else:
             return False
 
     def extract_answer_from_model_completion(self, completion: str) -> str:
-        return remove_comments(completion)
+        # 取出 completion 中的答案部分
+        pattern = re.compile(r"(def\s+\w+\s*\(.*?\)\s*:\s*(?:\n\s+.*)+)", re.DOTALL)
+        matches = pattern.findall(completion)
 
-    def test_mbpp(self, test_list, code, timeout=5):
+        answer = matches[-1] if matches else ""
+        if not answer:
+            return ""
+        # 去除注释
+        return remove_comments(answer)
+
+    def test_mbpp(self, test_list, code, timeout=3):
         test_list_code = "\n".join(test_list)
-        try:
-            template = f"{code}\n{test_list_code}\n"
-            function_with_timeout(exec, (template, globals()), timeout)
-            return 1
-        except:
-            return 0
+        template = f"{code}\n{test_list_code}\n"
+        return function_with_timeout(template, None, timeout)
 
     def check_correctness(self, code: str, dataset_name: str, test_list: List[str]):
+        print("-" * 10 + "Checking correctness..." + "-" * 10)
         if "mbpp" in dataset_name:
-            return self.test_mbpp(test_list, code, timeout=5)
+            return self.test_mbpp(test_list, code, timeout=3)
         else:
             pass
 
 
-# 扩展线程类, 为了捕获子线程的异常以及设置超时, 防止代码死循环
-class PropagatingThread(Thread):
-    def run(self):
-        self.exc = None  # 存储异常
-        try:
-            self.ret = self._target(*self._args, **self._kwargs)
-        except BaseException as e:
-            self.exc = e
-
-    def join(self, timeout=None):
-        super(PropagatingThread, self).join(timeout)
-        if self.exc:
-            raise self.exc
-        return self.ret
-
-
 def function_with_timeout(func, args, timeout):
-    thread = PropagatingThread(target=func, args=args)
-    thread.start()
-    thread.join(timeout)  # 只等待 timeout 时间
+    def exec_code(queue):
+        try:
+            exec(func)
+            queue.put(1)
+        except Exception:
+            queue.put(0)
 
-    # is_alive 返回 true 表示线程还在运行, 即超时
-    if thread.is_alive():
-        raise TimeoutError()
+    queue = multiprocessing.Queue()
+    process = multiprocessing.Process(target=exec_code, args=(queue,))
+    process.start()
+    process.join(timeout)
+
+    if process.is_alive():
+        process.terminate()
+        process.join()
+        return 0
+    else:
+        return queue.get()
 
 
 # 去除注释和空行
