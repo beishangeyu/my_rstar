@@ -76,6 +76,7 @@ class Candidate:
 # 用于把相同answer的candidate分在一起, 返回answer的confidence和出现次数
 def group_candidates_by_answer(candidates: list[Candidate], evaluator, criteria="freq"):
     """Return answer2candidates, answer2confidence, answer2cnt."""
+    print("-" * 10 + "Grouping candidates by answer ..." + "-" * 10)
     answer2candidates = {}  # 记录每个answer
     answer2confidence = defaultdict(float)  # 记录每个answer的confidence
     answer2cnt = defaultdict(int)  # 记录每个answer的出现次数
@@ -88,6 +89,7 @@ def group_candidates_by_answer(candidates: list[Candidate], evaluator, criteria=
         # 即如果当前这个answer被记录了, 就把这个candidate加到这个answer对应的list中
         for existing_answer in answer2candidates.keys():
             # 如果存在一个answer和当前candidate的answer相等
+            print("-" * 10 + "Check answer equiv ..." + "-" * 10)
             if evaluator.check_answers_equiv(c.final_answer, existing_answer):
                 # 确保每个 answer 都会有自己的 kv pair
                 if c.final_answer == existing_answer:
@@ -152,13 +154,14 @@ class Discriminator:
         funchead_and_docstring: str,
         candidates: list[Candidate],
     ) -> list[Candidate]:
-
+        print("-" * 10 + "Filtering reasoning consistency ..." + "-" * 10)
         assert all(
             len(c.masked_solution_trace_list) == self.args.num_masked_solution_traces
             for c in candidates
             if c.c_type == "default"
         )
         consistent_candidates = []
+        print("-" * 10 + "Completing Masked trace ..." + "-" * 10)
         # NOTE 这里所有的 candidate 都对应同一个 task_id
         for c in candidates:
             completion_list = []
@@ -175,22 +178,20 @@ class Discriminator:
                     gen_model=gen_model,
                     gen_input=masked_solution_trace,
                     temperature=self.args.rc_temperature,
-                    n=self.args.rc_n_completions,  # NOTE 生成 rc_n_completions 个补全答案
+                    n=self.args.rc_n_completions,  # NOTE 生成多个补全答案
                     max_tokens=1024,
                     stop_tokens=[
-                        "[[Function haed and docstring]]",
+                        "[Function haed and docstring]",
                         "You are a Python assistant.",
                     ],
                 )
                 completion_list.append(completions)
-            # 把 list of str 展开成 list of str
-            completion_list = [
-                c for cps in completion_list for c in cps if c is not None
-            ]
+
             answer_list = [
                 self.evaluator.extract_answer_from_model_completion(completion)
                 for completion in completion_list
             ]
+            answer_list = [ans for ans in answer_list if ans is not None]
 
             num_consistent = 0
             candidate_count = len(completion_list)
@@ -202,6 +203,9 @@ class Discriminator:
             else:
                 # 把candidate和discriminator的补全答案一个个比较, 如果相等, num_consistent就加1
                 for answer in answer_list:
+                    print("-" * 10 + "Check answer equiv ..." + "-" * 10)
+                    print(f"==> Answer from generator:\n" + repr(c.final_answer))
+                    print("==> Answer from discriminator:\n" + repr(answer))
                     if self.evaluator.check_answers_equiv(c.final_answer, answer):
                         num_consistent += 1
 
@@ -313,8 +317,10 @@ class Discriminator:
         filtered_candidates: list[Candidate],
         test_list: list[str],
     ) -> Candidate:
+        print("-" * 10 + "Filtering final winer ..." + "-" * 10)
         # 如果没有一致性达到要求的candidate, 就从prefiltered的candidate中选最好(出现次数最多)的那个作为winner
         if len(filtered_candidates) == 0:
+            print("==> No consistent candidates. Selecting the most frequent one...")
             answer2candidates, answer2confidence, _ = group_candidates_by_answer(
                 unfiltered_candidates, self.evaluator, self.args.rc_criteria
             )
@@ -325,6 +331,7 @@ class Discriminator:
             print(f"==> Winner answer: {most_confident_answer}\n")
         # 如果只有一个达到一致性要求的candidate, 直接把这个选成winner
         elif len(filtered_candidates) == 1:
+            print("==> Only one consistent candidate. Selecting it as the winner...")
             winner = filtered_candidates[0]
             print(f"==> Winner answer: {winner.final_answer}\n")
         # 如果所有的达到一致性要求的candidate的answer都和user question的标准答案不一样, winner为none
@@ -334,11 +341,13 @@ class Discriminator:
             )
             for c in filtered_candidates
         ):
+            print("==> No correct answer in consistent candidates. Skipping...")
             winner = None
             print(f"==> Winner answer: None")
         # 如果达到一致性要求的candidate不止一个, 且在达到一致性要求的candidate中存在和标准答案一样的
         # 计算所有answer中分数最高的, 然后选那个answer对应的第一个candidate作为winner
         else:
+            print("==> Multiple consistent candidates. Selecting the best one...")
             # 计算每个answer的分数(多个candidate的answer可能一样)
             filtered_answer2score = self._calculate_scores(
                 unfiltered_candidates, filtered_candidates
@@ -387,27 +396,19 @@ class MajorityVoteDiscriminator(Discriminator):
         funchead_and_docstring: str,
         test_list: list[str],
     ) -> Candidate:
-
-        unfiltered_candidates = candidates
-        print(
-            f"==> Unfiltered answers: {[c.final_answer for c in unfiltered_candidates]}"
-        )
+        print("-" * 10 + "Selecting winner candidate ..." + "-" * 10)
         # candidate: [1, 2, 3, 4, 5, None, paosdifjpsod]
+
         # 先把没有答案的和答案太长的过滤掉
         prefiltered_candidates = self._filter_none(candidates)
         # prefiltered_candidates: [1, 2, 3, 4, 5]
-        print(
-            f"==> Pre-filtered answers: {[c.final_answer for c in prefiltered_candidates]}"
-        )
+
         # 过滤掉一致性不够的答案
         # TODO 这里的 problem 应该用的是 trace 中的, 可能 rephrase 过, 可以优化吗?
         filtered_candidates = self._filter_reasoning_consistency(
             self.model, funchead_and_docstring, prefiltered_candidates
         )
         # filtered_candidates: [1, 2, 3]
-        print(
-            f"==> RC-filtered answers: {[c.final_answer for c in filtered_candidates]}"
-        )
         return self._find_winner_filtered(
             prefiltered_candidates, filtered_candidates, test_list
         )
@@ -540,9 +541,11 @@ def main():
             all_candidates.append(candidate)
 
         # 将所有的 candidate 按照 answer 划分
+
         answer2candidates, answer2confidence, _ = group_candidates_by_answer(
             all_candidates, evaluator, args.rc_criteria
         )
+
         # 选出 confidence 最高的 answer
         most_confident_answer = max(
             answer2candidates.keys(), key=lambda x: answer2confidence[x]
@@ -577,14 +580,17 @@ def main():
         # -------------------------------
         # winner answer 是经过补全之后选出来的, most_confident_answer 只是计算原 trace 的 confidence 之后选的, 不涉及一致性
         # 判别 winner answer 是否正确
+        print("-" * 10 + "Check correct" + "-" * 10)
         correct = evaluator.check_correctness(
             winner_answer, args.dataset_name, test_list
         )
         # 判别最高置信度answer是否正确
+        print("-" * 10 + "Check correct_majvote" + "-" * 10)
         correct_majvote = evaluator.check_correctness(
             most_confident_answer, args.dataset_name, test_list
         )
         # 在所有 answer 里边是否有正确的 (对应于 winner answer 不对但是别的 answer 对了的情况)
+        print("-" * 10 + "Check correct_limit" + "-" * 10)
         correct_limit = (
             1
             if any(
@@ -607,7 +613,6 @@ def main():
         result_path = os.path.join(discriminate_out_dir, f"Task_result.jsonl")
         write_jsonl(result_path, [temp_recording], append=True)
 
-    # TODO 如果中断重传应该考虑全部, 而不是只考虑重传之后的
     data_list = read_jsonl(os.path.join(discriminate_out_dir, "Task_result.jsonl"))
     data_size = len(data_list)
     for d in data_list:
