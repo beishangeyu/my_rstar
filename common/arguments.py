@@ -50,10 +50,16 @@ def get_parser():
 def post_process_args(args):
     # Set up logging
     model_name = args.model_ckpt.split("/")[-1]
+    file_list = os.listdir(
+        os.path.join(
+            args.gene_result,
+            args.dataset_name,
+        )
+    )
     args.gene_result = os.path.join(
         args.gene_result,
         args.dataset_name,
-        model_name,
+        f"{model_name}_{len(file_list) + 1}",
     )
     os.makedirs(args.gene_result, exist_ok=True)
     return args
