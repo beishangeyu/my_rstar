@@ -70,6 +70,8 @@ if __name__ == "__main__":
     parser.add_argument("--save_tree", action="store_true")
     # NOTE 采用一次action1生成的子节点数量
     parser.add_argument("--num_a1_steps", type=int, default=3)
+    # NOTE 这是第几个结果
+    parser.add_argument("--result_iteration", type=int, required=True)
 
     args = parser.parse_args()
 
