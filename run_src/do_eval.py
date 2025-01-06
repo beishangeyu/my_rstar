@@ -47,7 +47,7 @@ def eval_single_item(
     )
     print("*" * 30 + f" Task_{task_id} " + "*" * 30)
     solution_candidates = extract_trace(solution_candidates, num_votes)
-    model_answer, _, _, _ = evaluator.find_most_confident_answer(solution_candidates)
+    model_answer, _, _ = evaluator.find_most_confident_answer(solution_candidates)
     result = evaluator.check_correctness(model_answer, dataset_name, test_list)
     # 查看所有的 answer 中是否有正确的并统计正确的占比
     correct_num = 0

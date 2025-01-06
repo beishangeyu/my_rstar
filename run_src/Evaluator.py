@@ -57,46 +57,40 @@ class Evaluator:
         if completions is None or len(completions) == 0:
             return None, None, None, None
 
+        # 对于 count, 只要克隆工具认为一样就加1, 但是对于completion, 只有answer完全一样才能把completion放进去
+        # 保证 completion 和 answer 是完全对应的
         answer2completions = defaultdict(list)
-        answer2ids = defaultdict(list)
-        # 把相同answer的completion放在一起
-        for id, c in enumerate(completions):
+        answer2count = defaultdict(int)
+        for c in completions:
+            answer = self.extract_answer_from_model_completion(c)
+            answer2count[answer] = 0
+            # 这里已经构建完 answer2completion 了
+            answer2completions[answer].append(c)
+        for c in completions:
             model_answer = self.extract_answer_from_model_completion(c)
-            has_existed = False
-            for existing_answer in answer2completions.keys():
+            for existing_answer in answer2count.keys():
                 if self.check_answers_equiv(model_answer, existing_answer):
-                    if model_answer == existing_answer:
-                        has_existed = True
-                    answer2completions[existing_answer].append(c)
-                    answer2ids[existing_answer].append(id)
-            if not has_existed:
-                answer2completions[model_answer].append(c)
-                answer2ids[model_answer].append(id)
-
-        assert len(answer2completions.keys()) > 0, "There are no valid completions."
+                    answer2count[existing_answer] += 1
+        assert len(answer2count.keys()) > 0, "There are no valid completions."
         sum_num = 0
-        for x in answer2completions.keys():
-            sum_num += len(answer2completions[x])
-        # TODO 打印一下所有answer的占比, 记得删掉
+        for answer in answer2count.keys():
+            sum_num += answer2count[answer]
+        # 打印每个 answer 的 count 占比
         print("*" * 10 + "Print answer count" + "*" * 10)
-        for answer in answer2completions.keys():
-            print(f"count: {len(answer2completions[answer])} / {sum_num}")
+        for answer in answer2count.keys():
+            print(f"count: {answer2count[answer]} / {sum_num}")
         print("*" * 30)
-        # -------------------------------------------
-        most_confident_answer = max(
-            answer2completions.keys(), key=lambda x: len(answer2completions[x])
-        )
+        # 最后统计出现次数是看 count 而不是 completion
+        most_confident_answer = max(answer2count.keys(), key=lambda x: answer2count[x])
         assert (
             len(answer2completions[most_confident_answer]) > 0
         ), "There are no completions for the most confident answer."
-        # confidence 是这个 answer 占总 completions 的比例
-        confidence = len(answer2completions[most_confident_answer]) / sum_num
+        confidence = answer2count[most_confident_answer] / sum_num
         assert confidence > 0
         return (
             most_confident_answer,
             # 选择该出现次数最多的answer的第一个completion
             answer2completions[most_confident_answer][0],
-            answer2ids[most_confident_answer][0],
             confidence,  # 该answer出现的次数 / 总的completion数
         )
 
