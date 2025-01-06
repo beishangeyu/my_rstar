@@ -59,7 +59,7 @@ class Generator:
             most_confident_answer_full_completion = io_output_list[0]
             confidence = 1
         else:
-            _, most_confident_answer_full_completion, _, confidence = (
+            _, most_confident_answer_full_completion, confidence = (
                 self.evaluator.find_most_confident_answer(io_output_list)
             )
             assert confidence > 0
