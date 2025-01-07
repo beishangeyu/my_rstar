@@ -4,16 +4,12 @@ import sys
 
 sys.path.append(".")
 
-import numpy as np, os, random, json, math, wandb
+import numpy as np, os, random, json, math
 from tqdm import trange
 from typing import List, Dict, Tuple
 from copy import deepcopy
 import re
 
-try:
-    from rapidfuzz import fuzz, process
-except:
-    pass
 
 from models.IO_System import IO_System
 from common.utils import write_jsonl
