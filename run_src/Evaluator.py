@@ -8,8 +8,9 @@ import multiprocessing
 
 
 class Evaluator:
-    def __init__(self) -> None:
+    def __init__(self, disable_mutual_vote: bool = False) -> None:
         self.answer_marker = "answer is"
+        self.disable_mutual_vote = disable_mutual_vote
 
     def _is_number(self, s) -> Tuple[bool, str]:
         try:
@@ -71,8 +72,9 @@ class Evaluator:
             for existing_answer in answer2count.keys():
                 if self.check_answers_equiv(model_answer, existing_answer):
                     answer2count[existing_answer] += 1
-                    # TODO 双方都投票
-                    answer2count[model_answer] += 1
+                    if not self.disable_mutual_vote:
+                        # TODO 双方互相投票, 会提高正确率
+                        answer2count[model_answer] += 1
         assert len(answer2count.keys()) > 0, "There are no valid completions."
         sum_num = 0
         for answer in answer2count.keys():
@@ -219,8 +221,9 @@ class PythonEvaluator(Evaluator):
         device: str = "cpu",
         threshold: float = 0.9,
         disable_clone_detector: bool = False,
+        disable_mutual_vote: bool = False,
     ):
-        super().__init__()
+        super().__init__(disable_mutual_vote=disable_mutual_vote)
         self.disable_clone_detector = disable_clone_detector
         if not disable_clone_detector:
             from transformers import pipeline

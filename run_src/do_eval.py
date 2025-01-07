@@ -71,7 +71,8 @@ def eval_exp(
     eval_result: str,
     evaluator_threshold: float,
     num_votes: int = -1,
-    disable_clone_detector=False,
+    disable_clone_detector: bool = False,
+    disable_mutual_vote: bool = False,
     evaluator_device: str = "cpu",
     model_ckpt=str,
 ):
@@ -82,6 +83,7 @@ def eval_exp(
         device=evaluator_device,
         threshold=evaluator_threshold,
         disable_clone_detector=disable_clone_detector,
+        disable_mutual_vote=disable_mutual_vote,
     )
     gene_result_dir = os.path.join(gene_result, f"{dataset_name}", f"{model_ckpt}")
     eval_result_dir = os.path.join(eval_result, f"{dataset_name}", f"{model_ckpt}")
@@ -123,6 +125,7 @@ if __name__ == "__main__":
         eval_result=args.eval_result,
         num_votes=args.num_votes,
         disable_clone_detector=args.disable_clone_detector,
+        disable_mutual_vote=args.disable_mutual_vote,
         evaluator_device=args.evaluator_device,
         evaluator_threshold=args.evaluator_threshold,
         model_ckpt=model_ckpt,

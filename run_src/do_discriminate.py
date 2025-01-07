@@ -459,6 +459,8 @@ def main():
     evaluator = PythonEvaluator(
         device=args.evaluator_device,
         threshold=args.evaluator_threshold,
+        disable_mutual_vote=args.disable_mutual_vote,
+        disable_clone_detector=args.disable_clone_detector,
     )
     discriminator = MajorityVoteDiscriminator(args, evaluator, discriminate_out_dir)
 

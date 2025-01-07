@@ -21,6 +21,7 @@ def main(args):
         device=args.evaluator_device,
         threshold=args.evaluator_threshold,
         disable_clone_detector=args.disable_clone_detector,
+        diadisable_mutual_vote=args.disable_mutual_vote,
     )
 
     tokenizer, model = None, None
@@ -67,7 +68,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mcts_weight_scheduler", choices=["exp", "lin", "const"], default="const"
     )
-    # NOTE 在 generate direct answer 的时候模型生成的序列(回复)个数
+    # NOTE 在 generate direct answer 的时候模型生成的序列个数
     parser.add_argument("--mcts_num_last_votes", type=int, default=32)
     parser.add_argument("--save_tree", action="store_true")
     # NOTE 采用一次action1生成的子节点数量
