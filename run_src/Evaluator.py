@@ -71,6 +71,8 @@ class Evaluator:
             for existing_answer in answer2count.keys():
                 if self.check_answers_equiv(model_answer, existing_answer):
                     answer2count[existing_answer] += 1
+                    # TODO 双方都投票
+                    answer2count[model_answer] += 1
         assert len(answer2count.keys()) > 0, "There are no valid completions."
         sum_num = 0
         for answer in answer2count.keys():
