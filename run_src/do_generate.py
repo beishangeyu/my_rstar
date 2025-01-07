@@ -18,7 +18,9 @@ def main(args):
     dataset_path = f"./data/{args.dataset_name}.jsonl"
     dataset = load_dataset(read_jsonl(dataset_path))
     evaluator = PythonEvaluator(
-        device=args.evaluator_device, threshold=args.evaluator_threshold
+        device=args.evaluator_device,
+        threshold=args.evaluator_threshold,
+        disable_clone_detector=args.disable_clone_detector,
     )
 
     tokenizer, model = None, None
