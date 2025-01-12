@@ -39,12 +39,12 @@ def get_parser():
 
     # 是否使用 clone detector
     parser.add_argument("--disable_clone_detector", action="store_true")
+    # 在 find most confident answer 时是否互相投票
+    parser.add_argument("--disable_mutual_vote", action="store_true")
     # clone detector 要放在哪个 device
     parser.add_argument("--evaluator_device", type=str, default="cuda:0")
     # clone detector 的阈值
     parser.add_argument("--evaluator_threshold", type=float)
-    # 在 find most confident answer 时是否互相投票
-    parser.add_argument("--disable_mutual_vote", action="store_true")
 
     return parser
 

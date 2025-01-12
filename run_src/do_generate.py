@@ -21,7 +21,7 @@ def main(args):
         device=args.evaluator_device,
         threshold=args.evaluator_threshold,
         disable_clone_detector=args.disable_clone_detector,
-        diadisable_mutual_vote=args.disable_mutual_vote,
+        disable_mutual_vote=args.disable_mutual_vote,
     )
 
     tokenizer, model = None, None
