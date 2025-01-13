@@ -205,7 +205,11 @@ class Discriminator:
                 for answer in answer_list:
                     print("-" * 10 + "Check answer equiv ..." + "-" * 10)
                     print(f"==> Answer from generator:\n" + repr(c.final_answer))
-                    print("==> Answer from discriminator:\n" + repr(answer))
+                    print(
+                        "==> Answer from discriminator:\n" + repr(answer)
+                        if len(answer_list)
+                        else "No answer"
+                    )
                     if self.evaluator.check_answers_equiv(c.final_answer, answer):
                         num_consistent += 1
 
