@@ -191,7 +191,7 @@ class Discriminator:
                 self.evaluator.extract_answer_from_model_completion(completion)
                 for completion in completion_list
             ]
-            answer_list = [ans for ans in answer_list if ans is not None]
+            answer_list = [ans for ans in answer_list if len(ans) > 0]
 
             num_consistent = 0
             candidate_count = len(completion_list)
@@ -207,7 +207,7 @@ class Discriminator:
                     print(f"==> Answer from generator:\n" + repr(c.final_answer))
                     print(
                         "==> Answer from discriminator:\n" + repr(answer)
-                        if len(answer_list)
+                        if len(answer)
                         else "No answer"
                     )
                     if self.evaluator.check_answers_equiv(c.final_answer, answer):
