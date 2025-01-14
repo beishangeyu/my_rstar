@@ -119,6 +119,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
     model_ckpt = args.model_ckpt.split("/")[-1]
 
+    eval_result_dir = os.path.join(
+        args.eval_result, f"{args.dataset_name}", f"{model_ckpt}"
+    )
+    recording = vars(args)
+    with open(os.path.join(eval_result_dir, "args.json"), "w") as f:
+        json.dump(recording, f, indent=4)
+
     eval_exp(
         gene_result=args.gene_result,
         dataset_name=args.dataset_name,
