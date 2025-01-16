@@ -122,6 +122,7 @@ if __name__ == "__main__":
     eval_result_dir = os.path.join(
         args.eval_result, f"{args.dataset_name}", f"{model_ckpt}"
     )
+    os.makedirs(eval_result_dir, exist_ok=True)
     recording = vars(args)
     with open(os.path.join(eval_result_dir, "args.json"), "w") as f:
         json.dump(recording, f, indent=4)
