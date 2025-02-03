@@ -24,7 +24,6 @@ from common.utils import (
 from common.arguments import get_parser, post_process_args, save_args
 import os
 import json
-from tqdm import tqdm
 from prompt import ost_prompt
 
 
@@ -451,7 +450,7 @@ def main():
     # NOTE discriminate 结果的存放路径
     model_name = args.model_ckpt.split("/")[-1]
     discriminate_out_dir = os.path.join(
-        args.disc_result, args.gene_result_name, f"{model_name}"
+        args.disc_result, args.dataset_name, args.gene_result_name, f"{model_name}"
     )
     os.makedirs(discriminate_out_dir, exist_ok=True)
 
