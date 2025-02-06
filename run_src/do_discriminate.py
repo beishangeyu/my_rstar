@@ -440,6 +440,8 @@ def main():
     )
     # NOTE do generate 结果的存放路径
     parser.add_argument("--gene_result_name", type=str)
+    # NOTE disc的第几次结果
+    parser.add_argument("--result_iteration", type=int, required=True)
     args = parser.parse_args()
 
     fix_seeds(args.seed)
@@ -450,7 +452,10 @@ def main():
     # NOTE discriminate 结果的存放路径
     model_name = args.model_ckpt.split("/")[-1]
     discriminate_out_dir = os.path.join(
-        args.disc_result, args.dataset_name, args.gene_result_name, f"{model_name}"
+        args.disc_result,
+        args.dataset_name,
+        args.gene_result_name,
+        f"{model_name}_{args.result_iteration}",
     )
     os.makedirs(discriminate_out_dir, exist_ok=True)
 
