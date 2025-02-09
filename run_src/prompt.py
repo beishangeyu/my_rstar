@@ -1,7 +1,4 @@
-# TODO 遇到看不懂的先不要管, 先测试目前动作能否有效, 无效再考虑弄懂那些看不懂的动作
-
-# NOTE 提出单步思考
-# TODO 或许要告诉模型在可以生成函数的时候要结尾 Implement
+# 提出单步思考
 ost_prompt = """
 You are a Python assistant. You are given function head and its docstring. Provide the full implementation of the following function.
 
@@ -77,7 +74,7 @@ def find_Odd_Pair(A, N):
 """
 
 
-# NOTE 重述用户的要求
+# 重述用户的要求
 rephrase_prompt = """
 You are an AI assistant to help me rephrase the requirement.
 
@@ -95,6 +92,26 @@ Original requirement:
 Write a function to count the same pair in two given lists usage map function.
 Rephrased requirement:
 Write a Python function using map to count the number of matching pairs in two given lists.
+"""
+
+# 生成子问题
+# TODO 模仿gpt和deepseek的推理过程, 先一股脑提出问题, 再一个个回答
+gene_subq_prompt = """
+Given a question, please decompose it into sub-questions.
+
+Question 1: Write a function to sort a given matrix in ascending order according to the sum of its rows.
+Break it down into sub-questions:
+1. Understand the Problem and Input Format. What is the input to the function? (e.g., a matrix represented as a list of lists) What is the input to the function? (e.g., a matrix represented as a list of lists) What is the expected output? (e.g., a sorted matrix based on the sum of its rows) Are there any constraints on the matrix size or values?  
+2. Calculate the Sum of Each Row. How do you calculate the sum of elements in a single row of the matrix? How can you compute the sum for all rows in the matrix?  
+3. Sort the Matrix Based on Row Sums. How do you associate each row with its sum? How can you sort the rows of the matrix in ascending order based on their sums?
+4. Define the Function. How do you structure the function in Python? What parameters does the function take? What should the function return?  
+
+Question 2: Write a python function to check whether the first and last characters of a given string are equal or not.
+Break it down sub-questions:
+1.Understand the Problem and Input Format. What is the input to the function? (e.g., a string). What is the expected output? (e.g., a boolean value indicating whether the first and last characters are equal)
+2.Access the First and Last Characters of the String. How can you retrieve the first character of the string?. How can you retrieve the last character of the string?
+3.Compare the First and Last Characters. How do you compare two characters in Python? What should the function return if they are equal? What should it return if they are not equal?
+4.Define the Function. How do you structure the function in Python? What parameters does the function take? What should the function return?
 """
 
 # 对 prompt 进行测试
