@@ -95,18 +95,17 @@ Write a Python function using map to count the number of matching pairs in two g
 """
 
 # 生成子问题
-# TODO 模仿gpt和deepseek的推理过程, 先一股脑提出问题, 再一个个回答
 gene_subq_prompt = """
 Given a question, please decompose it into sub-questions.
 
-Question 1: Write a function to sort a given matrix in ascending order according to the sum of its rows.
+Question: Write a function to sort a given matrix in ascending order according to the sum of its rows.
 Break it down into sub-questions:
 1. Understand the Problem and Input Format. What is the input to the function? (e.g., a matrix represented as a list of lists) What is the input to the function? (e.g., a matrix represented as a list of lists) What is the expected output? (e.g., a sorted matrix based on the sum of its rows) Are there any constraints on the matrix size or values?  
 2. Calculate the Sum of Each Row. How do you calculate the sum of elements in a single row of the matrix? How can you compute the sum for all rows in the matrix?  
 3. Sort the Matrix Based on Row Sums. How do you associate each row with its sum? How can you sort the rows of the matrix in ascending order based on their sums?
 4. Define the Function. How do you structure the function in Python? What parameters does the function take? What should the function return?  
 
-Question 2: Write a python function to check whether the first and last characters of a given string are equal or not.
+Question: Write a python function to check whether the first and last characters of a given string are equal or not.
 Break it down sub-questions:
 1.Understand the Problem and Input Format. What is the input to the function? (e.g., a string). What is the expected output? (e.g., a boolean value indicating whether the first and last characters are equal)
 2.Access the First and Last Characters of the String. How can you retrieve the first character of the string?. How can you retrieve the last character of the string?
@@ -114,82 +113,23 @@ Break it down sub-questions:
 4.Define the Function. How do you structure the function in Python? What parameters does the function take? What should the function return?
 """
 
+# 一个个回答子问题
+gen_suba_prompt = """
+I will provide a main question and break it down into several sub-questions. Please answer each sub-question one by one in the order, without skipping any.
+
+Question: Write a function to sort a given matrix in ascending order according to the sum of its rows.
+Break it down into sub-questions:
+sub-question1. Understand the Problem and Input Format. What is the input to the function? (e.g., a matrix represented as a list of lists) What is the input to the function? (e.g., a matrix represented as a list of lists) What is the expected output? (e.g., a sorted matrix based on the sum of its rows) Are there any constraints on the matrix size or values?  
+sub-question2. Calculate the Sum of Each Row. How do you calculate the sum of elements in a single row of the matrix? How can you compute the sum for all rows in the matrix?  
+sub-question3. Sort the Matrix Based on Row Sums. How do you associate each row with its sum? How can you sort the rows of the matrix in ascending order based on their sums?
+sub-question4. Define the Function. How do you structure the function in Python? What parameters does the function take? What should the function return?  
+
+Answer to sub-question1: Understand the Problem. The input is a matrix represented as a list of lists. The output is the same matrix, but sorted by the sum of each row in ascending order. There are no specific size constraints, but the matrix typically has rows of the same length.
+Answer to sub-question2: Calculate Row Sums. To calculate the sum of each row, use Python's sum() function. To get the sum for all rows, iterate through the matrix and apply sum() to each row.
+Answer to sub-question3: Sort the Matrix. Pair each row with its sum. Use Python's sorted() function to sort these pairs based on the row sum. Once sorted, extract the rows back into a new matrix.
+Answer to sub-question4: Define the Function. The function should take the matrix as input, compute row sums, sort the rows by sum, and return the sorted matrix.
+
+"""
 # 对 prompt 进行测试
 if __name__ == "__main__":
-    import sys
-
-    sys.path.append(".")  # 这个路径好像是以命令行的路径为准而不是这个文件所在的路径
-    from models.vLLM_API import *
-
-    # 设置使用的显卡
-    os.environ["CUDA_VISIBLE_DEVICES"] = "2"
-    # model_ckpt = "microsoft/Phi-3-mini-4k-instruct"
-    model_ckpt = "mistralai/Mistral-7B-v0.1"
-
-    tokenizer, model = load_vLLM_model(
-        model_ckpt,
-        seed=42,
-        tensor_parallel_size=1,
-        half_precision=False,
-        max_model_len=30000,
-        gpu_memory_utilization=0.95,
-    )
-    #     input = (
-    #         ost_prompt
-    #         + """
-    # [Function head and docstring]
-    # def difference(n):
-    # '''
-    # Write a python function to find the difference between sum of cubes of first n natural numbers and the sum of first n natural numbers.
-    # for example:
-    # difference(3) == 30
-    # '''
-    # [Step to implement]
-    # """
-    #     )
-    # input = rephrase_prompt + """
-    # Original requirement: Writing a python function to left rotating the bits of a afforded number
-    # Rephrased requirement:
-    # """
-    input = (
-        ost_prompt
-        + """
-[Function haed and docstring]
-
-def find_char_long(text):
-    '''
-    Write a Python function using regex to find all words in a string that have a length of at least 4 characters.
-    for example:
-    find_char_long('Please move back to stream') == ['Please', 'move', 'back', 'stream']
-    '''
-
-
-[Step to implement]
-To implement the find_char_long function, we need to follow these steps:
-Step1: Understand the Input. The function takes a string (text).
-"""
-    )
-    # last_output = ""
-    # for i in range(10):
-    #     input += last_output
-    #     output = generate_with_vLLM_model(model, input, stop=ost_stop_token)
-    #     last_output = output[0].outputs[0].text
-    #     print(output[0].outputs[0].text)
-    resp = generate_with_vLLM_model(
-        model,
-        input,
-        n=10,
-        stop=[
-            "\n",
-            "\n\n",
-            f"Step3",
-            "[Function head and docstring]",
-            "[Function implementation]",
-            "[Step to implement]",
-            "You are a Python assistant.",
-        ],
-        max_tokens=1024,
-    )
-    output_list = [o.text.strip()[7:] for o in resp[0].outputs]
-    for it in output_list:
-        print(it)
+    pass
