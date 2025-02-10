@@ -15,11 +15,12 @@ from models.IO_System import IO_System
 from common.utils import write_jsonl
 from run_src.Evaluator import Evaluator, PythonEvaluator
 from MCTS_backbone import MCTS_Searcher, MCTS_Node
-from run_src.rstar_utils import (
+from rstar_utils import (
     Node_Type,
     GeneratorError,
     get_nodetype,
     concat_ost_steps,
+    concat_subqs_subas,
     make_hint,
     stochastic_find_best_solution,
     make_funchead_and_docstring,
@@ -156,7 +157,7 @@ Rephrased requirement:
             max_tokens=1024,
             num_return=1,
             stop_tokens=[
-                "\n\n",
+                "\n\n\n",
                 "Original requirement:",
                 "You are an AI assistant to help me rephrase the requirement.",
             ],
@@ -166,6 +167,7 @@ Rephrased requirement:
         return rephrased_user_requirement_list
 
     # NOTE 给出之前生成的单步思考, 生成下一步思考
+    # TODO 是否要固定思考方向?
     def generate_ost_step(
         self,
         requirement: str,
@@ -196,8 +198,7 @@ To implement the {func_name} function, we need to follow these steps:
             max_tokens=1024,
             num_return=self.num_a1_steps,
             stop_tokens=[
-                "\n",
-                "\n\n",
+                "\n\n\n",
                 f"Step{next_ost_step_id + 1}",
                 "[Function head and docstring]",
                 "[Function implementation]",
@@ -208,6 +209,29 @@ To implement the {func_name} function, we need to follow these steps:
         ost_step_list = [io_output.strip()[7:] for io_output in io_output_list]
 
         return ost_step_list
+
+    # TODO 问题分解
+    def gene_subquestions(
+        self,
+        requirement: str,
+        solution_trace: Dict[int, Dict[str, str]],
+        func_head: str,
+        test_case: str,
+    ):
+
+        pass
+
+    # TODO 生成测试样例
+    def generate_test_case(self, requirement: str, func_head: str):
+        pass
+
+    # TODO 执行测试样例 获取结果
+    def execute_test_case(self, requirement: str, func_head: str, test_case: str):
+        pass
+
+    # TODO 反思
+    def gene_reflection(self, requirement: str, func_head: str, test_case: str):
+        pass
 
 
 class Reasoning_MCTS_Node(MCTS_Node):

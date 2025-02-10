@@ -72,6 +72,11 @@ def concat_ost_steps(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, in
         return "", 1
 
 
+# TODO concat子问题和答案
+def concat_subqs_subas(solution_trace):
+    pass
+
+
 def concat_solution_trace(
     solution_trace: Dict[int, Dict[str, str]],
     func_name: str,
