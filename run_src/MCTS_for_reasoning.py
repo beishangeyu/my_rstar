@@ -25,10 +25,7 @@ from rstar_utils import (
     stochastic_find_best_solution,
     make_funchead_and_docstring,
 )
-from run_src.prompt import (
-    ost_prompt,
-    rephrase_prompt,
-)
+from prompt import ost_prompt, rephrase_prompt, gene_subq_suba_prompt
 
 
 def verbose_print(s: str, verbose: bool):
@@ -44,8 +41,8 @@ class Generator:
         self.evaluator = evaluator
         # NOTE 默认为3, 在 generate ost step 里生成 3 个回复序列, 每个回复序列生成一个子节点
         self.num_a1_steps = args.num_a1_steps
-        # NOTE 设置生成的 max token
-        self.max_tokens = 1024
+        # 回复的最大长度
+        self.max_tokens = 512
         self.mcts_num_last_votes = args.mcts_num_last_votes  # 默认是 32
 
     # 从output_list中选择出现次数最多的answer和对应的completion
@@ -97,10 +94,10 @@ class Generator:
                 "[Hint]",
                 "[Function implementation]",
             ],
-            # TODO 测试一下生成代码的时候修改一下超参数是否好用
-            top_p=0.9,
+            # XXX 此处超参数参考 RMCbench
+            top_p=0.95,
             top_k=10,
-            temperature=0.75,
+            temperature=0.8,
         )
         cleaned_io_output_list = [
             io_output.strip() for io_output in io_output_list
@@ -167,7 +164,7 @@ Rephrased requirement:
         return rephrased_user_requirement_list
 
     # NOTE 给出之前生成的单步思考, 生成下一步思考
-    # TODO 是否要固定思考方向?
+    # TODO 单步思考需要限制长度, 从已有数据看来, 4或者3以下较好
     def generate_ost_step(
         self,
         requirement: str,
@@ -175,6 +172,8 @@ Rephrased requirement:
         func_head: str,
         test_case: str,
     ):
+        # TODO 如果父是 subquestion 类型 处理逻辑则不同
+        pass
         funchead_and_docstring = make_funchead_and_docstring(
             requirement, func_head, test_case
         )
@@ -210,26 +209,84 @@ To implement the {func_name} function, we need to follow these steps:
 
         return ost_step_list
 
-    # TODO 问题分解
-    def gene_subquestions(
+    # NOTE 一次性生成剩下所有的 cot steps 而不是一步一步来
+    def gene_remain_steps(
         self,
         requirement: str,
         solution_trace: Dict[int, Dict[str, str]],
         func_head: str,
         test_case: str,
     ):
-
+        # TODO 如果父是 subquestion 类型 处理逻辑则不同 prompt 或许也不同
         pass
+        funchead_and_docstring = make_funchead_and_docstring(
+            requirement, func_head, test_case
+        )
+        idx = func_head.find("(")
+        func_name = func_head[4:idx]
+        ost_step_list = []
+        #  也是一步一步提出来的
+        existing_ost_steps, next_ost_step_id = concat_ost_steps(solution_trace)
+        io_input = f"""
+{ost_prompt}
 
-    # TODO 生成测试样例
+[Function haed and docstring]
+{funchead_and_docstring}
+
+[Step to implement]
+To implement the {func_name} function, we need to follow these steps:
+{existing_ost_steps} 
+"""
+        io_output_list = self.io.generate(
+            model_input=io_input,
+            max_tokens=1024,
+            num_return=self.num_a1_steps,
+            # TODO 注意返回的 ost_step_list 存储的逻辑
+            stop_tokens=[
+                "\n\n\n",
+                # f"Step{next_ost_step_id + 1}", # 一次性生成剩下所有的
+                "[Function head and docstring]",
+                "[Function implementation]",
+                "[Step to implement]",
+                "You are a Python assistant.",
+            ],
+        )
+        ost_step_list = [io_output.strip()[7:] for io_output in io_output_list]
+
+        return ost_step_list
+
+    # NOTE 分解问题 回答问题
+    def gene_subquestions(
+        self,
+        requirement: str,
+        solution_trace: Dict[int, Dict[str, str]],
+        gene_remain: bool,
+    ):
+        subq_suba = concat_subqs_subas(solution_trace)
+        input = f"""
+{gene_subq_suba_prompt}
+
+Question: {requirement}
+"""
+        io_output_list = self.io.generate(
+            model_input=input, max_tokens=1024, num_return=1, stop_tokens=[]
+        )
+        # 模仿gpt和deepseek的推理过程, 先一股脑提出问题, 再一个个回答
+        subq_lists = io_output_list[0].strip().split("\n")[1:]  # 第一句不是子问题
+        return subq_lists
+
+    # TODO 一个一个回答子问题
+
+    # TODO 反思
+    # 生成测试样例
     def generate_test_case(self, requirement: str, func_head: str):
         pass
 
-    # TODO 执行测试样例 获取结果
+    # 执行测试样例 获取结果
     def execute_test_case(self, requirement: str, func_head: str, test_case: str):
         pass
 
-    # TODO 反思
+    # 输入测试样例执行结果, 让模型反思
     def gene_reflection(self, requirement: str, func_head: str, test_case: str):
         pass
 
@@ -304,6 +361,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 self.ost_step_counter = parent.ost_step_counter
 
         # NOTE 更新推理路径
+        # TODO 看一下原来代码中 ost step 如何处理 subq
         if parent is None:
             # 0 表示当前这是第 0 个 subquestion
             self.solution_trace: Dict[int, Dict[str, str]] = {
