@@ -22,58 +22,6 @@ Step4: Iterate Through the List of Tuples. For each tuple in the list, calculate
 Step5: Update the Maximum Aggregate. Compare the current aggregate with the stored maximum, and update it if the current aggregate is greater.
 Step6: Return the Maximum Aggregate. After iterating through all tuples, return the maximum aggregate value.
 Step7: Implement the function
-
-[Function implementation]
-def max_aggregate(stdata):
-    '''
-    Write a function to calculate the maximum aggregate from the list of tuples.
-    for example:
-    max_aggregate([('Juan Whelan',90),('Sabah Colley',88),('Peter Nichols',7),('Juan Whelan',122),('Sabah Colley',84)])==('Juan Whelan', 212)
-    '''
-    max_agg = float('-inf')  # Start with the smallest possible value
-    
-    for data in stdata:
-        # Calculate the aggregate for the current tuple (e.g., sum)
-        current_agg = sum(data)  # Change this if another aggregation is needed
-        
-        # Update max_agg if the current aggregate is greater
-        if current_agg > max_agg:
-            max_agg = current_agg
-            
-    return max_agg
-    
-[Function head and docstring]
-def find_Odd_Pair(A,N):
-    '''
-    Write a python function to count the pairs with xor as an odd number.
-    '''
-
-[Step to implement]
-To implement the find_Odd_Pair function, we can follow these steps:
-Step1: Understand the Input. The function takes a list A and an integer N, where N is the number of elements in the list A.
-Step2: Understand XOR Properties. The XOR of two numbers is odd if and only if one number is odd and the other is even. Therefore, we need to count how many odd and even numbers are present in the list.
-Step3: Count Odd and Even Numbers. Initialize two counters: one for odd numbers and one for even numbers. Iterate through the list to populate these counters.
-Step4: Calculate Pairs. The number of valid pairs (one odd, one even) can be calculated by multiplying the count of odd numbers by the count of even numbers.
-Step5: Return the Count. Finally, return the total count of such pairs.
-Step6: Implement the function
-
-[Function implementation]
-def find_Odd_Pair(A, N):
-    '''
-    Write a python function to count the pairs with xor as an odd number.
-    '''
-    odd_count = 0
-    even_count = 0
-    
-    # Count odd and even numbers
-    for num in A:
-        if num % 2 == 0:
-            even_count += 1
-        else:
-            odd_count += 1
-            
-    # The number of odd pairs is the product of odd_count and even_count
-    return odd_count * even_count
 """
 
 

@@ -75,12 +75,35 @@ class Generator:
             requirement, func_head, test_case
         )
         io_input = f"""
-        You are a Python assistant. Implement a Python function based on the given function head, docstring, and hint.
+As a Python expert, generate only the function implementation code based strictly on the provided signature, docstring and hints, without any explanations, tests or additional text.    
+
+[Function head and docstring]
+def find_Odd_Pair(A,N):
+    '''
+    Write a python function to count the pairs with xor as an odd number.
+    '''
+
+[Hints]
+Understand the Input. The function takes a list A and an integer N, where N is the number of elements in the list A.
+Understand XOR Properties. The XOR of two numbers is odd if and only if one number is odd and the other is even. Therefore, we need to count how many odd and even numbers are present in the list.
+Count Odd and Even Numbers. Initialize two counters: one for odd numbers and one for even numbers. Iterate through the list to populate these counters.
+Calculate Pairs. The number of valid pairs (one odd, one even) can be calculated by multiplying the count of odd numbers by the count of even numbers.
+Return the Count. Finally, return the total count of such pairs.
+Implement the function
+
+[Function implementation]
+def find_Odd_Pair(A, N):
+    count = 0
+    for i in range(N):
+        for j in range(i + 1, N):
+            if (A[i] ^ A[j]) % 2 != 0:
+                count += 1
+    return count
 
 [Function head and docstring]
 {funchead_and_docstring}
 
-[Hint]
+[Hints]
 {hint}
 
 [Function implementation]
