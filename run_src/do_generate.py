@@ -58,6 +58,12 @@ if __name__ == "__main__":
     parser = get_parser()
 
     parser.add_argument("--num_rollouts", type=int, default=15)
+    # 每次会生成几个subq类型的子节点
+    parser.add_argument(
+        "--num_subquestions",
+        type=int,
+        default=3,
+    )
     parser.add_argument("--max_depth_allowed", type=int, default=11)
 
     # MCTS
@@ -68,12 +74,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mcts_weight_scheduler", choices=["exp", "lin", "const"], default="const"
     )
-    # NOTE 在 generate direct answer 的时候模型生成的序列个数
+    # 在 generate direct answer 的时候模型生成的序列个数
     parser.add_argument("--mcts_num_last_votes", type=int, default=32)
     parser.add_argument("--save_tree", action="store_true")
-    # NOTE 采用一次action1生成的子节点数量
+    # 每次会生成几个ost类型子节点
     parser.add_argument("--num_a1_steps", type=int, default=3)
-    # NOTE 这是第几个结果
+    # 这是第几个结果
     parser.add_argument("--result_iteration", type=int, required=True)
 
     args = parser.parse_args()

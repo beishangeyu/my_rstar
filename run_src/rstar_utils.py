@@ -17,10 +17,7 @@ class Node_Type(Enum):
     REPHRASED_USER_QUESTION = "REPHRASED_USER_QUESTION"
     DIRECT_ANSWER = "DIRECT_ANSWER"
     OST_STEP = "OST_STEP"
-    # TODO 分解问题, 一次性分解出多个子问题
-    DECOMPOSE = "DECOMPOSE"
-    # TODO 回答子问题, 一个一个回答
-    ANSWER_SUBQUESTION = "ANSWER_SUBQUESTION"
+    SUBQUESTION = "SUBQUESTION"
 
 
 def get_nodetype(Reasoning_MCTS_Node):
@@ -34,6 +31,8 @@ def get_nodetype(Reasoning_MCTS_Node):
         return "OST_STEP"
     elif Reasoning_MCTS_Node.node_type is Node_Type.DIRECT_ANSWER:
         return "DIRECT_ANSWER"
+    elif Reasoning_MCTS_Node.node_type is Node_Type.SUBQUESTION:
+        return "SUBQUESTION"
 
 
 class GeneratorError(Exception):
@@ -43,21 +42,6 @@ class GeneratorError(Exception):
         self.source = source
         self.io_input = io_input
         self.io_output_list = io_output_list
-
-
-def split_user_question(user_question: str):
-    user_question = user_question.strip().rstrip(".")
-    last_period_id = user_question.rfind(".")
-    assert last_period_id < len(user_question) - 1
-    user_question_context = user_question[: last_period_id + 1].strip()
-    user_question_problem = user_question[last_period_id + 1 :].strip()
-    return user_question_context, user_question_problem
-
-
-def reach_terminal_ost_step(ost_step: str):
-    assert ost_step is not None
-
-    return "answer is" in ost_step.lower()
 
 
 def concat_ost_steps(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, int]:
@@ -77,7 +61,15 @@ def concat_ost_steps(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, in
 
 
 # TODO concat子问题和答案
-def concat_subqs_subas(solution_trace):
+def concat_subqs_subas(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, int]:
+    # solution trace 的 int 表示子问题的 id
+    subq_tuple = list(solution_trace.items())
+    # subq的id
+    subq_ids = [subq[0] for subq in subq_tuple]
+    # subq的内容
+    subq_list = [subq[1] for subq in subq_tuple]
+    # concat起来, 注意处理空的情况
+    # TODO 这里等确定好格式再来
     pass
 
 
@@ -165,6 +157,8 @@ def mask_solution_trace(
 
 
 # NOTE 把solution trace结合成hint
+# TODO 加入处理 subq 的逻辑, 看的是父节点的node type
+# TODO 按原来版本, 如果父结点是subq就只管subq, 如果是ost就只管ost, 没有混合使用
 def make_hint(
     solution_trace: Dict[int, Dict[str, str]],  # 只有第一个dict是有用的
     node_type: Node_Type,

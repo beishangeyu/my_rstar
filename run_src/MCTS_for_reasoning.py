@@ -25,7 +25,12 @@ from rstar_utils import (
     stochastic_find_best_solution,
     make_funchead_and_docstring,
 )
-from prompt import ost_prompt, rephrase_prompt, gene_subq_suba_prompt
+from prompt import (
+    ost_prompt,
+    rephrase_prompt,
+    gene_subq_suba_prompt,
+    direct_answer_prompt,
+)
 
 
 def verbose_print(s: str, verbose: bool):
@@ -39,8 +44,9 @@ class Generator:
     def __init__(self, args, tokenizer, model, evaluator: Evaluator) -> None:
         self.io = IO_System(args, tokenizer, model)
         self.evaluator = evaluator
-        # NOTE 默认为3, 在 generate ost step 里生成 3 个回复序列, 每个回复序列生成一个子节点
-        self.num_a1_steps = args.num_a1_steps
+        self.num_a1_steps = args.num_a1_steps  # 默认为3
+        # TODO 生成subq的逻辑要改
+        self.num_subquestions = args.num_subquestions  # 默认是3
         # 回复的最大长度
         self.max_tokens = 512
         self.mcts_num_last_votes = args.mcts_num_last_votes  # 默认是 32
@@ -60,7 +66,7 @@ class Generator:
 
         return most_confident_answer_full_completion, confidence
 
-    # NOTE 生成 impl.
+    # 生成 impl.
     def _generate_impl(
         self,
         requirement: str,
@@ -73,51 +79,21 @@ class Generator:
             requirement, func_head, test_case
         )
         io_input = f"""
-As a Python expert, generate only the function implementation code based strictly on the provided signature, docstring and hints, without any explanations, tests or additional text.    
+{direct_answer_prompt}
 
-[Function signature and docstring]
-def find_Odd_Pair(A,N):
-    '''
-    Write a python function to count the pairs with xor as an odd number.
-    '''
-
-[Hints]
-Understand the Input. The function takes a list A and an integer N, where N is the number of elements in the list A.
-Understand XOR Properties. The XOR of two numbers is odd if and only if one number is odd and the other is even. Therefore, we need to count how many odd and even numbers are present in the list.
-Count Odd and Even Numbers. Initialize two counters: one for odd numbers and one for even numbers. Iterate through the list to populate these counters.
-Calculate Pairs. The number of valid pairs (one odd, one even) can be calculated by multiplying the count of odd numbers by the count of even numbers.
-Return the Count. Finally, return the total count of such pairs.
-Implement the function
-
-[Function implementation]
-def find_Odd_Pair(A, N):
-    count = 0
-    for i in range(N):
-        for j in range(i + 1, N):
-            if (A[i] ^ A[j]) % 2 != 0:
-                count += 1
-    return count
-
-[Function signature and docstring]
+### Function signature and docstring
 {funchead_and_docstring}
 
-[Hint]
+### Hints
 {hint}
 
-[Function implementation]
+### Function implementation
 """
         io_output_list = self.io.generate(
             model_input=io_input,
             num_return=num_return,
             max_tokens=self.max_tokens,
-            stop_tokens=[
-                "[Function signature and docstring]",
-                "You are a Python assistant",
-                "[Hints]",
-                "[Function implementation]",
-                "[Test cases]",
-                "[Test Cases]",
-            ],
+            stop_tokens=["###", "As a Python expert", "\n\n\n"],
             # XXX 此处超参数参考 RMCbench
             top_p=0.95,
             top_k=10,
@@ -128,7 +104,7 @@ def find_Odd_Pair(A, N):
         ]  #! cleaning
         return io_input, cleaned_io_output_list
 
-    # NOTE 直接生成答案, value=出现次数最多的答案次数/总次数
+    # 直接生成答案, value=出现次数最多的答案次数/总次数
     def generate_direct_answers(
         self,
         user_requirement: str,
@@ -163,7 +139,7 @@ def find_Odd_Pair(A, N):
 
         return direct_answer_list, value_list
 
-    # NOTE 重述 docstring
+    # 重述 docstring
     def generate_rephrased_requirement(self, user_requirement: str):
         rephrased_user_requirement_list = []
         io_input = f"""
@@ -180,6 +156,7 @@ Rephrased requirement:
             stop_tokens=[
                 "\n\n\n",
                 "Original requirement:",
+                "Original requirement"
                 "You are an AI assistant to help me rephrase the requirement.",
             ],
         )[0]
@@ -187,8 +164,8 @@ Rephrased requirement:
 
         return rephrased_user_requirement_list
 
-    # NOTE 给出之前生成的单步思考, 生成下一步思考
-    # TODO 单步思考需要限制长度, 从已有数据看来, 4或者3以下较好
+    # 给出之前生成的单步思考, 生成下一步思考
+    # TODO 单步思考需要限制长度, 从已有数据看来, 4或者3以下较好. 但是先把subq加上 限制长度的先别
     def generate_ost_step(
         self,
         requirement: str,
@@ -196,8 +173,6 @@ Rephrased requirement:
         func_head: str,
         test_case: str,
     ):
-        # TODO 如果父是 subquestion 类型 处理逻辑则不同
-        pass
         funchead_and_docstring = make_funchead_and_docstring(
             requirement, func_head, test_case
         )
@@ -209,10 +184,10 @@ Rephrased requirement:
         io_input = f"""
 {ost_prompt}
 
-[Function signature and docstring]
+### Function signature and docstring
 {funchead_and_docstring}
 
-[Step to implement]
+### Step to implement
 To implement the {func_name} function, we need to follow these steps:
 {existing_ost_steps} 
 """
@@ -221,11 +196,10 @@ To implement the {func_name} function, we need to follow these steps:
             max_tokens=1024,
             num_return=self.num_a1_steps,
             stop_tokens=[
-                "\n\n\n",
+                "###",
+                "\n",
+                "\n\n",
                 f"Step{next_ost_step_id + 1}",
-                "[Function signature and docstring]",
-                "[Function implementation]",
-                "[Step to implement]",
                 "You are a Python assistant.",
             ],
         )
@@ -233,7 +207,7 @@ To implement the {func_name} function, we need to follow these steps:
 
         return ost_step_list
 
-    # NOTE 一次性生成剩下所有的 cot steps 而不是一步一步来
+    # 一次性生成剩下所有的 cot steps 而不是一步一步来
     def gene_remain_steps(
         self,
         requirement: str,
@@ -241,8 +215,6 @@ To implement the {func_name} function, we need to follow these steps:
         func_head: str,
         test_case: str,
     ):
-        # TODO 如果父是 subquestion 类型 处理逻辑则不同 prompt 或许也不同
-        pass
         funchead_and_docstring = make_funchead_and_docstring(
             requirement, func_head, test_case
         )
@@ -254,10 +226,10 @@ To implement the {func_name} function, we need to follow these steps:
         io_input = f"""
 {ost_prompt}
 
-[Function signature and docstring]
+### Function signature and docstring
 {funchead_and_docstring}
 
-[Step to implement]
+### Step to implement
 To implement the {func_name} function, we need to follow these steps:
 {existing_ost_steps} 
 """
@@ -268,10 +240,7 @@ To implement the {func_name} function, we need to follow these steps:
             # TODO 注意返回的 ost_step_list 存储的逻辑
             stop_tokens=[
                 "\n\n\n",
-                # f"Step{next_ost_step_id + 1}", # 一次性生成剩下所有的
-                "[Function signature and docstring]",
-                "[Function implementation]",
-                "[Step to implement]",
+                "###",
                 "You are a Python assistant.",
             ],
         )
@@ -279,27 +248,66 @@ To implement the {func_name} function, we need to follow these steps:
 
         return ost_step_list
 
-    # NOTE 分解问题 回答问题
+    # TODO 一次性生成剩下的subq
+    def gene_remian_subquestions(
+        self,
+        requirement: str,
+        solution_trace: Dict[int, Dict[str, str]],
+        func_head: str,
+        test_case: str,
+    ):
+        pass
+
+    # 分解问题 回答问题
     def gene_subquestions(
         self,
         requirement: str,
         solution_trace: Dict[int, Dict[str, str]],
-        gene_remain: bool,
-    ):
-        subq_suba = concat_subqs_subas(solution_trace)
-        input = f"""
+    ) -> Tuple[List[str], List[str]]:
+        exit_subq_suba = concat_subqs_subas(solution_trace)
+        exit_subq_len = len(exit_subq_suba) / 2  # 已有的subq个数
+        io_input = f"""
 {gene_subq_suba_prompt}
 
 Question: {requirement}
+Break it down into sub-questions:
+{exit_subq_suba}
 """
+        # 生成子问题
         io_output_list = self.io.generate(
-            model_input=input, max_tokens=1024, num_return=1, stop_tokens=[]
+            model_input=io_input,
+            max_tokens=512,
+            num_return=self.num_subquestions,
+            stop_tokens=[
+                "\n\n",
+                f"Answer to sub-question{exit_subq_len+1}:",
+                f"Sub-question{exit_subq_len+2}:",
+                "Question:",
+                "Question",
+            ],
         )
-        # 模仿gpt和deepseek的推理过程, 先一股脑提出问题, 再一个个回答
-        subq_lists = io_output_list[0].strip().split("\n")[1:]  # 第一句不是子问题
-        return subq_lists
-
-    # TODO 一个一个回答子问题
+        subq_list = [io_output.strip() for io_output in io_output_list]
+        suba_list = []
+        gen_suba_input = [f"{io_input.strip()}\n{subq}" for subq in subq_list]
+        # 回答子问题
+        io_output_list = self.io.generate(
+            # WARNING 当input是list时, 返回是 input个数(subq个数) * num_return
+            model_input=gen_suba_input,
+            max_tokens=512,
+            num_return=1,
+            stop_tokens=[
+                "\n\n",
+                f"Sub-question{exit_subq_len+2}:",
+                f"Answer to sub-question{exit_subq_len+2}:",
+                "Question:",
+                "Question",
+            ],
+        )
+        suba_list = [io_output[0].strip() for io_output in io_output_list]
+        assert len(subq_list) == len(
+            suba_list
+        ), "In Generator.gene_subquestions(), num_subq shouble be equal to num_suba"
+        return subq_list, suba_list
 
     # TODO 反思
     # 生成测试样例
@@ -332,6 +340,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
         rephrased_requirement: str = None,  # rephrase后的要求
         direct_answer: str = None,
         ost_step: str = None,
+        subq_suba_list: List[Tuple[str, str]] = None,
     ) -> None:
         super().__init__()
 
@@ -363,10 +372,10 @@ class Reasoning_MCTS_Node(MCTS_Node):
             self.task = parent.task
             self.task_id = parent.task_id
 
+        # 是否重述过用户需求
         if node_type is Node_Type.USER_QUESTION:
             self.paraphrased = False
         elif node_type is Node_Type.REPHRASED_USER_QUESTION:
-            # 是否重述过用户需求
             self.paraphrased = True
             self.user_requirement = rephrased_requirement
         else:
@@ -384,8 +393,13 @@ class Reasoning_MCTS_Node(MCTS_Node):
             else:
                 self.ost_step_counter = parent.ost_step_counter
 
-        # NOTE 更新推理路径
-        # TODO 看一下原来代码中 ost step 如何处理 subq
+        # 记录 subq 个数, 对于 subq 类型结点, 个数在添加到trace时增加
+        if parent is None:
+            self.subq_counter = 0
+        else:
+            self.subq_counter = parent.subq_counter
+
+        # 更新推理路径
         if parent is None:
             # 0 表示当前这是第 0 个 subquestion
             self.solution_trace: Dict[int, Dict[str, str]] = {
@@ -395,8 +409,16 @@ class Reasoning_MCTS_Node(MCTS_Node):
             self.solution_trace = deepcopy(parent.solution_trace)
             if node_type is Node_Type.REPHRASED_USER_QUESTION:
                 self.solution_trace[0]["user_requirement"] = rephrased_requirement
+            elif node_type is Node_Type.SUBQUESTION:
+                for subq, suba in subq_suba_list:
+                    self.subq_counter += 1
+                    self.solution_trace[self.subq_counter] = {
+                        "subquestion": subq,
+                        "subanswer": suba,
+                    }
             elif node_type is Node_Type.OST_STEP:
                 # solution_trace[0]["ost_step"] 也是一个 dict, key 是思考的步数
+                # TODO 目前ost不应用于subq, 所以下标固定为0
                 self.solution_trace[0]["ost_step"][self.ost_step_counter] = ost_step
             elif node_type is Node_Type.DIRECT_ANSWER:
                 self.solution_trace[0]["direct_answer"] = {
@@ -406,7 +428,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
             pass
 
     def _create_children(self):
-        # NOTE 直接生成答案
+        # 直接生成答案
         def do_action_generate_direct_answers():
             verbose_print(
                 f"---- Generating direct answers for node {self.id}...", self.verbose
@@ -441,7 +463,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
                     )
                 )
 
-        # NOTE 重述用户的需求
+        # 重述用户的需求
         def do_action_generate_rephrased_user_requirement():
             verbose_print(
                 f"---- Generating rephrased user question for node {self.id}...",
@@ -464,7 +486,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
                     )
                 )
 
-        # NOTE 生成单步思考
+        # 生成单步思考
         def do_action_generate_ost_step():
             verbose_print(
                 f"---- Generating one-step thought steps for node {self.id}...",
@@ -492,22 +514,57 @@ class Reasoning_MCTS_Node(MCTS_Node):
                         )
                     )
 
-        # create children
-        # NOTE 规定了每种类型的节点可以创造什么类型的子节点
+        # TODO 生成子问题
+        def do_action_generate_subquestions():
+            verbose_print(
+                f"---- Generating subquestions for node {self.id}...", self.verbose
+            )
+            # subq_lis=[subq1, subq2, ...], suba_list=[suba1, suba2, ...]
+            # 每个subq之间是并行关系, 并非承接
+            subq_list, suba_list = self.generator.gene_subquestions(
+                requirement=self.user_requirement,
+                solution_trace=self.solution_trace,
+                gene_remain=False,
+            )
+            # 每个元素代表一个新的节点
+            subq_suba_list = [(subq, suba) for subq, suba in zip(subq_list, suba_list)]
+            for subq_suba in subq_suba_list:
+                self.children.append(
+                    Reasoning_MCTS_Node(
+                        parent=self,
+                        depth=self.depth + 1,
+                        node_type=Node_Type.SUBQUESTION,
+                        subq_suba_list=[subq_suba_list],
+                    )
+                )
+
+        # 规定了每种类型的节点可以创造什么类型的子节点
         if self.node_type is Node_Type.USER_QUESTION:
-            do_action_generate_ost_step()
-            do_action_generate_direct_answers()
             do_action_generate_rephrased_user_requirement()
-        elif self.node_type is Node_Type.REPHRASED_USER_QUESTION:
-            do_action_generate_ost_step()
             do_action_generate_direct_answers()
+            do_action_generate_ost_step()
+            do_action_generate_subquestions()
+        elif self.node_type is Node_Type.REPHRASED_USER_QUESTION:
+            # ost和subq在一条路径上只会出现一种
+            do_action_generate_direct_answers()
+            if self.parent.node_type is not Node_Type.OST_STEP:
+                do_action_generate_subquestions()
+            if self.parent.node_type is not Node_Type.SUBQUESTION:
+                do_action_generate_ost_step()
         elif self.node_type is Node_Type.DIRECT_ANSWER:
             raise ValueError("DIRECT_ANSWER node cannot create children!!")
         elif self.node_type is Node_Type.OST_STEP:
-            do_action_generate_ost_step()
+            # 同一条路径上只会rephrase一次
+            if not self.paraphrased:
+                do_action_generate_rephrased_user_requirement()
             do_action_generate_direct_answers()
-            do_action_generate_rephrased_user_requirement()
-
+            do_action_generate_ost_step()
+        elif self.node_type is Node_Type.SUBQUESTION:
+            # 同一条路径上只会rephrase一次
+            if not self.paraphrased:
+                do_action_generate_rephrased_user_requirement()
+            do_action_generate_direct_answers()
+            do_action_generate_subquestions()
         assert self.children
         return self.children
 
@@ -590,7 +647,7 @@ def search_for_answers(
         model_solutions.append(best_solution)
         model_all_solutions.append(all_solutions)
 
-    # NOTE 记录最终整个树里所有的 solution
+    # 记录最终整个树里所有的 solution
     path1 = os.path.join(args.gene_result, f"Task_id_{task_id}_all_solutions.jsonl")
     all_solution_nodes_ = [
         {
