@@ -94,26 +94,24 @@ Rephrased requirement:
 Write a Python function using map to count the number of matching pairs in two given lists.
 """
 
-# 生成子问题
-gene_subq_prompt = """
-Given a question, please decompose it into sub-questions.
+# 分解问题 回答子问题
+gene_subq_suba_prompt = """
+I will provide a main question. Please break it down into several sub-questions and answer each sub-question one by one in the order, without skipping any.
 
 Question: Write a function to sort a given matrix in ascending order according to the sum of its rows.
 Break it down into sub-questions:
-1. Understand the Problem and Input Format. What is the input to the function? (e.g., a matrix represented as a list of lists) What is the input to the function? (e.g., a matrix represented as a list of lists) What is the expected output? (e.g., a sorted matrix based on the sum of its rows) Are there any constraints on the matrix size or values?  
-2. Calculate the Sum of Each Row. How do you calculate the sum of elements in a single row of the matrix? How can you compute the sum for all rows in the matrix?  
-3. Sort the Matrix Based on Row Sums. How do you associate each row with its sum? How can you sort the rows of the matrix in ascending order based on their sums?
-4. Define the Function. How do you structure the function in Python? What parameters does the function take? What should the function return?  
-
-Question: Write a python function to check whether the first and last characters of a given string are equal or not.
-Break it down sub-questions:
-1.Understand the Problem and Input Format. What is the input to the function? (e.g., a string). What is the expected output? (e.g., a boolean value indicating whether the first and last characters are equal)
-2.Access the First and Last Characters of the String. How can you retrieve the first character of the string?. How can you retrieve the last character of the string?
-3.Compare the First and Last Characters. How do you compare two characters in Python? What should the function return if they are equal? What should it return if they are not equal?
-4.Define the Function. How do you structure the function in Python? What parameters does the function take? What should the function return?
+sub-question1: Understand the Problem and Input Format. What is the input to the function? (e.g., a matrix represented as a list of lists) What is the input to the function? (e.g., a matrix represented as a list of lists) What is the expected output? (e.g., a sorted matrix based on the sum of its rows) Are there any constraints on the matrix size or values?  
+Answer to sub-question1: The input is a matrix represented as a list of lists. The output is the same matrix, but sorted by the sum of each row in ascending order. There are no specific size constraints, but the matrix typically has rows of the same length.
+sub-question2: Calculate the Sum of Each Row. How do you calculate the sum of elements in a single row of the matrix? How can you compute the sum for all rows in the matrix?  
+Answer to sub-question2: To calculate the sum of each row, use Python's sum() function. To get the sum for all rows, iterate through the matrix and apply sum() to each row.
+sub-question3: Sort the Matrix Based on Row Sums. How do you associate each row with its sum? How can you sort the rows of the matrix in ascending order based on their sums?
+Answer to sub-question3: Pair each row with its sum. Use Python's sorted() function to sort these pairs based on the row sum. Once sorted, extract the rows back into a new matrix.
+sub-question4: Define the Function. How do you structure the function in Python? What parameters does the function take? What should the function return?  
+Answer to sub-question4: The function should take the matrix as input, compute row sums, sort the rows by sum, and return the sorted matrix.
 """
 
 # 一个个回答子问题
+# 暂时不需要
 gen_suba_prompt = """
 I will provide a main question and break it down into several sub-questions. Please answer each sub-question one by one in the order, without skipping any.
 
@@ -128,7 +126,6 @@ Answer to sub-question1: Understand the Problem. The input is a matrix represent
 Answer to sub-question2: Calculate Row Sums. To calculate the sum of each row, use Python's sum() function. To get the sum for all rows, iterate through the matrix and apply sum() to each row.
 Answer to sub-question3: Sort the Matrix. Pair each row with its sum. Use Python's sorted() function to sort these pairs based on the row sum. Once sorted, extract the rows back into a new matrix.
 Answer to sub-question4: Define the Function. The function should take the matrix as input, compute row sums, sort the rows by sum, and return the sorted matrix.
-
 """
 # 对 prompt 进行测试
 if __name__ == "__main__":
