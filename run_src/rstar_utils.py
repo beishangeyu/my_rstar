@@ -17,6 +17,10 @@ class Node_Type(Enum):
     REPHRASED_USER_QUESTION = "REPHRASED_USER_QUESTION"
     DIRECT_ANSWER = "DIRECT_ANSWER"
     OST_STEP = "OST_STEP"
+    # TODO 分解问题, 一次性分解出多个子问题
+    DECOMPOSE = "DECOMPOSE"
+    # TODO 回答子问题, 一个一个回答
+    ANSWER_SUBQUESTION = "ANSWER_SUBQUESTION"
 
 
 def get_nodetype(Reasoning_MCTS_Node):
