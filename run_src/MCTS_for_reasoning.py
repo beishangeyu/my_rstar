@@ -77,13 +77,13 @@ class Generator:
         io_input = f"""
 As a Python expert, generate only the function implementation code based strictly on the provided signature, docstring and hints, without any explanations, tests or additional text.    
 
-[Function head and docstring]
+### Function head and docstring
 def find_Odd_Pair(A,N):
     '''
     Write a python function to count the pairs with xor as an odd number.
     '''
 
-[Hints]
+### Hints
 Understand the Input. The function takes a list A and an integer N, where N is the number of elements in the list A.
 Understand XOR Properties. The XOR of two numbers is odd if and only if one number is odd and the other is even. Therefore, we need to count how many odd and even numbers are present in the list.
 Count Odd and Even Numbers. Initialize two counters: one for odd numbers and one for even numbers. Iterate through the list to populate these counters.
@@ -91,7 +91,7 @@ Calculate Pairs. The number of valid pairs (one odd, one even) can be calculated
 Return the Count. Finally, return the total count of such pairs.
 Implement the function
 
-[Function implementation]
+### Function implementation
 def find_Odd_Pair(A, N):
     count = 0
     for i in range(N):
@@ -100,25 +100,19 @@ def find_Odd_Pair(A, N):
                 count += 1
     return count
 
-[Function head and docstring]
+### Function head and docstring
 {funchead_and_docstring}
 
-[Hints]
+### Hints
 {hint}
 
-[Function implementation]
+### Function implementation
 """
         io_output_list = self.io.generate(
             model_input=io_input,
             num_return=num_return,
             max_tokens=self.max_tokens,
-            stop_tokens=[
-                "[Function head and docstring]",
-                "You are a Python assistant",
-                "[Function head and docstring]",
-                "[Hint]",
-                "[Function implementation]",
-            ],
+            stop_tokens=["###", "As a Python expert", "\n\n\n"],
             # TODO 测试一下生成代码的时候修改一下超参数是否好用
             top_p=0.9,
             top_k=10,
@@ -207,10 +201,10 @@ Rephrased requirement:
         io_input = f"""
 {ost_prompt}
 
-[Function haed and docstring]
+### Function haed and docstring
 {funchead_and_docstring}
 
-[Step to implement]
+### Step to implement
 To implement the {func_name} function, we need to follow these steps:
 {existing_ost_steps} 
 """
@@ -219,13 +213,11 @@ To implement the {func_name} function, we need to follow these steps:
             max_tokens=1024,
             num_return=self.num_a1_steps,
             stop_tokens=[
+                "###",
+                f"Step{next_ost_step_id + 1}",
+                "You are a Python assistant.",
                 "\n",
                 "\n\n",
-                f"Step{next_ost_step_id + 1}",
-                "[Function head and docstring]",
-                "[Function implementation]",
-                "[Step to implement]",
-                "You are a Python assistant.",
             ],
         )
         ost_step_list = [io_output.strip()[7:] for io_output in io_output_list]

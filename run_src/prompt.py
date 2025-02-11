@@ -5,7 +5,7 @@
 ost_prompt = """
 You are a Python assistant. You are given function head and its docstring. Provide the full implementation of the following function.
 
-[Function haed and docstring]
+### Function haed and docstring
 def max_aggregate(stdata):
     '''
     Write a function to calculate the maximum aggregate from the list of tuples.
@@ -13,7 +13,7 @@ def max_aggregate(stdata):
     max_aggregate([('Juan Whelan',90),('Sabah Colley',88),('Peter Nichols',7),('Juan Whelan',122),('Sabah Colley',84)])==('Juan Whelan', 212)
     '''
     
-[Step to implement]
+### Step to implement
 To implement the max_aggregate function, we need to follow these steps:
 Step1: Understand the Input. The function takes a list of tuples (stdata). Each tuple represents a set of data points (e.g., scores, measurements).
 Step2: Define the Aggregate Calculation. Determine how to calculate the "aggregate" from each tuple. This could mean summing the values in the tuple, finding the maximum value, or some other form of aggregation.
