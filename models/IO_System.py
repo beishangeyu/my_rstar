@@ -45,7 +45,7 @@ class IO_System:
         top_p: float = None,
         top_k: float = None,
         temperature: float = None,
-    ):
+    ) -> List[str]:
         top_p = top_p if top_p is not None else self.top_p
         top_k = top_k if top_k is not None else self.top_k
         temperature = temperature if temperature is not None else self.temperature
@@ -66,25 +66,6 @@ class IO_System:
                 self.token_counter += sum(
                     [len(o.token_ids) for o in vllm_response[0].outputs]
                 )
-            elif self.api == "gpt3.5-turbo":
-                gpt_response = generate_n_with_OpenAI_model(
-                    prompt=model_input,
-                    n=num_return,
-                    model_ckpt=self.model,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    top_p=top_p,
-                    top_k=top_k,
-                    stop=["\n", "Answer"],
-                )
-                io_output_list = gpt_response
-                self.call_counter += num_return
-                self.token_counter += 0
-            elif self.api == "debug":
-                io_output_list = [
-                    "Debug: The answer is generated with debug mode, 233."
-                    for _ in range(num_return)
-                ]
             else:
                 raise NotImplementedError(f"API {self.api} is not implemented.")
         elif isinstance(model_input, list):
@@ -110,30 +91,6 @@ class IO_System:
                         for resp_to_single_input in vllm_response
                     ]
                 )
-            elif self.api == "gpt3.5-turbo":
-                io_output_list = []
-                for input in model_input:
-                    gpt_response = generate_n_with_OpenAI_model(
-                        prompt=input,
-                        n=num_return,
-                        model_ckpt=self.model,
-                        max_tokens=max_tokens,
-                        temperature=temperature,
-                        top_p=top_p,
-                        top_k=top_k,
-                        stop=["\n", "Answer"],
-                    )
-                    io_output_list.append(gpt_response)
-                    self.call_counter += num_return
-                    self.token_counter += 0
-            elif self.api == "debug":
-                io_output_list = [
-                    [
-                        "Debug: The answer is generated with debug mode, 233."
-                        for _ in range(num_return)
-                    ]
-                    for _ in model_input
-                ]
             else:
                 raise NotImplementedError(f"API {self.api} is not implemented.")
 
