@@ -1,5 +1,4 @@
-direct_answer_prompt = """
-As a Python expert, generate only the function implementation code based strictly on the provided signature, docstring and hints, without any explanations, tests or additional text.    
+direct_answer_prompt = """As a Python expert, generate only the function implementation code based strictly on the provided signature, docstring and hints, without any explanations, tests or additional text.    
 
 ### Function signature and docstring
 def find_Odd_Pair(A,N):
@@ -27,8 +26,7 @@ def find_Odd_Pair(A, N):
 
 
 # 提出单步思考
-ost_prompt = """
-You are a Python assistant. You are given function signature and docstring. Provide the full implementation of the following function.
+ost_prompt = """You are a Python assistant. You are given function signature and docstring. Provide the full implementation of the following function.
     
 ### Function signature and docstring
 def find_Odd_Pair(A,N):
@@ -48,8 +46,7 @@ Step6: Implement the function
 
 
 # 重述用户的要求
-rephrase_prompt = """
-You are an AI assistant to help me rephrase the requirement.
+rephrase_prompt = """You are an AI assistant to help me rephrase the requirement.
 
 Original requirement:
 Write a python function to check whether the first and last characters of a given string are equal or not.
@@ -68,8 +65,7 @@ Write a Python function using map to count the number of matching pairs in two g
 """
 
 # 分解问题 回答子问题
-gene_subq_suba_prompt = """
-I will provide a main question. Please break it down into several sub-questions and answer each sub-question one by one in the order, without skipping any.
+gene_subq_suba_prompt = """I will provide a main question. Please break it down into several sub-questions and answer each sub-question one by one in the order, without skipping any.
 
 Question: Write a Python function to count the number of vowels in a given string.
 Break it down into sub-questions:
@@ -83,23 +79,6 @@ Sub-question4: What edge cases should be considered?
 Answer to sub-question4: Empty strings, strings with no vowels, strings with mixed characters (letters, symbols, numbers), and strings containing uppercase vowels (e.g., "AEIOU").
 """
 
-# 一个个回答子问题
-# 暂时不需要
-gen_suba_prompt = """
-I will provide a main question and break it down into several sub-questions. Please answer each sub-question one by one in the order, without skipping any.
-
-Question: Write a function to sort a given matrix in ascending order according to the sum of its rows.
-Break it down into sub-questions:
-sub-question1. Understand the Problem and Input Format. What is the input to the function? (e.g., a matrix represented as a list of lists) What is the input to the function? (e.g., a matrix represented as a list of lists) What is the expected output? (e.g., a sorted matrix based on the sum of its rows) Are there any constraints on the matrix size or values?  
-sub-question2. Calculate the Sum of Each Row. How do you calculate the sum of elements in a single row of the matrix? How can you compute the sum for all rows in the matrix?  
-sub-question3. Sort the Matrix Based on Row Sums. How do you associate each row with its sum? How can you sort the rows of the matrix in ascending order based on their sums?
-sub-question4. Define the Function. How do you structure the function in Python? What parameters does the function take? What should the function return?  
-
-Answer to sub-question1: Understand the Problem. The input is a matrix represented as a list of lists. The output is the same matrix, but sorted by the sum of each row in ascending order. There are no specific size constraints, but the matrix typically has rows of the same length.
-Answer to sub-question2: Calculate Row Sums. To calculate the sum of each row, use Python's sum() function. To get the sum for all rows, iterate through the matrix and apply sum() to each row.
-Answer to sub-question3: Sort the Matrix. Pair each row with its sum. Use Python's sorted() function to sort these pairs based on the row sum. Once sorted, extract the rows back into a new matrix.
-Answer to sub-question4: Define the Function. The function should take the matrix as input, compute row sums, sort the rows by sum, and return the sorted matrix.
+# TODO disc的prompt, 应该兼容ost和subq
+disc_prompt = """I am disc
 """
-# 对 prompt 进行测试
-if __name__ == "__main__":
-    pass
