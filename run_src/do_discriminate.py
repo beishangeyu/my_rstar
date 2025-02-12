@@ -182,6 +182,8 @@ class Discriminator:
                     stop_tokens=[
                         "### Function haed and docstring",
                         "You are a Python assistant.",
+                        "### Test cases",
+                        "### Testing",
                     ],
                 )
                 completion_list.append(completions)
