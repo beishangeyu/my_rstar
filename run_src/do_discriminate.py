@@ -242,7 +242,7 @@ class Discriminator:
         #             gen_model=gen_model,
         #             gen_input=input,
         #             temperature=self.args.rc_temperature,
-        #             n=self.args.rc_n_completions,  # NOTE 生成多个补全答案
+        #             n=self.args.rc_n_completions,
         #             max_tokens=1024,
         #             stop_tokens=[
         #                 "[Function signature and docstring]",
@@ -319,7 +319,6 @@ class Discriminator:
         #     elif isinstance(gen_input, list):
         #         return [r.outputs[0].text for r in response]
         # elif n > 1:
-        # WARNING 这里返回固定是list了, 调用这个函数的地方要改一下
         if isinstance(gen_input, str):
             return [o.text for o in response[0].outputs]
         elif isinstance(gen_input, list):

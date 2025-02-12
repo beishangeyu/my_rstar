@@ -3,9 +3,8 @@ import sys
 
 sys.path.append(".")
 
-from run_src.Evaluator import *
+from Evaluator import *
 from MCTS_for_reasoning import Generator, search_for_answers
-from run_src.rstar_utils import GeneratorError
 from common.arguments import get_parser, post_process_args, save_args
 from common.utils import fix_seeds, read_jsonl, load_dataset, enumerate_resume
 
