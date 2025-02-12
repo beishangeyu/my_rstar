@@ -45,9 +45,11 @@ class GeneratorError(Exception):
 
 
 def concat_ost_steps(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, int]:
-    """Return: concatenated one-step thought steps, next one-step thought step id"""
-    last_tuple = list(solution_trace.items())[-1]  # 取出最后一个 kv pair
-    last_tuple_id, last_tuple_recording = last_tuple[0], last_tuple[1]
+    """
+    Return: concatenated one-step thought steps, next one-step thought step id
+    """
+    last_tuple = list(solution_trace.items())[0]  # 取出最后一个 kv pair
+    last_tuple_recording = last_tuple[1]
     assert "ost_step" in last_tuple_recording.keys()
     if len(last_tuple_recording["ost_step"]) > 0:
         solution_trace_str = ""
@@ -60,19 +62,18 @@ def concat_ost_steps(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, in
         return "", 1
 
 
-# TODO concat子问题和答案
+# concat子问题和答案
 def concat_subqs_subas(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, int]:
-    # solution trace 的 int 表示子问题的 id
-    subq_tuple = list(solution_trace.items())
-    # subq的id
-    subq_ids = [subq[0] for subq in subq_tuple]
-    # subq的内容
-    subq_list = [subq[1] for subq in subq_tuple]
-    # concat起来, 注意处理空的情况
-    # TODO 这里等确定好格式再来
-    pass
+    if len(solution_trace) < 2:
+        return ""
+
+    return "".join(
+        f"Sub-question{i}: {qa['subquestion']}\nAnswer to sub-question{i}: {qa['subanswer']}\n"
+        for i, qa in list(solution_trace.items())[1:]
+    )
 
 
+# TODO disc的关键函数, 要修改
 def concat_solution_trace(
     solution_trace: Dict[int, Dict[str, str]],
     func_name: str,
@@ -82,13 +83,16 @@ def concat_solution_trace(
     end_node_type = None
     reward_value = 0.0
 
+    # TODO 这里 concat trace 要改, 新加了subq的动作, 要处理有subq的情况
     for item_idx, solution_step in enumerate(solution_trace.items()):
         if item_idx == 0:
             # 没有 ost step 只有 direct answer
+            solution_trace_str = f"### Hints\n"
             solution_step = solution_step[1]
             if not solution_step["ost_step"]:
+                solution_trace_str += "\n"
                 direct_answer = solution_step["direct_answer"]["text"].strip()
-                solution_trace_str = f"[Function implementation]\n{direct_answer}"
+                solution_trace_str = f"### Function implementation\n{direct_answer}"
                 final_step_str = solution_step["direct_answer"]["text"].strip()
                 reward_value = (
                     solution_step["direct_answer"]["value"]
@@ -102,11 +106,11 @@ def concat_solution_trace(
                 len(solution_step["ost_step"]) > 0
                 and "direct_answer" in solution_step.keys()
             ):
-                solution_trace_str = f"[Step to implement]\nTo implement the {func_name} function, we can follow these steps:"  # 这一段是不应该被mask的
+
                 for step_id, step_text in solution_step["ost_step"].items():
-                    solution_trace_str += f"Step{step_id}: " + step_text.strip() + "\n"
+                    solution_trace_str += step_text.strip() + "\n"
                 solution_trace_str += "\n"
-                solution_trace_str += "[Function implementation]\n"
+                solution_trace_str += "### Function implementation\n"
                 solution_trace_str += solution_step["direct_answer"]["text"].strip()
                 final_step_str = solution_step["direct_answer"]["text"].strip()
                 reward_value = (
@@ -157,8 +161,6 @@ def mask_solution_trace(
 
 
 # NOTE 把solution trace结合成hint
-# TODO 加入处理 subq 的逻辑, 看的是父节点的node type
-# TODO 按原来版本, 如果父结点是subq就只管subq, 如果是ost就只管ost, 没有混合使用
 def make_hint(
     solution_trace: Dict[int, Dict[str, str]],  # 只有第一个dict是有用的
     node_type: Node_Type,
@@ -276,13 +278,3 @@ def stochastic_find_best_solution(
         solution_nodes,
         solutions,
     )
-
-
-if __name__ == "__main__":
-    from run_src.prompt import *
-
-    ssss = ost_prompt
-    tl = mask_solution_trace(ssss, 5, 0.2, 0.8)
-    for t in tl:
-        print(t)
-        print(8 * "*")
