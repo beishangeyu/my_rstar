@@ -24,7 +24,7 @@ from common.utils import (
 from common.arguments import get_parser, post_process_args, save_args
 import os
 import json
-from prompt import ost_prompt
+from prompt import disc_prompt
 
 
 # NOTE 封装一个trace和它所有的masked trace
@@ -167,12 +167,12 @@ class Discriminator:
             for masked_solution_trace in c.masked_solution_trace_list:
                 # 补上问题
                 masked_solution_trace = (
-                    f"[Function haed and docstring]\n{funchead_and_docstring}\n\n"
+                    f"### Function haed and docstring\n{funchead_and_docstring}\n\n"
                     + masked_solution_trace
                 )
-                # 如果有 ost step, 就补上 ost 的 prompt
-                if "[Step to implement]" in c.solution_trace:
-                    masked_solution_trace = ost_prompt + "\n" + masked_solution_trace
+                masked_solution_trace = (
+                    disc_prompt.strip() + "\n\n" + masked_solution_trace
+                )
                 completions = self._gen_func(
                     gen_model=gen_model,
                     gen_input=masked_solution_trace,
@@ -180,7 +180,7 @@ class Discriminator:
                     n=self.args.rc_n_completions,  # NOTE 生成多个补全答案
                     max_tokens=1024,
                     stop_tokens=[
-                        "[Function haed and docstring]",
+                        "### Function haed and docstring",
                         "You are a Python assistant.",
                     ],
                 )

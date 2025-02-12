@@ -84,10 +84,12 @@ def concat_solution_trace(
     for item_idx, solution_step in enumerate(solution_trace.items()):
         if item_idx == 0:
             # 没有 ost step 只有 direct answer
+            solution_trace_str = f"### Hints\n"
             solution_step = solution_step[1]
             if not solution_step["ost_step"]:
+                solution_trace_str += "\n"
                 direct_answer = solution_step["direct_answer"]["text"].strip()
-                solution_trace_str = f"[Function implementation]\n{direct_answer}"
+                solution_trace_str = f"### Function implementation\n{direct_answer}"
                 final_step_str = solution_step["direct_answer"]["text"].strip()
                 reward_value = (
                     solution_step["direct_answer"]["value"]
@@ -101,11 +103,11 @@ def concat_solution_trace(
                 len(solution_step["ost_step"]) > 0
                 and "direct_answer" in solution_step.keys()
             ):
-                solution_trace_str = f"[Step to implement]\nTo implement the {func_name} function, we can follow these steps:"  # 这一段是不应该被mask的
+
                 for step_id, step_text in solution_step["ost_step"].items():
-                    solution_trace_str += f"Step{step_id}: " + step_text.strip() + "\n"
+                    solution_trace_str += step_text.strip() + "\n"
                 solution_trace_str += "\n"
-                solution_trace_str += "[Function implementation]\n"
+                solution_trace_str += "### Function implementation\n"
                 solution_trace_str += solution_step["direct_answer"]["text"].strip()
                 final_step_str = solution_step["direct_answer"]["text"].strip()
                 reward_value = (
