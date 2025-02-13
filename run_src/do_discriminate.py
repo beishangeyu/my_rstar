@@ -542,7 +542,7 @@ def main():
 
     data_path = f"./data/{args.dataset_name}.jsonl"
     dataset = load_dataset(read_jsonl(data_path))
-    num_correct, num_correct_majvote, num_correct_limit, num_tested = 0, 0, 0, 0
+    num_correct, num_correct_majvote, num_correct_limit = 0, 0, 0
     # 遍历每个 task_id
     for i, item in enumerate_resume(dataset, discriminate_out_dir):
         task_id = item["task_id"]
@@ -554,23 +554,22 @@ def main():
 
         test_list = item["test_list"]
         code = item["code"]
-        func_name = re.search(r"def (.+?)\(", code).group(1)
         func_head = re.search(r"def .+?:", code).group(0)
         test_case = item["test_list"][0][7:]
-        requirement = item["text"]
-        funchead_and_docstring = make_funchead_and_docstring(
-            requirement, func_head, test_case
-        )
-        # XXX select的时候的problem就是requirement, 纠结的是如果有rephrased要不要用rephrased的
 
         all_candidates = []
         solution_trace_dic = {}
         # 遍历同一个 task id 下所有的 solution trace, 将它们添加到的 dict 中
         for id, it in enumerate(solution_traces):
             # 把 solution trace 组合起来, 添加到 dict 中
-            solution_trace, final_step, _, reward = concat_solution_trace(
-                it["trace"], func_name
+            requirement, solution_trace, final_step, reward = concat_solution_trace(
+                it["trace"]
             )
+            # NOTE 使用trace中的, 因为有可能 rephrase 过
+            funchead_and_docstring = make_funchead_and_docstring(
+                requirement, func_head, test_case
+            )
+            # 用dict统计每个solution trace的出现次数, reward
             if solution_trace in solution_trace_dic:
                 solution_trace_dic[solution_trace]["freq"] = (
                     solution_trace_dic[solution_trace]["freq"] + 1
@@ -599,7 +598,7 @@ def main():
 
             masked_solution_trace_list = mask_solution_trace(
                 solution_trace,
-                num_return=args.num_masked_solution_traces,
+                num_return=args.num_masked_solution_traces,  # 默认mask 4次
                 left_boundary=args.mask_left_boundary,
                 right_boundary=args.mask_right_boundary,
             )
@@ -617,7 +616,6 @@ def main():
             all_candidates.append(candidate)
 
         # 将所有的 candidate 按照 answer 划分
-
         answer2candidates, answer2confidence, _ = group_candidates_by_answer(
             all_candidates, evaluator, args.rc_criteria
         )
