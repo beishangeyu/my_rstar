@@ -73,27 +73,28 @@ def concat_subqs_subas(solution_trace: Dict[int, Dict[str, str]]) -> str:
     )
 
 
-# TODO disc的关键函数, 要修改
+# disc 时在 mask 前要先把solution trace拼接起来
 def concat_solution_trace(
     solution_trace: Dict[int, Dict[str, str]],
-    func_name: str,
-):
-    solution_trace_str = ""
-    final_step_str = ""
-    end_node_type = None
+) -> Tuple[str, str, str, float]:
+    solution_trace = ""
     reward_value = 0.0
 
     # NOTE subq和ost在同一路径上只有一种
     # question_trace: [{a:xxx, b:xxx, c:xxx}, {c:xxx, d:xxx}]
     question_trace = list(solution_trace.values())
     main_question = question_trace[0]
+    requirement = main_question["user_requirement"]
+
     # 如果有subq
     if len(question_trace) > 1:
         subqs = [it["subquestion"] for it in question_trace[1:]]
         subas = [it["subanswer"] for it in question_trace[1:]]
-        # TODO concat subqas
-
-    # TODO 没有subq的话
+        hints = "### Hints\n"
+        for subq, suba in zip(subqs, subas):
+            hints += f"{subq.strip()}\n{suba.strip()}\n"
+        hints += "\n"
+    # 没有subq的话
     else:
         hints = "### Hints\n"
         steps_list = list(main_question["ost_step"].values())
@@ -103,58 +104,25 @@ def concat_solution_trace(
         # 如果有ost step
         else:
             steps = "\n".join(steps_list)
-            hints += steps + "\n\n"
-    hints += (
-        f"### Function implementation\n{main_question['direct_answer']['text'].strip()}"
+            hints += steps.strip() + "\n\n"
+
+    solution_trace = (
+        hints
+        + f"### Function implementation\n{main_question['direct_answer']['text'].strip()}"
     )
+    final_step = main_question["direct_answer"][
+        "text"
+    ]  # 就把main question的trace取出来就好
     reward_value = (
         main_question["direct_answer"]["value"]
         if "value" in main_question["direct_answer"]
         else 0.0
     )
-    # TODO 搞清楚 reward_value, final_step_str 这两个变量有没有用, 没用我删掉
-
-    for item_idx, solution_step in enumerate(solution_trace.items()):
-        if item_idx == 0:
-            # 没有 ost step 只有 direct answer
-            solution_trace_str = f"### Hints\n"
-            solution_step = solution_step[1]
-            if not solution_step["ost_step"]:
-                solution_trace_str += "\n"
-                direct_answer = solution_step["direct_answer"]["text"].strip()
-                solution_trace_str = f"### Function implementation\n{direct_answer}"
-                final_step_str = solution_step["direct_answer"]["text"].strip()
-                reward_value = (
-                    solution_step["direct_answer"]["value"]
-                    if "value" in solution_step["direct_answer"]
-                    else 0.0
-                )
-                end_node_type = Node_Type.DIRECT_ANSWER
-                break
-            # 存在 ost step
-            elif (
-                len(solution_step["ost_step"]) > 0
-                and "direct_answer" in solution_step.keys()
-            ):
-
-                for step_id, step_text in solution_step["ost_step"].items():
-                    solution_trace_str += step_text.strip() + "\n"
-                solution_trace_str += "\n"
-                solution_trace_str += "### Function implementation\n"
-                solution_trace_str += solution_step["direct_answer"]["text"].strip()
-                final_step_str = solution_step["direct_answer"]["text"].strip()
-                reward_value = (
-                    solution_step["direct_answer"]["value"]
-                    if "value" in solution_step["direct_answer"]
-                    else 0.0
-                )
-                end_node_type = Node_Type.DIRECT_ANSWER
-                break
 
     return (
-        solution_trace_str.strip(),
-        final_step_str.strip(),
-        end_node_type,
+        requirement.strip(),
+        solution_trace.strip(),
+        final_step.strip(),
         min(0, reward_value) + 1,
     )
 
