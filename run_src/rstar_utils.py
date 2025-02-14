@@ -64,7 +64,7 @@ def concat_subqs_subas(solution_trace: Dict[int, Dict[str, str]]) -> str:
         return ""
 
     return "".join(
-        f"Sub-question{i}: {qa['subquestion']}\nAnswer to sub-question{i}: {qa['subanswer']}\n"
+        f"Sub-question{i}: {qa['subquestion'].strip()}\nAnswer to sub-question{i}: {qa['subanswer'].strip()}\n"
         for i, qa in list(solution_trace.items())[1:]
     )
 
