@@ -158,38 +158,32 @@ def mask_solution_trace(
     return masked_solution_traces
 
 
-# NOTE 把solution trace结合成hint
-# TODO 加入subq后这个要改
+# 把solution trace结合成hint
 def make_hint(
     solution_trace: Dict[int, Dict[str, str]],  # 只有第一个dict是有用的
-    node_type: Node_Type,
-    func_name: str,
-    new_ost_step=None,
 ) -> str:
     # NOTE 同路径下, subq和ost最多只有一种
 
-    # 如果solution_trace元素个数>1, 说明是subq类型, 否则是ost
+    # 这里的 hint 不用加上 '### Hints', 因为后边有了
+    hint = ""
+
+    # 如果是subq类型路径
     if len(solution_trace) > 1:
-        # [{subquestion:xxx, subanswer:xxx}, {}]
+        # solution_trace: [{subquestion:xxx, subanswer:xxx}, {subquestion:xxx, subanswer:xxx}]
         subq_list = [
             solution_trace[i]["subquestion"] for i in range(1, len(solution_trace))
-        ]
+        ]  # 从第二个开始取, 第一个是 main question
         suba_list = [
             solution_trace[i]["subanswer"] for i in range(1, len(solution_trace))
         ]
-    # oo
+        for subq, suba in zip(subq_list, suba_list):
+            hint += subq + "\n" + suba + "\n"
+
+    # 如果是ost类型路径
     elif len(solution_trace[0]["ost_step"]) > 0:
         step_list = [step for step in list(solution_trace[0]["ost_step"].values())]
-
-    hint = "a"
-    # 取出solution_trace中最后一个key value pair
-    last_tuple = list(solution_trace.items())[-1]
-    last_tuple_recording = last_tuple[1]
-    assert last_tuple_recording["ost_step"]
-    for step_id, step_text in last_tuple_recording["ost_step"].items():
-        hint += step_text + "\n"
-    if new_ost_step is not None:
-        hint += new_ost_step + "\n"
+        if step_list:
+            hint += "\n".join(step_list) + "\n"
 
     return hint.strip()
 
