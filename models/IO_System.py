@@ -45,7 +45,7 @@ class IO_System:
         top_p: float = None,
         top_k: float = None,
         temperature: float = None,
-    ) -> List[str]:
+    ) -> List[str] | List[List[str]]:
         top_p = top_p if top_p is not None else self.top_p
         top_k = top_k if top_k is not None else self.top_k
         temperature = temperature if temperature is not None else self.temperature
