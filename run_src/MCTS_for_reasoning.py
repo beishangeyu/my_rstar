@@ -468,8 +468,11 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 f"---- Generating direct answers for node {self.id}...", self.verbose
             )
 
-            if self.node_type == Node_Type.OST_STEP:
-                hint = make_hint(self.solution_trace, self.node_type, self.func_name)
+            if (
+                self.node_type == Node_Type.OST_STEP
+                or self.node_type == Node_Type.SUBQUESTION
+            ):
+                hint = make_hint(self.solution_trace)
             else:
                 hint = None
 
