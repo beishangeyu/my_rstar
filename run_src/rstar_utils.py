@@ -3,12 +3,9 @@ import sys
 
 sys.path.append(".")
 from enum import Enum, unique
-import re
 import math
 from typing import Dict, Tuple
 import math
-from run_src import Evaluator
-from run_src.prompt import ost_prompt
 
 
 @unique
@@ -48,8 +45,7 @@ def concat_ost_steps(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, in
     """
     Return: concatenated one-step thought steps, next one-step thought step id
     """
-    last_tuple = list(solution_trace.items())[0]  # 取出最后一个 kv pair
-    last_tuple_recording = last_tuple[1]
+    last_tuple_recording = list(solution_trace.values())[0]  # 取出最后一个 kv pair
     assert "ost_step" in last_tuple_recording.keys()
     if len(last_tuple_recording["ost_step"]) > 0:
         solution_trace_str = ""

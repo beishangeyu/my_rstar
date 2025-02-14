@@ -4,8 +4,7 @@ import sys
 
 sys.path.append(".")
 
-import numpy as np, os, random, json, math
-from tqdm import trange
+import numpy as np, os
 from typing import List, Dict, Tuple
 from copy import deepcopy
 import re
@@ -13,7 +12,7 @@ import re
 
 from models.IO_System import IO_System
 from common.utils import write_jsonl
-from run_src.Evaluator import Evaluator, PythonEvaluator
+from run_src.Evaluator import Evaluator
 from MCTS_backbone import MCTS_Searcher, MCTS_Node
 from rstar_utils import (
     Node_Type,
@@ -75,13 +74,13 @@ class Generator:
         funchead_and_docstring = make_funchead_and_docstring(
             requirement, func_head, test_case
         )
-        io_input = f"""{direct_answer_prompt}
+        io_input = f"""{direct_answer_prompt.strip()}
 
 ### Function signature and docstring
-{funchead_and_docstring}
+{funchead_and_docstring.strip()}
 
 ### Hints
-{hint}
+{hint.strip() if hint else ""}
 
 ### Function implementation
 """
@@ -221,11 +220,11 @@ To implement the {func_name} function, we need to follow these steps:
         io_input = f"""{ost_prompt}
 
 ### Function signature and docstring
-{funchead_and_docstring}
+{funchead_and_docstring.strip()}
 
 ### Step to implement
-To implement the {func_name} function, we need to follow these steps:
-{existing_ost_steps} 
+To implement the {func_name.strip()} function, we need to follow these steps:
+{existing_ost_steps.strip()}
 """
         io_output_list = self.io.generate(
             model_input=io_input,
@@ -245,7 +244,20 @@ To implement the {func_name} function, we need to follow these steps:
         )
         # 这得到的多个step是承接关系
         ost_step_list = io_output_list[0].strip().split("\n")
-        ost_step_list = [step[7:] for step in ost_step_list]
+        ost_step_list = [step[7:].strip() for step in ost_step_list]
+        ost_step_list = [step for step in ost_step_list if len(step) > 0]
+
+        # for debug
+        # if ost_step_list:
+        #     print("Doding gene remian steps\n")
+        #     if len(ost_step_list) > 10:
+        #         print("--- check input for lenth more than 10")
+        #         print(io_input)
+        #         print("--- end of input for lenth more than 10")
+        #         for ost_step in ost_step_list:
+        #             print("*************** ost step")
+        #             print(ost_step)
+        #             print("*************** end of ost step")
 
         return ost_step_list
 
@@ -257,11 +269,11 @@ To implement the {func_name} function, we need to follow these steps:
     ) -> Tuple[List[str], List[str]]:
         exit_subq_suba = concat_subqs_subas(solution_trace)
         exit_subq_len = len(exit_subq_suba) / 2  # 已有的subq个数
-        io_input = f"""{gene_subq_suba_prompt}
+        io_input = f"""{gene_subq_suba_prompt.strip()}
 
-Question: {requirement}
+Question: {requirement.strip()}
 Break it down into sub-questions:
-{exit_subq_suba}
+{exit_subq_suba.strip()}
 """
         # 一步走完
         io_output_list = self.io.generate(
@@ -275,12 +287,12 @@ Break it down into sub-questions:
             ],
         )
         # 一行是subq一行是suba
-        subq_suba_list = io_output_list[0].strip().split("\n")
+        subqa_list = io_output_list[0].strip().split("\n")
         # 如果subq和suba不能成对, 丢掉最后一个
-        if len(ost_step_list) % 2 != 0:
-            ost_step_list = ost_step_list[:-1]
-        subq_list = [subq_suba_list[i] for i in range(0, len(subq_suba_list), 2)]
-        suba_list = [subq_suba_list[i] for i in range(1, len(subq_suba_list), 2)]
+        if len(subqa_list) % 2 != 0:
+            subqa_list = subqa_list[:-1]
+        subq_list = [subqa_list[i] for i in range(0, len(subqa_list), 2)]
+        suba_list = [subqa_list[i] for i in range(1, len(subqa_list), 2)]
         return subq_list, suba_list
 
     # 分解问题 回答问题
@@ -291,11 +303,11 @@ Break it down into sub-questions:
     ) -> Tuple[List[str], List[str]]:
         exit_subq_suba = concat_subqs_subas(solution_trace)
         exit_subq_len = len(exit_subq_suba) / 2  # 已有的subq个数
-        io_input = f"""P{gene_subq_suba_prompt}
+        io_input = f"""P{gene_subq_suba_prompt.strip()}
 
-Question: {requirement}
+Question: {requirement.strip()}
 Break it down into sub-questions:
-{exit_subq_suba}
+{exit_subq_suba.strip()}
 """
         # 生成子问题
         io_output_list = self.io.generate(
@@ -365,7 +377,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
         max_depth_allowed: int = None,
         rephrased_requirement: str = None,  # rephrase后的要求
         direct_answer: str = None,
-        ost_step: List[str] = None,
+        step_list: List[str] = None,
         subq_suba_list: List[Tuple[str, str]] = None,
         is_gen_remaining: bool = None,
     ) -> None:
@@ -377,7 +389,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
         self.node_type = node_type
         self.node_value = node_value
         self.direct_answer = direct_answer
-        self.ost_step = ost_step
+        self.ost_step = step_list
         self.depth = depth
 
         if parent is None:
@@ -450,7 +462,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
             elif node_type is Node_Type.OST_STEP:
                 # solution_trace[0]["ost_step"] 也是一个 dict, key 是思考的步数
                 # TODO 目前ost不应用于subq, 所以下标固定为0
-                for ost_step in ost_step:
+                for ost_step in step_list:
                     self.ost_step_counter += 1
                     self.solution_trace[0]["ost_step"][self.ost_step_counter] = ost_step
 
@@ -547,14 +559,14 @@ class Reasoning_MCTS_Node(MCTS_Node):
                             parent=self,
                             depth=self.depth + 1,
                             node_type=Node_Type.OST_STEP,
-                            ost_step=ost_step,
+                            step_list=[ost_step],
                         )
                     )
 
         # 生成剩下所有的思考步骤
         def do_action_generate_remain_steps():
             verbose_print(
-                f"---- Generating one-step thought steps for node {self.id}...",
+                f"---- Generating remain one-step thought steps for node {self.id}...",
                 self.verbose,
             )
             code = self.task["code"]
@@ -574,7 +586,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
                         parent=self,
                         depth=self.depth + 1,
                         node_type=Node_Type.OST_STEP,
-                        ost_step=ost_step_list,
+                        step_list=ost_step_list,
                         is_gen_remaining=True,
                     )
                 )
@@ -590,7 +602,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
             subq_list, suba_list = self.generator.gene_subquestions(
                 requirement=self.user_requirement,
                 solution_trace=self.solution_trace,
-                gene_remain=False,
             )
             # 并行的3个(subq, suba)
             subq_suba_list = [(subq, suba) for subq, suba in zip(subq_list, suba_list)]
@@ -612,7 +623,8 @@ class Reasoning_MCTS_Node(MCTS_Node):
         # 生成剩下所有的subq和suba
         def do_action_generate_remain_subquestions():
             verbose_print(
-                f"---- Generating subquestions for node {self.id}...", self.verbose
+                f"---- Generating remain subquestions for node {self.id}...",
+                self.verbose,
             )
             subq_list, suba_list = self.generator.gene_remian_subquestions(
                 requirement=self.user_requirement,
@@ -635,6 +647,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 print(f"----- Subq or Suba is None in gene_remian_subquestions()")
 
         # 规定了每种类型的节点可以创造什么类型的子节点
+        # TAG
         if self.node_type is Node_Type.USER_QUESTION:
             do_action_generate_rephrased_user_requirement()
             do_action_generate_direct_answers()
