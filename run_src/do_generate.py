@@ -41,6 +41,12 @@ def main(args):
     for i, data_item in enumerate_resume(dataset, args.gene_result):
         problem_id, problem = data_item["task_id"], data_item["adv_text"]
 
+        # for debug
+        # if problem_id < 17:
+        #     continue
+        # if problem_id > 17:
+        #     break
+
         model_solutions, stopping_id, model_all_solutions = [], -1, []
         model_solutions, stopping_id, model_all_solutions = search_for_answers(
             args=args,
