@@ -172,12 +172,17 @@ def make_hint(
         suba_list = [
             solution_trace[i]["subanswer"] for i in range(1, len(solution_trace))
         ]
+        # TODO 考虑截断, 截断5个之后的subq
+        subq_list = subq_list[:5]
+        suba_list = suba_list[:5]
         for subq, suba in zip(subq_list, suba_list):
             hint += subq + "\n" + suba + "\n"
 
     # 如果是ost类型路径
     elif len(solution_trace[0]["ost_step"]) > 0:
         step_list = [step for step in list(solution_trace[0]["ost_step"].values())]
+        # TODO 考虑截断, 截断6个之后的ost step
+        step_list = step_list[:6]
         if step_list:
             hint += "\n".join(step_list) + "\n"
 
