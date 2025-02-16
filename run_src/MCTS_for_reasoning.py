@@ -521,6 +521,9 @@ class Reasoning_MCTS_Node(MCTS_Node):
             self.subq_counter = parent.subq_counter
 
         # 更新推理路径
+        # TODO 对过长的subq和ost进行截断, 测试不同的截断长度是否有影响
+        self.stop_num_subq = 4
+        self.stop_num_ost = 5
         if parent is None:
             self.solution_trace: Dict[int, Dict[str, str]] = {
                 0: {"user_requirement": user_requirement, "ost_step": {}}
@@ -534,6 +537,9 @@ class Reasoning_MCTS_Node(MCTS_Node):
             elif node_type is Node_Type.SUBQUESTION:
                 for subq, suba in subq_suba_list:
                     self.subq_counter += 1
+                    # 设置阈值, 超过的直接丢掉
+                    if self.subq_counter > self.stop_num_subq:
+                        break
                     self.solution_trace[self.subq_counter] = {
                         "subquestion": subq,
                         "subanswer": suba,
@@ -543,6 +549,9 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 # TODO 目前ost不应用于subq, 所以下标固定为0
                 for ost_step in step_list:
                     self.ost_step_counter += 1
+                    # 设置阈值, 超过的直接丢掉
+                    if self.ost_step_counter > self.stop_num_ost:
+                        break
                     self.solution_trace[0]["ost_step"][self.ost_step_counter] = ost_step
 
             elif node_type is Node_Type.DIRECT_ANSWER:
@@ -726,7 +735,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 print(f"----- Subq or Suba is None in gene_remian_subquestions()")
 
         # 规定了每种类型的节点可以创造什么类型的子节点
-        # TAG
+
         if self.node_type is Node_Type.USER_QUESTION:
             do_action_generate_rephrased_user_requirement()
             do_action_generate_direct_answers()
@@ -739,15 +748,22 @@ class Reasoning_MCTS_Node(MCTS_Node):
             do_action_generate_direct_answers()
 
             # ost和subq在一条路径上只会出现一种
+
             # 如果父节点不是ost, 才可以使用subq
-            if self.parent.node_type is not Node_Type.OST_STEP:
+            if (
+                self.parent.node_type is not Node_Type.OST_STEP
+                and self.ost_step_counter < self.stop_num_ost
+            ):
                 do_action_generate_subquestions()
                 # 本路径中未使用"生成剩下所有"才可以用
                 if not self.is_gen_remaining:
                     do_action_generate_remain_subquestions()
 
             # 如果父节点不是subq, 才可以使用ost
-            if self.parent.node_type is not Node_Type.SUBQUESTION:
+            if (
+                self.parent.node_type is not Node_Type.SUBQUESTION
+                and self.subq_counter < self.stop_num_subq
+            ):
                 do_action_generate_ost_step()
                 # 本路径中未使用"生成剩下所有"才可以用
                 if not self.is_gen_remaining:
@@ -759,10 +775,11 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 do_action_generate_rephrased_user_requirement()
 
             do_action_generate_direct_answers()
-            do_action_generate_ost_step()
+            if self.ost_step_counter < self.stop_num_ost:
+                do_action_generate_ost_step()
 
-            if not self.is_gen_remaining:
-                do_action_generate_remain_steps()
+                if not self.is_gen_remaining:
+                    do_action_generate_remain_steps()
 
         elif self.node_type is Node_Type.SUBQUESTION:
             # 同一条路径上只会rephrase一次
@@ -770,10 +787,11 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 do_action_generate_rephrased_user_requirement()
 
             do_action_generate_direct_answers()
-            do_action_generate_subquestions()
+            if self.subq_counter < self.stop_num_subq:
+                do_action_generate_subquestions()
 
-            if not self.is_gen_remaining:
-                do_action_generate_remain_subquestions()
+                if not self.is_gen_remaining:
+                    do_action_generate_remain_subquestions()
 
         elif self.node_type is Node_Type.DIRECT_ANSWER:
             raise ValueError("DIRECT_ANSWER node cannot create children!!")

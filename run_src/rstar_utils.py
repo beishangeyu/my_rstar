@@ -172,9 +172,6 @@ def make_hint(
         suba_list = [
             solution_trace[i]["subanswer"] for i in range(1, len(solution_trace))
         ]
-        # TODO 考虑截断, 截断5个之后的subq
-        subq_list = subq_list[:5]
-        suba_list = suba_list[:5]
         for subq, suba in zip(subq_list, suba_list):
             hint += subq + "\n" + suba + "\n"
 
