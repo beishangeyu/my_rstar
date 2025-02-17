@@ -175,7 +175,6 @@ Rephrased requirement:
         return rephrased_user_requirement_list
 
     # 给出之前生成的单步思考, 生成下一步思考
-    # TODO 单步思考需要限制长度, 从已有数据看来, 4或者3以下较好. 但是先把subq加上 限制长度的先别
     def generate_ost_step(
         self,
         requirement: str,

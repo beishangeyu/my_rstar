@@ -73,7 +73,6 @@ def concat_subqs_subas(solution_trace: Dict[int, Dict[str, str]]) -> str:
 def concat_solution_trace(
     solution_trace: Dict[int, Dict[str, str]],
 ) -> Tuple[str, str, str, float]:
-    solution_trace = ""
     reward_value = 0.0
 
     # NOTE subq和ost在同一路径上只有一种
