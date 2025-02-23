@@ -15,7 +15,10 @@ def main(args):
     args.local_rank, args.world_size = 0, 1
 
     dataset_path = f"./data/{args.dataset_name}.jsonl"
-    dataset = load_dataset(read_jsonl(dataset_path))
+    if args.dataset_name == "mbpp" or args.dataset_name == "humaneval_modi":
+        dataset = read_jsonl(dataset_path)
+    else:
+        dataset = load_dataset(read_jsonl(dataset_path))
     evaluator = PythonEvaluator(
         device=args.evaluator_device,
         threshold=args.evaluator_threshold,
@@ -39,15 +42,17 @@ def main(args):
 
     num_tested = 0
     for i, data_item in enumerate_resume(dataset, args.gene_result):
-        problem_id, problem = data_item["task_id"], data_item["adv_text"]
+        problem_id = data_item["task_id"]
         if args.dataset_name == "mbpp":
             problem = data_item["text"]
-        if args.dataset_name == "humaneval_modi":
+        elif args.dataset_name == "humaneval_modi":
             strs = data_item["text"].split("====")
             problem = "".join(strs)
             strs = problem.split("\n")
             if len(strs) > 1:
                 problem = strs[0] + "\n" + "\n".join("    " + s for s in strs[1:])
+        else:
+            problem = data_item["adv_text"]
         # for debug
         # if problem_id < 17:
         #     continue
