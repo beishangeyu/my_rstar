@@ -520,9 +520,8 @@ class Reasoning_MCTS_Node(MCTS_Node):
             self.subq_counter = parent.subq_counter
 
         # 更新推理路径
-        # TODO 对过长的subq和ost进行截断, 测试不同的截断长度是否有影响
-        self.stop_num_subq = 4
-        self.stop_num_ost = 5
+        self.stop_num_subq = 100
+        self.stop_num_ost = 100
         if parent is None:
             self.solution_trace: Dict[int, Dict[str, str]] = {
                 0: {"user_requirement": user_requirement, "ost_step": {}}
