@@ -189,11 +189,11 @@ def make_funchead_and_docstring(
     requirement: str, func_head: str, test_case: str
 ) -> str:
     s = f"""
-{func_head}
+{func_head.strip()}
     '''
-    {requirement}
+    {requirement.strip()}
     for example:
-    {test_case}
+    {test_case.strip()}
     '''
 """
     return s.strip()
