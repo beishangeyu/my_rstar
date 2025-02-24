@@ -301,7 +301,7 @@ Break it down into sub-questions:
         # 生成子问题
         io_output_list = self.io.generate(
             model_input=gen_subq_input,
-            max_tokens=512,
+            max_tokens=1024,
             num_return=self.num_subquestions,
             stop_tokens=[
                 "\n",
@@ -321,7 +321,7 @@ Break it down into sub-questions:
         gen_suba_input = [f"{gen_subq_input.strip()}\n{subq}\n" for subq in subq_list]
         io_output_list = self.io.generate(
             model_input=gen_suba_input,
-            max_tokens=512,
+            max_tokens=1024,
             num_return=1,
             stop_tokens=[
                 "\n",

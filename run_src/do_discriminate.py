@@ -541,7 +541,10 @@ def main():
     #! ------ Select winner candidate for each example ------
 
     data_path = f"./data/{args.dataset_name}.jsonl"
-    dataset = load_dataset(read_jsonl(data_path))
+    if args.dataset_name == "mbpp" or args.dataset_name == "humaneval_modi":
+        dataset = read_jsonl(data_path)
+    else:
+        dataset = load_dataset(read_jsonl(data_path))
     num_correct, num_correct_majvote, num_correct_limit = 0, 0, 0
     # 遍历每个 task_id
     for i, item in enumerate_resume(dataset, discriminate_out_dir):
