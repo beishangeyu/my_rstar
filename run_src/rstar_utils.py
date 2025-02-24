@@ -188,6 +188,9 @@ def make_hint(
 def make_funchead_and_docstring(
     requirement: str, func_head: str, test_case: str
 ) -> str:
+    # 处理多行requirement
+    tmp = requirement.split("\n")
+    requirement = tmp[0] + "\n" + "\n".join("    " + s for s in tmp[1:])
     s = f"""
 {func_head.strip()}
     '''

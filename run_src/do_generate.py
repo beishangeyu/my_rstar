@@ -43,14 +43,15 @@ def main(args):
     num_tested = 0
     for i, data_item in enumerate_resume(dataset, args.gene_result):
         problem_id = data_item["task_id"]
+        # TAG
+        # if problem_id < 500:
+        #     continue
+        # END
         if args.dataset_name == "mbpp":
             problem = data_item["text"]
         elif args.dataset_name == "humaneval_modi":
             strs = data_item["text"].split("====")
             problem = "".join(strs)
-            strs = problem.split("\n")
-            if len(strs) > 1:
-                problem = strs[0] + "\n" + "\n".join("    " + s for s in strs[1:])
         else:
             problem = data_item["adv_text"]
         # for debug
