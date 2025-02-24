@@ -259,17 +259,14 @@ class PythonEvaluator(Evaluator):
         # 去除注释
         return remove_comments(answer)
 
-    def test_mbpp(self, test_list, code, timeout=3):
+    def test_func(self, test_list, code, timeout=3):
         test_list_code = "\n".join(test_list)
         template = f"{code}\n{test_list_code}\n"
         return function_with_timeout(template, None, timeout)
 
     def check_correctness(self, code: str, dataset_name: str, test_list: List[str]):
         print("-" * 10 + "Checking correctness..." + "-" * 10)
-        if "mbpp" in dataset_name:
-            return self.test_mbpp(test_list, code, timeout=3)
-        else:
-            pass
+        return self.test_func(test_list, code, timeout=3)
 
 
 def function_with_timeout(func, args, timeout):
