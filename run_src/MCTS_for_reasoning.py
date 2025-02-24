@@ -341,7 +341,11 @@ Break it down into sub-questions:
         # 过滤掉空的
         subq_list = [subq for subq in subq_list if len(subq) > 0]
         suba_list = [suba for suba in suba_list if len(suba) > 0]
-
+        # 确保长度一致
+        if len(subq_list) > len(suba_list):
+            subq_list = subq_list[: len(suba_list)]
+        elif len(subq_list) < len(suba_list):
+            suba_list = suba_list[: len(subq_list)]
         assert len(subq_list) == len(
             suba_list
         ), "In Generator.gene_subquestions(), num_subq shouble be equal to num_suba"
