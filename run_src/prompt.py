@@ -67,7 +67,8 @@ Write a Python function using map to count the number of matching pairs in two g
 # 分解问题 回答子问题
 gene_subq_suba_prompt = """I will provide a main question. Please break it down into several sub-questions and answer each sub-question one by one in the order, without skipping any.
 
-Question: Write a Python function to count the number of vowels in a given string.
+Question: 
+Write a Python function to count the number of vowels in a given string.
 Break it down into sub-questions:
 Sub-question1: What defines a vowel in the context of this problem?
 Answer to sub-question1: Vowels are typically defined as the characters a, e, i, o, u (case-insensitive). Need to decide whether to include uppercase letters (e.g., A, E) as valid vowels.

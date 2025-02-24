@@ -293,7 +293,8 @@ To implement the {func_name.strip()} function, we need to follow these steps:
         exit_subq_len = len(exit_subq_suba) / 2  # 已有的subq个数
         gen_subq_input = f"""{gene_subq_suba_prompt.strip()}
 
-Question: {requirement.strip()}
+Question: 
+{requirement.strip()}
 Break it down into sub-questions:
 """
         if len(exit_subq_suba) > 0:
