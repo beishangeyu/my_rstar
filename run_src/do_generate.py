@@ -43,10 +43,6 @@ def main(args):
     num_tested = 0
     for i, data_item in enumerate_resume(dataset, args.gene_result):
         problem_id = data_item["task_id"]
-        # TAG
-        # if problem_id < 500:
-        #     continue
-        # END
         if args.dataset_name == "mbpp":
             problem = data_item["text"]
         elif args.dataset_name == "humaneval_modi":
@@ -54,11 +50,6 @@ def main(args):
             problem = "".join(strs)
         else:
             problem = data_item["adv_text"]
-        # for debug
-        # if problem_id < 17:
-        #     continue
-        # if problem_id > 17:
-        #     break
 
         model_solutions, stopping_id, model_all_solutions = [], -1, []
         model_solutions, stopping_id, model_all_solutions = search_for_answers(

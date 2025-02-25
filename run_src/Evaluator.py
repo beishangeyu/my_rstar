@@ -73,7 +73,6 @@ class Evaluator:
                 if self.check_answers_equiv(model_answer, existing_answer):
                     answer2count[existing_answer] += 1
                     if not self.disable_mutual_vote:
-                        # TODO 双方互相投票, 会提高正确率
                         answer2count[model_answer] += 1
         assert len(answer2count.keys()) > 0, "There are no valid completions."
         sum_num = 0
