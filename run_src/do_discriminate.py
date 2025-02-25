@@ -1,5 +1,4 @@
 # Licensed under the MIT license.
-# BUG 这里有特别多要改, 一定一定要仔细看
 import sys
 
 sys.path.append(".")
@@ -25,7 +24,7 @@ from common.utils import (
 from common.arguments import get_parser, post_process_args, save_args
 import os
 import json
-from prompt import disc_prompt
+from prompt import direct_answer_prompt
 
 
 # NOTE 封装一个trace和它所有的masked trace
@@ -167,7 +166,7 @@ class Discriminator:
             for masked_solution_trace in c.masked_solution_trace_list:
                 # TODO 这里构造输入的部分要仔细写
                 input_lists.append(
-                    disc_prompt
+                    direct_answer_prompt
                     + "\n"
                     + "### Function signature and docstring\n"
                     + f"{funchead_and_docstring.strip()}\n"
@@ -182,10 +181,11 @@ class Discriminator:
             temperature=self.args.rc_temperature,
             n=self.args.rc_n_completions,
             max_tokens=1024,
-            # TODO stop token也要改
             stop_tokens=[
-                "[Function signature and docstring]",
-                "You are a Python assistant.",
+                "### Function haed and docstring",
+                "As a Python expert, ",
+                "### Test cases",
+                "### Testing",
             ],
         )
         completion_list = [c for r in completion_list for c in r]  # 展开
@@ -472,7 +472,6 @@ class MajorityVoteDiscriminator(Discriminator):
         # prefiltered_candidates: [1, 2, 3, 4, 5]
 
         # 过滤掉一致性不够的答案
-        # TODO 这里的 problem 应该用的是 trace 中的, 可能 rephrase 过, 可以优化吗?
         filtered_candidates = self._filter_reasoning_consistency(
             self.model, funchead_and_docstring, prefiltered_candidates
         )
@@ -487,8 +486,7 @@ def main():
     parser.add_argument("--threshold", type=float, default=0.999)
     # vLLM
     parser.add_argument("--max_num_seqs", type=int, default=256)
-    # NOTE mask 的时候最少留下多少和最多留下多少
-    # TODO 0.2和0.5的默认会不会太少, 增加一点?
+    # NOTE mask 的最小值和最大值
     parser.add_argument("--mask_left_boundary", type=float, default=0.2)
     parser.add_argument("--mask_right_boundary", type=float, default=0.5)
     # NOTE 对一个 solution trace 要生成几个 masked trace

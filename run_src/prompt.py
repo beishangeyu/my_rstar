@@ -79,7 +79,3 @@ Answer to sub-question3: Convert the input string to lowercase (or uppercase) be
 Sub-question4: What edge cases should be considered?
 Answer to sub-question4: Empty strings, strings with no vowels, strings with mixed characters (letters, symbols, numbers), and strings containing uppercase vowels (e.g., "AEIOU").
 """
-
-# TODO disc的prompt, 应该兼容ost和subq
-disc_prompt = """I am disc
-"""
