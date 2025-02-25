@@ -24,7 +24,7 @@ from common.utils import (
 from common.arguments import get_parser, post_process_args, save_args
 import os
 import json
-from prompt import disc_prompt
+from prompt import direct_answer_prompt
 
 
 # NOTE 封装一个trace和它所有的masked trace
@@ -161,74 +161,137 @@ class Discriminator:
         )
         consistent_candidates = []
         print("-" * 10 + "Completing Masked trace ..." + "-" * 10)
-        # NOTE 这里所有的 candidate 都对应同一个 task_id
+        input_lists = []
         for c in candidates:
-            completion_list = []
             for masked_solution_trace in c.masked_solution_trace_list:
-                # 补上问题
-                masked_solution_trace = (
-                    f"### Function haed and docstring\n{funchead_and_docstring}\n\n"
-                    + masked_solution_trace
+                # TODO 这里构造输入的部分要仔细写
+                input_lists.append(
+                    direct_answer_prompt
+                    + "\n"
+                    + "### Function signature and docstring\n"
+                    + f"{funchead_and_docstring.strip()}\n"
+                    + "\n"
+                    + f"{masked_solution_trace.strip()}"
                 )
-                masked_solution_trace = (
-                    disc_prompt.strip() + "\n\n" + masked_solution_trace
+        # If len(input_lists)=2, rc_n_completions=3
+        # completion_list: [[c1, c2, c3], [c1, c2, c3]]
+        completion_list = self._gen_func(
+            gen_model=gen_model,
+            gen_input=input_lists,
+            temperature=self.args.rc_temperature,
+            n=self.args.rc_n_completions,
+            max_tokens=1024,
+            stop_tokens=[
+                "### Function haed and docstring",
+                "As a Python expert, ",
+                "### Test cases",
+                "### Testing",
+            ],
+        )
+        completion_list = [c for r in completion_list for c in r]  # 展开
+        answer_list = [
+            self.evaluator.extract_answer_from_model_completion(completion)
+            for completion in completion_list
+        ]
+        answer_list = [ans for ans in answer_list if len(ans) > 0]
+        num_consistent = 0
+        candidate_count = len(completion_list)
+        # 多数投票策略
+        if self.args.rc_mode == "maj":
+            answer = self.evaluator.find_most_confident_answer(completion_list)
+            if self.evaluator.check_answers_equiv(c.final_answer, answer):
+                consistent_candidates.append(c)
+        else:
+            # 把candidate和discriminator的补全答案一个个比较, 如果相等, num_consistent就加1
+            for answer in answer_list:
+                print("-" * 10 + "Check answer equiv ..." + "-" * 10)
+                print(f"==> Answer from generator:\n" + repr(c.final_answer))
+                print(
+                    "==> Answer from discriminator:\n" + repr(answer)
+                    if len(answer)
+                    else "No answer"
                 )
-                completions = self._gen_func(
-                    gen_model=gen_model,
-                    gen_input=masked_solution_trace,
-                    temperature=self.args.rc_temperature,
-                    n=self.args.rc_n_completions,  # NOTE 生成多个补全答案
-                    max_tokens=1024,
-                    stop_tokens=[
-                        "### Function haed and docstring",
-                        "You are a Python assistant.",
-                        "### Test cases",
-                        "### Testing",
-                    ],
-                )
-                completion_list.append(completions)
-
-            answer_list = [
-                self.evaluator.extract_answer_from_model_completion(completion)
-                for completion in completion_list
-            ]
-            answer_list = [ans for ans in answer_list if len(ans) > 0]
-
-            num_consistent = 0
-            candidate_count = len(completion_list)
-            # 多数投票策略
-            if self.args.rc_mode == "maj":
-                answer = self.evaluator.find_most_confident_answer(completion_list)
                 if self.evaluator.check_answers_equiv(c.final_answer, answer):
+                    num_consistent += 1
+
+            # 只要有一个补全答案跟本来的答案一样, 这个 candidate 就有效
+            if self.args.rc_mode == "loose":
+                if num_consistent > 0:
                     consistent_candidates.append(c)
-            else:
-                # 把candidate和discriminator的补全答案一个个比较, 如果相等, num_consistent就加1
-                for answer in answer_list:
-                    print("-" * 10 + "Check answer equiv ..." + "-" * 10)
-                    print(f"==> Answer from generator:\n" + repr(c.final_answer))
-                    print(
-                        "==> Answer from discriminator:\n" + repr(answer)
-                        if len(answer)
-                        else "No answer"
-                    )
-                    if self.evaluator.check_answers_equiv(c.final_answer, answer):
-                        num_consistent += 1
-
-                # 只要有一个补全答案跟本来的答案一样, 这个 candidate 就有效
-                if self.args.rc_mode == "loose":
-                    if num_consistent > 0:
-                        consistent_candidates.append(c)
-                # 过半的的补全答案和本来的答案一样, 这个 candidate 才有效
-                elif self.args.rc_mode == "mid":
-                    if num_consistent >= candidate_count // 2:
-                        consistent_candidates.append(c)
-                # 所有的补全答案和本来的答案一样, 这个 candidate 才有效
-                elif self.args.rc_mode == "strict":
-                    if num_consistent == candidate_count:
-                        consistent_candidates.append(c)
-
-        # 返回所有达到一致性要求的candidate
+            # 过半的的补全答案和本来的答案一样, 这个 candidate 才有效
+            elif self.args.rc_mode == "mid":
+                if num_consistent >= candidate_count // 2:
+                    consistent_candidates.append(c)
+            # 所有的补全答案和本来的答案一样, 这个 candidate 才有效
+            elif self.args.rc_mode == "strict":
+                if num_consistent == candidate_count:
+                    consistent_candidates.append(c)
         return consistent_candidates
+
+        # 改成批量推理前的, 先留着万一出错
+        # for c in candidates:
+        #     completion_list = []
+
+        #     for masked_solution_trace in c.masked_solution_trace_list:
+        #         masked_solution_trace = (
+        #             f"### Function signature and docstring\n{funchead_and_docstring}\n\n"
+        #             + masked_solution_trace
+        #         )
+        #         input = disc_prompt + "\n" + masked_solution_trace
+        #         completions = self._gen_func(
+        #             gen_model=gen_model,
+        #             gen_input=input,
+        #             temperature=self.args.rc_temperature,
+        #             n=self.args.rc_n_completions,
+        #             max_tokens=1024,
+        #             stop_tokens=[
+        #                 "[Function signature and docstring]",
+        #                 "You are a Python assistant.",
+        #             ],
+        #         )
+        #         completion_list.append(completions)
+
+        #     answer_list = [
+        #         self.evaluator.extract_answer_from_model_completion(completion)
+        #         for completion in completion_list
+        #     ]
+        #     answer_list = [ans for ans in answer_list if len(ans) > 0]
+
+        #     num_consistent = 0
+        #     candidate_count = len(completion_list)
+        #     # 多数投票策略
+        #     if self.args.rc_mode == "maj":
+        #         answer = self.evaluator.find_most_confident_answer(completion_list)
+        #         if self.evaluator.check_answers_equiv(c.final_answer, answer):
+        #             consistent_candidates.append(c)
+        #     else:
+        #         # 把candidate和discriminator的补全答案一个个比较, 如果相等, num_consistent就加1
+        #         for answer in answer_list:
+        #             print("-" * 10 + "Check answer equiv ..." + "-" * 10)
+        #             print(f"==> Answer from generator:\n" + repr(c.final_answer))
+        #             print(
+        #                 "==> Answer from discriminator:\n" + repr(answer)
+        #                 if len(answer)
+        #                 else "No answer"
+        #             )
+        #             if self.evaluator.check_answers_equiv(c.final_answer, answer):
+        #                 num_consistent += 1
+
+        #         # 只要有一个补全答案跟本来的答案一样, 这个 candidate 就有效
+        #         if self.args.rc_mode == "loose":
+        #             if num_consistent > 0:
+        #                 consistent_candidates.append(c)
+        #         # 过半的的补全答案和本来的答案一样, 这个 candidate 才有效
+        #         elif self.args.rc_mode == "mid":
+        #             if num_consistent >= candidate_count // 2:
+        #                 consistent_candidates.append(c)
+        #         # 所有的补全答案和本来的答案一样, 这个 candidate 才有效
+        #         elif self.args.rc_mode == "strict":
+        #             if num_consistent == candidate_count:
+        #                 consistent_candidates.append(c)
+
+        # # 返回所有达到一致性要求的candidate
+        # return consistent_candidates
 
     def _gen_func(
         self,
@@ -250,16 +313,16 @@ class Discriminator:
             max_tokens=max_tokens,
             stop=stop_tokens,
         )
-        if n == 1:
-            if isinstance(gen_input, str):
-                return response[0].outputs[0].text
-            elif isinstance(gen_input, list):
-                return [r.outputs[0].text for r in response]
-        elif n > 1:
-            if isinstance(gen_input, str):
-                return [o.text for o in response[0].outputs]
-            elif isinstance(gen_input, list):
-                return [[o.text for o in r.outputs] for r in response]
+        # if n == 1:
+        #     if isinstance(gen_input, str):
+        #         return response[0].outputs[0].text
+        #     elif isinstance(gen_input, list):
+        #         return [r.outputs[0].text for r in response]
+        # elif n > 1:
+        if isinstance(gen_input, str):
+            return [o.text for o in response[0].outputs]
+        elif isinstance(gen_input, list):
+            return [[o.text for o in r.outputs] for r in response]
 
     def _calculate_scores(
         self,
@@ -409,7 +472,6 @@ class MajorityVoteDiscriminator(Discriminator):
         # prefiltered_candidates: [1, 2, 3, 4, 5]
 
         # 过滤掉一致性不够的答案
-        # TODO 这里的 problem 应该用的是 trace 中的, 可能 rephrase 过, 可以优化吗?
         filtered_candidates = self._filter_reasoning_consistency(
             self.model, funchead_and_docstring, prefiltered_candidates
         )
@@ -477,8 +539,11 @@ def main():
     #! ------ Select winner candidate for each example ------
 
     data_path = f"./data/{args.dataset_name}.jsonl"
-    dataset = load_dataset(read_jsonl(data_path))
-    num_correct, num_correct_majvote, num_correct_limit, num_tested = 0, 0, 0, 0
+    if args.dataset_name == "mbpp" or args.dataset_name == "humaneval_modi":
+        dataset = read_jsonl(data_path)
+    else:
+        dataset = load_dataset(read_jsonl(data_path))
+    num_correct, num_correct_majvote, num_correct_limit = 0, 0, 0
     # 遍历每个 task_id
     for i, item in enumerate_resume(dataset, discriminate_out_dir):
         task_id = item["task_id"]
@@ -490,23 +555,22 @@ def main():
 
         test_list = item["test_list"]
         code = item["code"]
-        func_name = re.search(r"def (.+?)\(", code).group(1)
         func_head = re.search(r"def .+?:", code).group(0)
         test_case = item["test_list"][0][7:]
-        requirement = item["text"]
-        funchead_and_docstring = make_funchead_and_docstring(
-            requirement, func_head, test_case
-        )
-        # XXX select的时候的problem就是requirement, 纠结的是如果有rephrased要不要用rephrased的
 
         all_candidates = []
         solution_trace_dic = {}
         # 遍历同一个 task id 下所有的 solution trace, 将它们添加到的 dict 中
         for id, it in enumerate(solution_traces):
             # 把 solution trace 组合起来, 添加到 dict 中
-            solution_trace, final_step, _, reward = concat_solution_trace(
-                it["trace"], func_name
+            requirement, solution_trace, final_step, reward = concat_solution_trace(
+                it["trace"]
             )
+            # NOTE 使用trace中的, 因为有可能 rephrase 过
+            funchead_and_docstring = make_funchead_and_docstring(
+                requirement, func_head, test_case
+            )
+            # 用dict统计每个solution trace的出现次数, reward
             if solution_trace in solution_trace_dic:
                 solution_trace_dic[solution_trace]["freq"] = (
                     solution_trace_dic[solution_trace]["freq"] + 1
@@ -535,7 +599,7 @@ def main():
 
             masked_solution_trace_list = mask_solution_trace(
                 solution_trace,
-                num_return=args.num_masked_solution_traces,
+                num_return=args.num_masked_solution_traces,  # 默认mask 4次
                 left_boundary=args.mask_left_boundary,
                 right_boundary=args.mask_right_boundary,
             )
@@ -553,7 +617,6 @@ def main():
             all_candidates.append(candidate)
 
         # 将所有的 candidate 按照 answer 划分
-
         answer2candidates, answer2confidence, _ = group_candidates_by_answer(
             all_candidates, evaluator, args.rc_criteria
         )
