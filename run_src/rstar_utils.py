@@ -3,12 +3,9 @@ import sys
 
 sys.path.append(".")
 from enum import Enum, unique
-import re
 import math
 from typing import Dict, Tuple
 import math
-from run_src import Evaluator
-from run_src.prompt import ost_prompt
 
 
 @unique
@@ -17,6 +14,7 @@ class Node_Type(Enum):
     REPHRASED_USER_QUESTION = "REPHRASED_USER_QUESTION"
     DIRECT_ANSWER = "DIRECT_ANSWER"
     OST_STEP = "OST_STEP"
+    SUBQUESTION = "SUBQUESTION"
 
 
 def get_nodetype(Reasoning_MCTS_Node):
@@ -28,6 +26,8 @@ def get_nodetype(Reasoning_MCTS_Node):
         return "REPHRASED_USER_QUESTION"
     elif Reasoning_MCTS_Node.node_type is Node_Type.OST_STEP:
         return "OST_STEP"
+    elif Reasoning_MCTS_Node.node_type is Node_Type.SUBQUESTION:
+        return "SUBQUESTION"
     elif Reasoning_MCTS_Node.node_type is Node_Type.DIRECT_ANSWER:
         return "DIRECT_ANSWER"
 
@@ -41,25 +41,11 @@ class GeneratorError(Exception):
         self.io_output_list = io_output_list
 
 
-def split_user_question(user_question: str):
-    user_question = user_question.strip().rstrip(".")
-    last_period_id = user_question.rfind(".")
-    assert last_period_id < len(user_question) - 1
-    user_question_context = user_question[: last_period_id + 1].strip()
-    user_question_problem = user_question[last_period_id + 1 :].strip()
-    return user_question_context, user_question_problem
-
-
-def reach_terminal_ost_step(ost_step: str):
-    assert ost_step is not None
-
-    return "answer is" in ost_step.lower()
-
-
 def concat_ost_steps(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, int]:
-    """Return: concatenated one-step thought steps, next one-step thought step id"""
-    last_tuple = list(solution_trace.items())[-1]  # 取出最后一个 kv pair
-    last_tuple_id, last_tuple_recording = last_tuple[0], last_tuple[1]
+    """
+    Return: concatenated one-step thought steps, next one-step thought step id
+    """
+    last_tuple_recording = list(solution_trace.values())[0]  # 取出最后一个 kv pair
     assert "ost_step" in last_tuple_recording.keys()
     if len(last_tuple_recording["ost_step"]) > 0:
         solution_trace_str = ""
@@ -72,66 +58,76 @@ def concat_ost_steps(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, in
         return "", 1
 
 
+# concat子问题和答案
+def concat_subqs_subas(solution_trace: Dict[int, Dict[str, str]]) -> str:
+    if len(solution_trace) < 2:
+        return ""
+
+    return "".join(
+        f"Sub-question{i}: {qa['subquestion'].strip()}\nAnswer to sub-question{i}: {qa['subanswer'].strip()}\n"
+        for i, qa in list(solution_trace.items())[1:]
+    )
+
+
+# disc 时在 mask 前要先把solution trace拼接起来
 def concat_solution_trace(
     solution_trace: Dict[int, Dict[str, str]],
-    func_name: str,
-):
-    solution_trace_str = ""
-    final_step_str = ""
-    end_node_type = None
+) -> Tuple[str, str, str, float]:
     reward_value = 0.0
 
-    for item_idx, solution_step in enumerate(solution_trace.items()):
-        if item_idx == 0:
-            # 没有 ost step 只有 direct answer
-            solution_trace_str = f"### Hints\n"
-            solution_step = solution_step[1]
-            if not solution_step["ost_step"]:
-                solution_trace_str += "\n"
-                direct_answer = solution_step["direct_answer"]["text"].strip()
-                solution_trace_str = f"### Function implementation\n{direct_answer}"
-                final_step_str = solution_step["direct_answer"]["text"].strip()
-                reward_value = (
-                    solution_step["direct_answer"]["value"]
-                    if "value" in solution_step["direct_answer"]
-                    else 0.0
-                )
-                end_node_type = Node_Type.DIRECT_ANSWER
-                break
-            # 存在 ost step
-            elif (
-                len(solution_step["ost_step"]) > 0
-                and "direct_answer" in solution_step.keys()
-            ):
+    # NOTE subq和ost在同一路径上只有一种
+    # question_trace: [{a:xxx, b:xxx, c:xxx}, {c:xxx, d:xxx}]
+    question_trace = list(solution_trace.values())
+    main_question = question_trace[0]
+    requirement = main_question["user_requirement"]
 
-                for step_id, step_text in solution_step["ost_step"].items():
-                    solution_trace_str += step_text.strip() + "\n"
-                solution_trace_str += "\n"
-                solution_trace_str += "### Function implementation\n"
-                solution_trace_str += solution_step["direct_answer"]["text"].strip()
-                final_step_str = solution_step["direct_answer"]["text"].strip()
-                reward_value = (
-                    solution_step["direct_answer"]["value"]
-                    if "value" in solution_step["direct_answer"]
-                    else 0.0
-                )
-                end_node_type = Node_Type.DIRECT_ANSWER
-                break
+    # 如果有subq
+    if len(question_trace) > 1:
+        subqs = [it["subquestion"] for it in question_trace[1:]]
+        subas = [it["subanswer"] for it in question_trace[1:]]
+        hints = "### Hints\n"
+        for subq, suba in zip(subqs, subas):
+            hints += f"{subq.strip()}\n{suba.strip()}\n"
+        hints += "\n"
+    # 没有subq的话
+    else:
+        hints = "### Hints\n"
+        steps_list = list(main_question["ost_step"].values())
+        # 如果没有ost step
+        if not steps_list:
+            hints += "\n"
+        # 如果有ost step
+        else:
+            steps = "\n".join(steps_list)
+            hints += steps.strip() + "\n\n"
+
+    solution_trace = (
+        hints
+        + f"### Function implementation\n{main_question['direct_answer']['text'].strip()}"
+    )
+    final_step = main_question["direct_answer"][
+        "text"
+    ]  # 就把main question的trace取出来就好
+    reward_value = (
+        main_question["direct_answer"]["value"]
+        if "value" in main_question["direct_answer"]
+        else 0.0
+    )
 
     return (
-        solution_trace_str.strip(),  # NOTE strip 会去掉换行符, 记得加上
-        final_step_str.strip(),
-        end_node_type,
+        requirement.strip(),
+        solution_trace.strip(),
+        final_step.strip(),
         min(0, reward_value) + 1,
     )
 
 
-# NOTE 对 solution trace 进行随机遮蔽
+# 对 solution trace 进行随机遮蔽
 def mask_solution_trace(
     solution_trace_str: str,
     num_return: int,
-    left_boundary: float,
-    right_boundary: float,
+    left_boundary: float,  # 最少留下left_boundary, 即如果left_boundary=0.2, 则至少留下20%的字符串
+    right_boundary: float,  # 最多留下right_boundary, 即如果right_boundary=0.8, 则最多留下80%的字符串
 ) -> list[str]:
     # opasdjifpoaisdfjpoasidfjapsodifj, num_return: 4, left: 0.2, right: 0.8
     # return: opasd, opasdjifp, opasdjifpoaisdfj, opasdjifpoaisdfjpoasidfjaps
@@ -152,28 +148,39 @@ def mask_solution_trace(
         prefix_part_ratio = left_boundary + i * interval
         prefix_part_num_words = math.ceil(ost_len * prefix_part_ratio)
         prefix_part_str = " ".join(words_in_solution_trace[:prefix_part_num_words])
-        masked_solution_traces.append(prefix_part_str)
+        masked_solution_traces.append(prefix_part_str.strip())
 
     return masked_solution_traces
 
 
-# NOTE 把solution trace结合成hint
+# 把solution trace结合成hint
 def make_hint(
     solution_trace: Dict[int, Dict[str, str]],  # 只有第一个dict是有用的
-    node_type: Node_Type,
-    func_name: str,
-    new_ost_step=None,
 ) -> str:
-    # 这个函数只被 direct answer 调用, 利用过往的ost step来生成hint
-    hint = f"To implement the {func_name} function, we need to follow these steps:"
-    # 取出solution_trace中最后一个key value pair
-    last_tuple = list(solution_trace.items())[-1]
-    last_tuple_recording = last_tuple[1]
-    assert last_tuple_recording["ost_step"]
-    for step_id, step_text in last_tuple_recording["ost_step"].items():
-        hint += step_text + "\n"
-    if new_ost_step is not None:
-        hint += new_ost_step + "\n"
+    # NOTE 同路径下, subq和ost最多只有一种
+
+    # 这里的 hint 不用加上 '### Hints', 因为后边有了
+    hint = ""
+
+    # 如果是subq类型路径
+    if len(solution_trace) > 1:
+        # solution_trace: [{subquestion:xxx, subanswer:xxx}, {subquestion:xxx, subanswer:xxx}]
+        subq_list = [
+            solution_trace[i]["subquestion"] for i in range(1, len(solution_trace))
+        ]  # 从第二个开始取, 第一个是 main question
+        suba_list = [
+            solution_trace[i]["subanswer"] for i in range(1, len(solution_trace))
+        ]
+        for subq, suba in zip(subq_list, suba_list):
+            hint += subq + "\n" + suba + "\n"
+
+    # 如果是ost类型路径
+    elif len(solution_trace[0]["ost_step"]) > 0:
+        step_list = [step for step in list(solution_trace[0]["ost_step"].values())]
+        # TODO 考虑截断, 截断6个之后的ost step
+        step_list = step_list[:6]
+        if step_list:
+            hint += "\n".join(step_list) + "\n"
 
     return hint.strip()
 
@@ -181,12 +188,15 @@ def make_hint(
 def make_funchead_and_docstring(
     requirement: str, func_head: str, test_case: str
 ) -> str:
+    # 处理多行requirement
+    tmp = requirement.split("\n")
+    requirement = tmp[0] + "\n" + "\n".join("    " + s for s in tmp[1:])
     s = f"""
-{func_head}
+{func_head.strip()}
     '''
-    {requirement}
+    {requirement.strip()}
     for example:
-    {test_case}
+    {test_case.strip()}
     '''
 """
     return s.strip()
@@ -275,13 +285,3 @@ def stochastic_find_best_solution(
         solution_nodes,
         solutions,
     )
-
-
-if __name__ == "__main__":
-    from run_src.prompt import *
-
-    ssss = ost_prompt
-    tl = mask_solution_trace(ssss, 5, 0.2, 0.8)
-    for t in tl:
-        print(t)
-        print(8 * "*")
