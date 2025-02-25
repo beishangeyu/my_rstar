@@ -194,7 +194,7 @@ class Discriminator:
         ]
         answer_list = [ans for ans in answer_list if len(ans) > 0]
         num_consistent = 0
-        candidate_count = len(completion_list)
+        candidate_count = len(answer_list)  # 这里应该是过滤后的, 不应该考虑空的
         # 多数投票策略
         if self.args.rc_mode == "maj":
             answer = self.evaluator.find_most_confident_answer(completion_list)
