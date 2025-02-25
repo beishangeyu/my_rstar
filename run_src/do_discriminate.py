@@ -164,7 +164,6 @@ class Discriminator:
         input_lists = []
         for c in candidates:
             for masked_solution_trace in c.masked_solution_trace_list:
-                # TODO 这里构造输入的部分要仔细写
                 input_lists.append(
                     direct_answer_prompt
                     + "\n"
@@ -182,7 +181,7 @@ class Discriminator:
             n=self.args.rc_n_completions,
             max_tokens=1024,
             stop_tokens=[
-                "### Function haed and docstring",
+                "### Function signature and docstring",
                 "As a Python expert, ",
                 "### Test cases",
                 "### Testing",
