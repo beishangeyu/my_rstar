@@ -463,6 +463,8 @@ class Reasoning_MCTS_Node(MCTS_Node):
         step_list: List[str] = None,
         subq_suba_list: List[Tuple[str, str]] = None,
         is_gen_remaining: bool = None,
+        disable_gene_remain_ost: bool = None,
+        disable_gene_remain_subq: bool = None,
     ) -> None:
         super().__init__()
 
@@ -486,6 +488,8 @@ class Reasoning_MCTS_Node(MCTS_Node):
             self.task = task
             self.task_id = task_id
             self.is_gen_remaining = False
+            self.disable_gene_remain_ost = disable_gene_remain_ost
+            self.disable_gene_remain_subq = disable_gene_remain_subq
         else:
             self.verbose = parent.verbose
             self.user_requirement = parent.user_requirement
@@ -494,6 +498,8 @@ class Reasoning_MCTS_Node(MCTS_Node):
             self.func_name = parent.func_name
             self.task = parent.task
             self.task_id = parent.task_id
+            self.disable_gene_remain_ost = parent.disable_gene_remain_ost
+            self.disable_gene_remain_subq = parent.disable_gene_remain_subq
             if is_gen_remaining is not None:
                 self.is_gen_remaining = is_gen_remaining
             else:
@@ -743,9 +749,11 @@ class Reasoning_MCTS_Node(MCTS_Node):
             do_action_generate_rephrased_user_requirement()
             do_action_generate_direct_answers()
             do_action_generate_ost_step()
-            do_action_generate_remain_steps()
+            if not self.disable_gene_remain_ost:
+                do_action_generate_remain_steps()
             do_action_generate_subquestions()
-            do_action_generate_remain_subquestions()
+            if not self.disable_gene_remain_subq:
+                do_action_generate_remain_subquestions()
 
         elif self.node_type is Node_Type.REPHRASED_USER_QUESTION:
             do_action_generate_direct_answers()
@@ -759,7 +767,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
             ):
                 do_action_generate_subquestions()
                 # 本路径中未使用"生成剩下所有"才可以用
-                if not self.is_gen_remaining:
+                if not self.is_gen_remaining and not self.disable_gene_remain_subq:
                     do_action_generate_remain_subquestions()
 
             # 如果父节点不是subq, 才可以使用ost
@@ -769,7 +777,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
             ):
                 do_action_generate_ost_step()
                 # 本路径中未使用"生成剩下所有"才可以用
-                if not self.is_gen_remaining:
+                if not self.is_gen_remaining and not self.disable_gene_remain_ost:
                     do_action_generate_remain_steps()
 
         elif self.node_type is Node_Type.OST_STEP:
@@ -781,7 +789,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
             if self.ost_step_counter < self.stop_num_ost:
                 do_action_generate_ost_step()
 
-                if not self.is_gen_remaining:
+                if not self.is_gen_remaining and not self.disable_gene_remain_ost:
                     do_action_generate_remain_steps()
 
         elif self.node_type is Node_Type.SUBQUESTION:
@@ -793,7 +801,7 @@ class Reasoning_MCTS_Node(MCTS_Node):
             if self.subq_counter < self.stop_num_subq:
                 do_action_generate_subquestions()
 
-                if not self.is_gen_remaining:
+                if not self.is_gen_remaining and not self.disable_gene_remain_subq:
                     do_action_generate_remain_subquestions()
 
         elif self.node_type is Node_Type.DIRECT_ANSWER:
@@ -861,6 +869,8 @@ def search_for_answers(
         max_depth_allowed=args.max_depth_allowed,
         task=task,
         task_id=task_id,
+        disable_gene_remain_ost=args.disable_gene_remain_ost,
+        disable_gene_remain_subq=args.disable_gene_remain_subq,
     )
 
     model_solutions = []

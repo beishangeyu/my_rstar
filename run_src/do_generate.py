@@ -90,6 +90,10 @@ if __name__ == "__main__":
     parser.add_argument("--num_a1_steps", type=int, default=3)
     # 这是第几个结果
     parser.add_argument("--result_iteration", type=int, required=True)
+    # 禁止使用: 一次生成所有ost
+    parser.add_argument("--disable_gene_remain_ost", action="store_true")
+    # 禁止使用 一次生成所有subq
+    parser.add_argument("--disable_gene_remain_subq", action="store_true")
 
     args = parser.parse_args()
 
