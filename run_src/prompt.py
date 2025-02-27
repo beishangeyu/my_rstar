@@ -79,3 +79,18 @@ Answer to sub-question3: Convert the input string to lowercase (or uppercase) be
 Sub-question4: What edge cases should be considered?
 Answer to sub-question4: Empty strings, strings with no vowels, strings with mixed characters (letters, symbols, numbers), and strings containing uppercase vowels (e.g., "AEIOU").
 """
+
+# TODO 让模型生成测试样例, 这里的
+gene_testcase_prompt = """Generate 10 test cases for a Python function. Each test case must start with 'assert' and be provided consecutively, without any additional separators or explanations.
+
+### Python function:
+def is_prime_v2(n):
+    if n <= 1:
+        return False
+    if n in (2, 3):
+        return True
+    if n % 2 == 0:
+        return False
+    return all(n % i != 0 for i in range(3, int(n**0.5) + 1, 2))
+### Test cases:
+"""
