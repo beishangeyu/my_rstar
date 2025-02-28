@@ -642,9 +642,9 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 # TODO 确保不为空, disc的时候应该筛去 text 为空的trace
                 if len(direct_answer_list) == 0:
                     direct_answer_list = [""]
-                    value_list = [0]
+                    value_list = [0.001]
             for direct_answer, value in zip(direct_answer_list, value_list):
-                if np.isnan(value) or value < 0:
+                if np.isnan(value) or value <= 0:
                     breakpoint()
                 self.children.append(
                     Reasoning_MCTS_Node(
