@@ -229,7 +229,7 @@ class Discriminator:
         ]
         # 防止生成了错误地 testcase
         if len(retain_ids) > 0:
-            pass
+            answer_list = [answer_list[i] for i in retain_ids]
 
         num_consistent = 0
         candidate_count = len(answer_list)  # 这里应该是过滤后的, 不应该考虑空的
