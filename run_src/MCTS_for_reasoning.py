@@ -29,12 +29,47 @@ from prompt import (
     rephrase_prompt,
     gene_subq_suba_prompt,
     direct_answer_prompt,
+    gene_testcase_prompt,
 )
 
 
 def verbose_print(s: str, verbose: bool):
     if verbose:
         print(s)
+
+
+# TAG 测试用
+def test_func(test_list, code, timeout=3):
+    test_list_code = "\n".join(test_list)
+    template = f"{code}\n{test_list_code}\n"
+    return function_with_timeout(template, None, timeout)
+
+
+import multiprocessing
+
+
+def function_with_timeout(func, args, timeout):
+    def exec_code(queue):
+        try:
+            exec(func)
+            queue.put(1)
+        except Exception:
+            queue.put(0)
+
+    queue = multiprocessing.Queue()
+    process = multiprocessing.Process(target=exec_code, args=(queue,))
+    process.start()
+    process.join(timeout)
+
+    if process.is_alive():
+        process.terminate()
+        process.join()
+        return 0
+    else:
+        return queue.get()
+
+
+# END of tag
 
 
 class Generator:
@@ -74,16 +109,6 @@ class Generator:
         funchead_and_docstring = make_funchead_and_docstring(
             requirement, func_head, test_case
         )
-        #         io_input = f"""{direct_answer_prompt.strip()}
-
-        # ### Function signature and docstring
-        # {funchead_and_docstring.strip()}
-
-        # ### Hints
-        # {hint.strip() if hint else ""}
-
-        # ### Function implementation
-        # """
         io_input = f"""{direct_answer_prompt.strip()}
 
 ### Function signature and docstring
@@ -103,16 +128,32 @@ class Generator:
             top_k=10,
             temperature=0.8,
         )
-        cleaned_io_output_list = [
-            io_output.strip() for io_output in io_output_list
-        ]  #! cleaning
+        cleaned_io_output_list = [io_output.strip() for io_output in io_output_list]
 
-        # for debug
-        # print("--- Gene direct answer")
-        # print("--- print io_input")
-        # print(io_input)
-        # print("--- end of io_input")
-        # print("--- end of gene direct answer")
+        return io_input, cleaned_io_output_list
+
+    # TODO 生成测试样例
+    def generate_test_case(self, requirement: str, func_head: str, test_case: str):
+        funchead_and_docstring = make_funchead_and_docstring(
+            requirement, func_head, test_case
+        )
+        io_input = f"""{gene_testcase_prompt.strip()}
+
+### Function:
+{funchead_and_docstring.strip()}
+
+### Test cases:
+"""
+        io_output_list = self.io.generate(
+            model_input=io_input,
+            num_return=1,  # TODO 多几个随机选?
+            max_tokens=1024,
+            stop_tokens=["### ", "def "],
+            top_p=0.95,
+            top_k=10,
+            temperature=0.8,
+        )
+        cleaned_io_output_list = [io_output.strip() for io_output in io_output_list]
 
         return io_input, cleaned_io_output_list
 
@@ -430,19 +471,6 @@ Break it down into sub-questions:
 
         return subq_list, suba_list
 
-    # TODO 反思
-    # 生成测试样例
-    def generate_test_case(self, requirement: str, func_head: str):
-        pass
-
-    # 执行测试样例 获取结果
-    def execute_test_case(self, requirement: str, func_head: str, test_case: str):
-        pass
-
-    # 输入测试样例执行结果, 让模型反思
-    def gene_reflection(self, requirement: str, func_head: str, test_case: str):
-        pass
-
 
 class Reasoning_MCTS_Node(MCTS_Node):
     def __init__(
@@ -596,9 +624,27 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 test_case=test_case,
             )
             # TODO 在这里用测试样例筛一些
-            pass
+            # TODO 如果没有一个answer通过, 是否可以反向判定这个test case失效, 然后都保留呢? 因为模型是会生成错误的答案的
+            _, test_case = self.generator.generate_test_case(
+                requirement=self.user_requirement,
+                func_head=func_head,
+                test_case=test_case,
+            )
+            test_list = test_case[0].split("assert")[1:2]
+            if len(test_list) > 0:
+                keep_ids = [
+                    i
+                    for i, answer in enumerate(direct_answer_list)
+                    if test_func(test_list, answer)
+                ]
+                direct_answer_list = [direct_answer_list[i] for i in keep_ids]
+                value_list = [value_list[i] for i in keep_ids]
+                # TODO 确保不为空, disc的时候应该筛去 text 为空的trace
+                if len(direct_answer_list) == 0:
+                    direct_answer_list = [""]
+                    value_list = [0]
             for direct_answer, value in zip(direct_answer_list, value_list):
-                if np.isnan(value) or value <= 0:
+                if np.isnan(value) or value < 0:
                     breakpoint()
                 self.children.append(
                     Reasoning_MCTS_Node(

@@ -81,16 +81,18 @@ Answer to sub-question4: Empty strings, strings with no vowels, strings with mix
 """
 
 # TODO 让模型生成测试样例, 这里的
-gene_testcase_prompt = """Generate 10 test cases for a Python function. Each test case must start with 'assert' and be provided consecutively, without any additional separators or explanations.
+gene_testcase_prompt = f"""Generate 3 test cases for the following function, which is defined but not yet implemented. Each test case must start with 'assert' and be listed consecutively without any additional separators or explanations
 
-### Python function:
-def is_prime_v2(n):
-    if n <= 1:
-        return False
-    if n in (2, 3):
-        return True
-    if n % 2 == 0:
-        return False
-    return all(n % i != 0 for i in range(3, int(n**0.5) + 1, 2))
+### Function:
+def concat_strings(str1, str2):
+    '''
+    Concatenates two strings together.
+    for example:
+    assert concat_strings('hello', 'world') == 'helloworld'
+    '''
+
 ### Test cases:
+assert concat_strings('hello', 'world') == 'helloworld'
+assert concat_strings('open', 'ai') == 'openai'
+assert concat_strings('abc', '123') == 'abc123'
 """
