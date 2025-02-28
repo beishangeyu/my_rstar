@@ -3,10 +3,8 @@ import sys
 
 sys.path.append(".")
 
-from datetime import datetime
 from copy import deepcopy
 from collections import defaultdict
-from argparse import ArgumentParser
 from models.vLLM_API import load_vLLM_model, generate_with_vLLM_model
 from run_src.rstar_utils import (
     concat_solution_trace,
@@ -21,10 +19,41 @@ from common.utils import (
     load_dataset,
     enumerate_resume,
 )
-from common.arguments import get_parser, post_process_args, save_args
+from common.arguments import get_parser
 import os
 import json
 from prompt import direct_answer_prompt
+
+
+# TAG 测试用
+def test_func(test_list: List[str], code: str, timeout=3):
+    test_list_code = "\n".join(test_list)
+    template = f"{code}\n{test_list_code}\n"
+    return function_with_timeout(template, None, timeout)
+
+
+def function_with_timeout(func, args, timeout):
+    def exec_code(queue):
+        try:
+            exec(func)
+            queue.put(1)
+        except Exception:
+            queue.put(0)
+
+    queue = multiprocessing.Queue()
+    process = multiprocessing.Process(target=exec_code, args=(queue,))
+    process.start()
+    process.join(timeout)
+
+    if process.is_alive():
+        process.terminate()
+        process.join()
+        return 0
+    else:
+        return queue.get()
+
+
+####################################
 
 
 # NOTE 封装一个trace和它所有的masked trace
@@ -152,6 +181,7 @@ class Discriminator:
         gen_model,
         funchead_and_docstring: str,
         candidates: list[Candidate],
+        test_list: list[str],
     ) -> list[Candidate]:
         print("-" * 10 + "Filtering reasoning consistency ..." + "-" * 10)
         assert all(
@@ -193,6 +223,14 @@ class Discriminator:
             for completion in completion_list
         ]
         answer_list = [ans for ans in answer_list if len(ans) > 0]
+        # TODO 尝试用测试样例筛掉一些
+        retain_ids = [
+            i for i in range(len(answer_list)) if test_func(test_list, answer_list[i])
+        ]
+        # 防止生成了错误地 testcase
+        if len(retain_ids) > 0:
+            pass
+
         num_consistent = 0
         candidate_count = len(answer_list)  # 这里应该是过滤后的, 不应该考虑空的
         # 多数投票策略
@@ -227,70 +265,51 @@ class Discriminator:
                     consistent_candidates.append(c)
         return consistent_candidates
 
-        # 改成批量推理前的, 先留着万一出错
-        # for c in candidates:
-        #     completion_list = []
+    # TODO 生成测试样例
+    def _gen_testcases(
+        self,
+        gen_model,
+        funchead_and_docstring: str,
+        temperature: float = 0.9,
+        n: int = 1,
+        max_tokens: int = 512,
+        stop_tokens=["### ", "Generate 3 test", "Inputs: ", "Outputs: "],
+    ) -> List[str]:
+        gen_input = """Generate 3 test cases for the following function, which is defined but not yet implemented. Each test case must start with 'assert' and be listed consecutively without any additional separators or explanations
 
-        #     for masked_solution_trace in c.masked_solution_trace_list:
-        #         masked_solution_trace = (
-        #             f"### Function signature and docstring\n{funchead_and_docstring}\n\n"
-        #             + masked_solution_trace
-        #         )
-        #         input = disc_prompt + "\n" + masked_solution_trace
-        #         completions = self._gen_func(
-        #             gen_model=gen_model,
-        #             gen_input=input,
-        #             temperature=self.args.rc_temperature,
-        #             n=self.args.rc_n_completions,
-        #             max_tokens=1024,
-        #             stop_tokens=[
-        #                 "[Function signature and docstring]",
-        #                 "You are a Python assistant.",
-        #             ],
-        #         )
-        #         completion_list.append(completions)
+### Function:
+def concat_strings(str1, str2):
+    '''
+    Concatenates two strings together.
+    for example:
+    assert concat_strings('hello', 'world') == 'helloworld'
+    '''
 
-        #     answer_list = [
-        #         self.evaluator.extract_answer_from_model_completion(completion)
-        #         for completion in completion_list
-        #     ]
-        #     answer_list = [ans for ans in answer_list if len(ans) > 0]
+### Test cases:
+assert concat_strings('hello', 'world') == 'helloworld'
+assert concat_strings('open', 'ai') == 'openai'
+assert concat_strings('abc', '123') == 'abc123'
+"""
+        gen_input = f"""{gen_input.strip()}
 
-        #     num_consistent = 0
-        #     candidate_count = len(completion_list)
-        #     # 多数投票策略
-        #     if self.args.rc_mode == "maj":
-        #         answer = self.evaluator.find_most_confident_answer(completion_list)
-        #         if self.evaluator.check_answers_equiv(c.final_answer, answer):
-        #             consistent_candidates.append(c)
-        #     else:
-        #         # 把candidate和discriminator的补全答案一个个比较, 如果相等, num_consistent就加1
-        #         for answer in answer_list:
-        #             print("-" * 10 + "Check answer equiv ..." + "-" * 10)
-        #             print(f"==> Answer from generator:\n" + repr(c.final_answer))
-        #             print(
-        #                 "==> Answer from discriminator:\n" + repr(answer)
-        #                 if len(answer)
-        #                 else "No answer"
-        #             )
-        #             if self.evaluator.check_answers_equiv(c.final_answer, answer):
-        #                 num_consistent += 1
+        # ### Function:
+        # {funchead_and_docstring.strip()}
 
-        #         # 只要有一个补全答案跟本来的答案一样, 这个 candidate 就有效
-        #         if self.args.rc_mode == "loose":
-        #             if num_consistent > 0:
-        #                 consistent_candidates.append(c)
-        #         # 过半的的补全答案和本来的答案一样, 这个 candidate 才有效
-        #         elif self.args.rc_mode == "mid":
-        #             if num_consistent >= candidate_count // 2:
-        #                 consistent_candidates.append(c)
-        #         # 所有的补全答案和本来的答案一样, 这个 candidate 才有效
-        #         elif self.args.rc_mode == "strict":
-        #             if num_consistent == candidate_count:
-        #                 consistent_candidates.append(c)
-
-        # # 返回所有达到一致性要求的candidate
-        # return consistent_candidates
+        # ### Test cases:
+        # """
+        response = generate_with_vLLM_model(
+            model=gen_model,
+            input=gen_input,
+            temperature=temperature,
+            n=n,
+            max_tokens=max_tokens,
+            stop=stop_tokens,
+        )
+        test_case = [o.text for o in response[0].outputs]
+        # TODO 在这里选择保留几个, 先用一个试试看
+        test_case = test_case[0].split("assert")[1:2]
+        test_case = ["assert" + tc for tc in test_case]
+        return test_case
 
     def _gen_func(
         self,
@@ -471,8 +490,12 @@ class MajorityVoteDiscriminator(Discriminator):
         # prefiltered_candidates: [1, 2, 3, 4, 5]
 
         # 过滤掉一致性不够的答案
+        # NOTE 传入测试用例进行筛选
+        test_list = self._gen_testcases(
+            gen_model=self.model, funchead_and_docstring=funchead_and_docstring
+        )[0]
         filtered_candidates = self._filter_reasoning_consistency(
-            self.model, funchead_and_docstring, prefiltered_candidates
+            self.model, funchead_and_docstring, prefiltered_candidates, test_list
         )
         # filtered_candidates: [1, 2, 3]
         return self._find_winner_filtered(
@@ -561,6 +584,9 @@ def main():
         solution_trace_dic = {}
         # 遍历同一个 task id 下所有的 solution trace, 将它们添加到的 dict 中
         for id, it in enumerate(solution_traces):
+            # # NOTE 过滤掉 direct answer 为空的
+            # if len(it["trace"]["0"]["direct_answer"]["text"]) == 0:
+            #     continue
             # 把 solution trace 组合起来, 添加到 dict 中
             requirement, solution_trace, final_step, reward = concat_solution_trace(
                 it["trace"]

@@ -80,7 +80,7 @@ Sub-question4: What edge cases should be considered?
 Answer to sub-question4: Empty strings, strings with no vowels, strings with mixed characters (letters, symbols, numbers), and strings containing uppercase vowels (e.g., "AEIOU").
 """
 
-# TODO 让模型生成测试样例, 这里的
+# 让模型生成测试样例
 gene_testcase_prompt = f"""Generate 3 test cases for the following function, which is defined but not yet implemented. Each test case must start with 'assert' and be listed consecutively without any additional separators or explanations
 
 ### Function:

@@ -132,30 +132,30 @@ class Generator:
 
         return io_input, cleaned_io_output_list
 
-    # TODO 生成测试样例
-    def generate_test_case(self, requirement: str, func_head: str, test_case: str):
-        funchead_and_docstring = make_funchead_and_docstring(
-            requirement, func_head, test_case
-        )
-        io_input = f"""{gene_testcase_prompt.strip()}
+    #     # TODO 生成测试样例
+    #     def generate_test_case(self, requirement: str, func_head: str, test_case: str):
+    #         funchead_and_docstring = make_funchead_and_docstring(
+    #             requirement, func_head, test_case
+    #         )
+    #         io_input = f"""{gene_testcase_prompt.strip()}
 
-### Function:
-{funchead_and_docstring.strip()}
+    # ### Function:
+    # {funchead_and_docstring.strip()}
 
-### Test cases:
-"""
-        io_output_list = self.io.generate(
-            model_input=io_input,
-            num_return=1,  # TODO 多几个随机选?
-            max_tokens=1024,
-            stop_tokens=["### ", "def "],
-            top_p=0.95,
-            top_k=10,
-            temperature=0.8,
-        )
-        cleaned_io_output_list = [io_output.strip() for io_output in io_output_list]
+    # ### Test cases:
+    # """
+    #         io_output_list = self.io.generate(
+    #             model_input=io_input,
+    #             num_return=1,
+    #             max_tokens=1024,
+    #             stop_tokens=["### ", "def "],
+    #             top_p=0.95,
+    #             top_k=10,
+    #             temperature=0.8,
+    #         )
+    #         cleaned_io_output_list = [io_output.strip() for io_output in io_output_list]
 
-        return io_input, cleaned_io_output_list
+    #         return io_input, cleaned_io_output_list
 
     # 直接生成答案, value=出现次数最多的答案次数/总次数
     def generate_direct_answers(
@@ -623,26 +623,26 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 func_head=func_head,
                 test_case=test_case,
             )
-            # TODO 在这里用测试样例筛一些
-            # TODO 如果没有一个answer通过, 是否可以反向判定这个test case失效, 然后都保留呢? 因为模型是会生成错误的答案的
-            _, test_case = self.generator.generate_test_case(
-                requirement=self.user_requirement,
-                func_head=func_head,
-                test_case=test_case,
-            )
-            test_list = test_case[0].split("assert")[1:2]
-            if len(test_list) > 0:
-                keep_ids = [
-                    i
-                    for i, answer in enumerate(direct_answer_list)
-                    if test_func(test_list, answer)
-                ]
-                direct_answer_list = [direct_answer_list[i] for i in keep_ids]
-                value_list = [value_list[i] for i in keep_ids]
-                # TODO 确保不为空, disc的时候应该筛去 text 为空的trace
-                if len(direct_answer_list) == 0:
-                    direct_answer_list = [""]
-                    value_list = [0.001]
+            # # TODO 在这里用测试样例筛一些
+            # # TODO 如果没有一个answer通过, 是否可以反向判定这个test case失效, 然后都保留呢? 因为模型是会生成错误的答案的
+            # _, test_case = self.generator.generate_test_case(
+            #     requirement=self.user_requirement,
+            #     func_head=func_head,
+            #     test_case=test_case,
+            # )
+            # test_list = test_case[0].split("assert")[1:2]
+            # if len(test_list) > 0:
+            #     keep_ids = [
+            #         i
+            #         for i, answer in enumerate(direct_answer_list)
+            #         if test_func(test_list, answer)
+            #     ]
+            #     direct_answer_list = [direct_answer_list[i] for i in keep_ids]
+            #     value_list = [value_list[i] for i in keep_ids]
+            #     # TODO 确保不为空, disc的时候应该筛去 text 为空的trace
+            #     if len(direct_answer_list) == 0:
+            #         direct_answer_list = [""]
+            #         value_list = [0.001]
             for direct_answer, value in zip(direct_answer_list, value_list):
                 if np.isnan(value) or value <= 0:
                     breakpoint()
