@@ -273,7 +273,7 @@ class Discriminator:
         temperature: float = 0.9,
         n: int = 1,
         max_tokens: int = 512,
-        stop_tokens=["### ", "Generate 3 test", "Inputs: ", "Outputs: "],
+        stop_tokens: List[str] = ["### ", "Generate 3 test", "Inputs: ", "Outputs: "],
     ) -> List[str]:
         gen_input = """Generate 3 test cases for the following function, which is defined but not yet implemented. Each test case must start with 'assert' and be listed consecutively without any additional separators or explanations
 
@@ -292,11 +292,11 @@ assert concat_strings('abc', '123') == 'abc123'
 """
         gen_input = f"""{gen_input.strip()}
 
-        # ### Function:
-        # {funchead_and_docstring.strip()}
+### Function:
+{funchead_and_docstring.strip()}
 
-        # ### Test cases:
-        # """
+### Test cases:
+"""
         response = generate_with_vLLM_model(
             model=gen_model,
             input=gen_input,
@@ -307,8 +307,11 @@ assert concat_strings('abc', '123') == 'abc123'
         )
         test_case = [o.text for o in response[0].outputs]
         # TODO 在这里选择保留几个, 先用一个试试看
-        test_case = test_case[0].split("assert")[1:2]
-        test_case = ["assert" + tc for tc in test_case]
+        test_case = test_case[0].split("assert")[1:3]
+        if len(test_case) > 0:
+            test_case = ["assert" + tc for tc in test_case]
+        else:
+            test_case = [""]
         return test_case
 
     def _gen_func(
@@ -493,7 +496,7 @@ class MajorityVoteDiscriminator(Discriminator):
         # NOTE 传入测试用例进行筛选
         test_list = self._gen_testcases(
             gen_model=self.model, funchead_and_docstring=funchead_and_docstring
-        )[0]
+        )
         filtered_candidates = self._filter_reasoning_consistency(
             self.model, funchead_and_docstring, prefiltered_candidates, test_list
         )
