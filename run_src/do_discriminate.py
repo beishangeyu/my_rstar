@@ -29,6 +29,7 @@ from prompt import direct_answer_prompt
 def test_func(test_list: List[str], code: str, timeout=3):
     test_list_code = "\n".join(test_list)
     template = f"{code}\n{test_list_code}\n"
+    print(f"==> Testing code:\n{template}")
     return function_with_timeout(template, None, timeout)
 
 
@@ -215,6 +216,7 @@ class Discriminator:
                 "As a Python expert, ",
                 "### Test cases",
                 "### Testing",
+                "import ",
             ],
         )
         completion_list = [c for r in completion_list for c in r]  # 展开
@@ -223,13 +225,12 @@ class Discriminator:
             for completion in completion_list
         ]
         answer_list = [ans for ans in answer_list if len(ans) > 0]
-        # TODO 尝试用测试样例筛掉一些
-        retain_ids = [
-            i for i in range(len(answer_list)) if test_func(test_list, answer_list[i])
-        ]
-        # 防止生成了错误地 testcase
-        if len(retain_ids) > 0:
-            answer_list = [answer_list[i] for i in retain_ids]
+        # retain_ids = [
+        #     i for i in range(len(answer_list)) if test_func(test_list, answer_list[i])
+        # ]
+        # # 防止生成了错误地 testcase
+        # if len(retain_ids) > 0:
+        #     answer_list = [answer_list[i] for i in retain_ids]
 
         num_consistent = 0
         candidate_count = len(answer_list)  # 这里应该是过滤后的, 不应该考虑空的
@@ -265,54 +266,54 @@ class Discriminator:
                     consistent_candidates.append(c)
         return consistent_candidates
 
-    # TODO 生成测试样例
-    def _gen_testcases(
-        self,
-        gen_model,
-        funchead_and_docstring: str,
-        temperature: float = 0.9,
-        n: int = 1,
-        max_tokens: int = 512,
-        stop_tokens: List[str] = ["### ", "Generate 3 test", "Inputs: ", "Outputs: "],
-    ) -> List[str]:
-        gen_input = """Generate 3 test cases for the following function, which is defined but not yet implemented. Each test case must start with 'assert' and be listed consecutively without any additional separators or explanations
+    #     # 生成测试样例, 不使用
+    #     def _gen_testcases(
+    #         self,
+    #         gen_model,
+    #         funchead_and_docstring: str,
+    #         temperature: float = 0.9,
+    #         n: int = 1,
+    #         max_tokens: int = 512,
+    #         stop_tokens: List[str] = ["### ", "Generate 3 test", "Inputs: ", "Outputs: "],
+    #     ) -> List[str]:
+    #         gen_input = """Generate 3 test cases for the following function, which is defined but not yet implemented. Each test case must start with 'assert' and be listed consecutively without any additional separators or explanations.
 
-### Function:
-def concat_strings(str1, str2):
-    '''
-    Concatenates two strings together.
-    for example:
-    assert concat_strings('hello', 'world') == 'helloworld'
-    '''
+    # ### Function:
+    # def concat_strings(str1, str2):
+    #     '''
+    #     Concatenates two strings together.
+    #     for example:
+    #     assert concat_strings('hello', 'world') == 'helloworld'
+    #     '''
 
-### Test cases:
-assert concat_strings('hello', 'world') == 'helloworld'
-assert concat_strings('open', 'ai') == 'openai'
-assert concat_strings('abc', '123') == 'abc123'
-"""
-        gen_input = f"""{gen_input.strip()}
+    # ### Test cases:
+    # assert concat_strings('hello', 'world') == 'helloworld'
+    # assert concat_strings('open', 'ai') == 'openai'
+    # assert concat_strings('abc', '123') == 'abc123'
+    # """
+    #         gen_input = f"""{gen_input.strip()}
 
-### Function:
-{funchead_and_docstring.strip()}
+    # ### Function:
+    # {funchead_and_docstring.strip()}
 
-### Test cases:
-"""
-        response = generate_with_vLLM_model(
-            model=gen_model,
-            input=gen_input,
-            temperature=temperature,
-            n=n,
-            max_tokens=max_tokens,
-            stop=stop_tokens,
-        )
-        test_case = [o.text for o in response[0].outputs]
-        # TODO 在这里选择保留几个, 先用一个试试看
-        test_case = test_case[0].split("assert")[1:3]
-        if len(test_case) > 0:
-            test_case = ["assert" + tc for tc in test_case]
-        else:
-            test_case = [""]
-        return test_case
+    # ### Test cases:
+    # """
+    #         response = generate_with_vLLM_model(
+    #             model=gen_model,
+    #             input=gen_input,
+    #             temperature=temperature,
+    #             n=n,
+    #             max_tokens=max_tokens,
+    #             stop=stop_tokens,
+    #         )
+    #         test_case = [o.text for o in response[0].outputs]
+    #         # 在这里选择保留几个
+    #         test_case = test_case[0].split("assert")[1:3]
+    #         if len(test_case) > 0:
+    #             test_case = ["assert" + tc for tc in test_case]
+    #         else:
+    #             test_case = [""]
+    #         return test_case
 
     def _gen_func(
         self,
@@ -493,10 +494,10 @@ class MajorityVoteDiscriminator(Discriminator):
         # prefiltered_candidates: [1, 2, 3, 4, 5]
 
         # 过滤掉一致性不够的答案
-        # NOTE 传入测试用例进行筛选
-        test_list = self._gen_testcases(
-            gen_model=self.model, funchead_and_docstring=funchead_and_docstring
-        )
+        # 传入测试用例进行筛选
+        # test_list = self._gen_testcases(
+        #     gen_model=self.model, funchead_and_docstring=funchead_and_docstring
+        # )
         filtered_candidates = self._filter_reasoning_consistency(
             self.model, funchead_and_docstring, prefiltered_candidates, test_list
         )
