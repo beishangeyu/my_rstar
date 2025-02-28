@@ -64,6 +64,42 @@ Rephrased requirement:
 Write a Python function using map to count the number of matching pairs in two given lists.
 """
 
+# TODO 固定思考方向
+# TODO 可以记录一个 count, 看回答了几个范式
+code_paradigm_decompose_prompt = """
+You are a Python assistant. Now, you need to solve a python programming problem using the "Code Paradigm Decomposition" thinking approach.
+
+### Python programming problem:
+def has_unique_chars(s: str) -> bool:
+    '''
+    Write a Python function to determine whether a string contains only unique characters (i.e., no duplicates).
+    for example:
+    assert has_unique_chars("abc")==True
+    '''
+    return len(s) == len(set(s))
+
+### Thinking Steps:
+### Input Analysis: What is the input of the function? What are the possible input types or ranges? Are there any special cases (e.g., empty input, invalid input) to consider?
+The input is a string, which can contain letters, numbers, spaces, or special characters.
+The input is of type str in Python. 
+Possible cases include: An empty string, A single-character string, A string with mixed characters (e.g., "abc123", "a b", "a#a").
+
+### Output Definition: What does the function need to return? What is the type of the return value? Are there any specific formats or conditions?
+The function returns a boolean value (True or False) indicating whether all characters in the string are unique (no duplicates).
+The return value is of type bool. True means no character appears more than once; False means at least one character is repeated.
+
+### Function Decomposition: What smaller steps can the target functionality be broken into?
+1. Take the input string.
+2. Check each character to see if it appears more than once.
+3. Return True if all characters are unique, False otherwise.
+
+### Boundary Conditions: What boundary cases need to be handled? How do we ensure the function works correctly in these cases?
+Empty string: Should return True (no characters, thus no duplicates).
+Single character: Should return True (one character is always unique).
+String with spaces or special characters: Should treat them as regular characters (e.g., "a b" has a space).
+Using a set to track unique characters handles all these cases naturally, as it considers spaces and special characters as distinct elements.
+"""
+
 # 分解问题 回答子问题
 gene_subq_suba_prompt = """I will provide a main question. Please break it down into several sub-questions and answer each sub-question one by one in the order, without skipping any.
 
@@ -79,6 +115,7 @@ Answer to sub-question3: Convert the input string to lowercase (or uppercase) be
 Sub-question4: What edge cases should be considered?
 Answer to sub-question4: Empty strings, strings with no vowels, strings with mixed characters (letters, symbols, numbers), and strings containing uppercase vowels (e.g., "AEIOU").
 """
+
 
 # 让模型生成测试样例
 gene_testcase_prompt = f"""Generate 3 test cases for the following function, which is defined but not yet implemented. Each test case must start with 'assert' and be listed consecutively without any additional separators or explanations
