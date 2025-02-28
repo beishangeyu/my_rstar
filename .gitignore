@@ -7,4 +7,4 @@ scripts/
 data/
 *result
 test*
-logs
+*.log
