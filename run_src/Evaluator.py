@@ -248,15 +248,22 @@ class PythonEvaluator(Evaluator):
             return False
 
     def extract_answer_from_model_completion(self, completion: str) -> str:
-        # 取出 completion 中的答案部分
-        pattern = re.compile(r"(def\s+\w+\s*\(.*?\)\s*:\s*(?:\n\s+.*)+)", re.DOTALL)
-        matches = pattern.findall(completion)
+        # 找到第一个 def 的位置
+        start_idx = completion.find("def ")
+        if start_idx == -1:
+            first_function = ""
 
-        answer = matches[-1] if matches else ""
-        if not answer:
+        # 找到下一个 def 的位置（如果有）
+        next_def_idx = completion.find("def ", start_idx + 1)
+        if next_def_idx == -1:
+            first_function = completion[start_idx:].strip()
+        else:
+            # 取第一个 def 到下一个 def 之前的内容
+            first_function = completion[start_idx:next_def_idx].strip()
+        if not first_function:
             return ""
         # 去除注释
-        return remove_comments(answer)
+        return remove_comments(first_function)
 
     def test_func(self, test_list, code, timeout=3):
         test_list_code = "\n".join(test_list)
@@ -289,10 +296,38 @@ def function_with_timeout(func, args, timeout):
         return queue.get()
 
 
-# 去除注释和空行
 def remove_comments(code: str) -> str:
-    pattern = r"(\"\"\".*?\"\"\"|\'\'\'.*?\'\'\'|#.*?$)"
-    # 去除注释
-    code = re.sub(pattern, "", code, flags=re.MULTILINE | re.DOTALL)
-    # 去除代码内空行和前后空行
-    return re.sub(r"\n\s*\n", "\n", code).strip()
+    # 分离多行字符串和单行注释的逻辑
+    result = []
+    lines = code.splitlines()
+    in_multiline = False
+    multiline_delimiter = None
+
+    for line in lines:
+        stripped_line = line.strip()
+
+        # 检测是否进入或退出多行字符串/注释
+        if in_multiline:
+            if stripped_line.endswith(multiline_delimiter):
+                in_multiline = False
+            continue
+        elif stripped_line.startswith('"""') or stripped_line.startswith("'''"):
+            multiline_delimiter = stripped_line[:3]
+            if not stripped_line.endswith(multiline_delimiter):  # 未在同一行结束
+                in_multiline = True
+            continue
+        elif stripped_line.startswith("#"):  # 单行注释
+            continue
+
+        # 移除行内注释，但保留字符串中的 #
+        if "#" in line:
+            # 简单检查是否在字符串中（不完美，但适用于大多数情况）
+            if not (line.count('"') % 2 == 1 or line.count("'") % 2 == 1):
+                line = re.sub(r"#.*$", "", line, flags=re.MULTILINE)
+
+        # 只保留非空行
+        if stripped_line:
+            result.append(line)
+
+    # 合并结果，保留单个换行符
+    return "\n".join(result).strip()
