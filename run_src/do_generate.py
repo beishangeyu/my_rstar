@@ -43,6 +43,11 @@ def main(args):
     num_tested = 0
     for i, data_item in enumerate_resume(dataset, args.gene_result):
         problem_id = data_item["task_id"]
+
+        # BUG debug
+        # if problem_id > 2:
+        #     break
+
         if args.dataset_name == "mbpp":
             problem = data_item["text"]
         elif args.dataset_name == "humaneval_modi":

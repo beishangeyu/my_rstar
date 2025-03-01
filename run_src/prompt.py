@@ -1,20 +1,79 @@
-direct_answer_prompt = """As a Python expert, generate only the function implementation code based strictly on the provided signature, docstring and hints, without any explanations, tests or additional text.    
+direct_answer_no_hints = """You are a Python assistant. You need to use them to solve a Python programming problem. ONLY provide the function implementation code.
 
-### Function signature and docstring
+### Python programming problem:
 def find_Odd_Pair(A,N):
     '''
     Write a python function to count the pairs with xor as an odd number.
     '''
 
-### Hints
-Understand the Input. The function takes a list A and an integer N, where N is the number of elements in the list A.
-Understand XOR Properties. The XOR of two numbers is odd if and only if one number is odd and the other is even. Therefore, we need to count how many odd and even numbers are present in the list.
-Count Odd and Even Numbers. Initialize two counters: one for odd numbers and one for even numbers. Iterate through the list to populate these counters.
-Calculate Pairs. The number of valid pairs (one odd, one even) can be calculated by multiplying the count of odd numbers by the count of even numbers.
-Return the Count. Finally, return the total count of such pairs.
-Implement the function
+### Function implementation:
+def find_Odd_Pair(A, N):
+    count = 0
+    for i in range(N):
+        for j in range(i + 1, N):
+            if (A[i] ^ A[j]) % 2 != 0:
+                count += 1
+    return count
+"""
 
-### Function implementation
+cpd_final_answer_prompt = """You are a Python assistant. I will give you some hints, and you need to use them to solve a Python programming problem. ONLY provide the function implementation code.
+
+### Python programming problem:
+def has_unique_chars(s):
+    '''
+    Write a Python function to determine whether a string contains only unique characters (i.e., no duplicates).
+    for example:
+    assert has_unique_chars("abc")==True
+    '''
+    
+### Thinking Steps:
+1. Input Analysis: What is the input of the function? What are the possible input types or ranges? Are there any special cases (e.g., empty input, invalid input) to consider?
+    The input is a string, which can contain letters, numbers, spaces, or special characters.
+    The input is of type str in Python. 
+    Possible cases include: An empty string, A single-character string, A string with mixed characters (e.g., "abc123", "a b", "a#a").
+2. Output Definition: What does the function need to return? What is the type of the return value? Are there any specific formats or conditions?
+    The function returns a boolean value (True or False) indicating whether all characters in the string are unique (no duplicates).
+    The return value is of type bool. True means no character appears more than once; False means at least one character is repeated.
+3. Function Decomposition: What smaller steps can the target functionality be broken into?
+    1. Take the input string.
+    2. Check each character to see if it appears more than once.
+    3. Return True if all characters are unique, False otherwise.
+4. Boundary Conditions: What boundary cases need to be handled? How do we ensure the function works correctly in these cases?
+    Empty string: Should return True (no characters, thus no duplicates).
+    Single character: Should return True (one character is always unique).
+    String with spaces or special characters: Should treat them as regular characters (e.g., "a b" has a space).
+    Using a set to track unique characters handles all these cases naturally, as it considers spaces and special characters as distinct elements.   
+
+### Function implementation:
+def has_unique_chars(s):
+    return len(s) == len(set(s))
+"""
+
+direct_answer_prompt = """You are a Python assistant. I will give you some hints, and you need to use them to solve a Python programming problem. ONLY provide the function implementation code.
+
+### Python programming problem:
+def find_Odd_Pair(A,N):
+    '''
+    Write a python function to count the pairs with xor as an odd number.
+    '''
+
+### Hints:
+1. Understand the Input. 
+    The function takes a list `A` and an integer `N`, where `N` is the number of elements in the list `A`.
+    We need to count the number of pairs `(i, j)` such that `A[i] ^ A[j]` results in an odd number.  
+2. Understand XOR Properties. 
+    XOR of two numbers is odd if and only if one number is odd and the other is even.
+    This means we need to determine how many odd and even numbers exist in `A`.
+3. Count Odd and Even Numbers. 
+    Initialize two counters: one for odd numbers and one for even numbers.  
+    Iterate through the list `A` and count the occurrences of odd and even numbers.  
+4. Calculate Pairs. 
+    A valid pair consists of one odd and one even number.  
+    The number of such pairs can be found by multiplying the count of odd numbers by the count of even numbers. 
+5. Return the Result  
+    Return the computed number of valid pairs.  
+
+### Function implementation:
 def find_Odd_Pair(A, N):
     count = 0
     for i in range(N):
@@ -26,22 +85,29 @@ def find_Odd_Pair(A, N):
 
 
 # 提出单步思考
-ost_prompt = """You are a Python assistant. You are given function signature and docstring. Provide the full implementation of the following function.
+ost_prompt = """You are a Python assistant. You are given a python programming problem. Your task is to analyze the problem and generate a structured step-by-step thought process to solve it. 
     
-### Function signature and docstring
+### Python programming problem:
 def find_Odd_Pair(A,N):
     '''
     Write a python function to count the pairs with xor as an odd number.
     '''
 
-### Step to implement
-To implement the find_Odd_Pair function, we can follow these steps:
-Step1: Understand the Input. The function takes a list A and an integer N, where N is the number of elements in the list A.
-Step2: Understand XOR Properties. The XOR of two numbers is odd if and only if one number is odd and the other is even. Therefore, we need to count how many odd and even numbers are present in the list.
-Step3: Count Odd and Even Numbers. Initialize two counters: one for odd numbers and one for even numbers. Iterate through the list to populate these counters.
-Step4: Calculate Pairs. The number of valid pairs (one odd, one even) can be calculated by multiplying the count of odd numbers by the count of even numbers.
-Step5: Return the Count. Finally, return the total count of such pairs.
-Step6: Implement the function
+### Step to implement:
+1. Understand the Input. 
+    The function takes a list `A` and an integer `N`, where `N` is the number of elements in the list `A`.
+    We need to count the number of pairs `(i, j)` such that `A[i] ^ A[j]` results in an odd number.  
+2. Understand XOR Properties. 
+    XOR of two numbers is odd if and only if one number is odd and the other is even.
+    This means we need to determine how many odd and even numbers exist in `A`.
+3. Count Odd and Even Numbers. 
+    Initialize two counters: one for odd numbers and one for even numbers.  
+    Iterate through the list `A` and count the occurrences of odd and even numbers.  
+4. Calculate Pairs. 
+    A valid pair consists of one odd and one even number.  
+    The number of such pairs can be found by multiplying the count of odd numbers by the count of even numbers. 
+5. Return the Result  
+    Return the computed number of valid pairs.  
 """
 
 
@@ -64,72 +130,33 @@ Rephrased requirement:
 Write a Python function using map to count the number of matching pairs in two given lists.
 """
 
-# TODO 固定思考方向
-# TODO 可以记录一个 count, 看回答了几个范式
-code_paradigm_decompose_prompt = """
+# NOTE 代码范式分解的prompt
+cpd_prompt = """
 You are a Python assistant. Now, you need to solve a python programming problem using the "Code Paradigm Decomposition" thinking approach.
 
 ### Python programming problem:
-def has_unique_chars(s: str) -> bool:
+def has_unique_chars(s):
     '''
     Write a Python function to determine whether a string contains only unique characters (i.e., no duplicates).
     for example:
     assert has_unique_chars("abc")==True
     '''
-    return len(s) == len(set(s))
 
 ### Thinking Steps:
-### Input Analysis: What is the input of the function? What are the possible input types or ranges? Are there any special cases (e.g., empty input, invalid input) to consider?
-The input is a string, which can contain letters, numbers, spaces, or special characters.
-The input is of type str in Python. 
-Possible cases include: An empty string, A single-character string, A string with mixed characters (e.g., "abc123", "a b", "a#a").
-
-### Output Definition: What does the function need to return? What is the type of the return value? Are there any specific formats or conditions?
-The function returns a boolean value (True or False) indicating whether all characters in the string are unique (no duplicates).
-The return value is of type bool. True means no character appears more than once; False means at least one character is repeated.
-
-### Function Decomposition: What smaller steps can the target functionality be broken into?
-1. Take the input string.
-2. Check each character to see if it appears more than once.
-3. Return True if all characters are unique, False otherwise.
-
-### Boundary Conditions: What boundary cases need to be handled? How do we ensure the function works correctly in these cases?
-Empty string: Should return True (no characters, thus no duplicates).
-Single character: Should return True (one character is always unique).
-String with spaces or special characters: Should treat them as regular characters (e.g., "a b" has a space).
-Using a set to track unique characters handles all these cases naturally, as it considers spaces and special characters as distinct elements.
-"""
-
-# 分解问题 回答子问题
-gene_subq_suba_prompt = """I will provide a main question. Please break it down into several sub-questions and answer each sub-question one by one in the order, without skipping any.
-
-Question: 
-Write a Python function to count the number of vowels in a given string.
-Break it down into sub-questions:
-Sub-question1: What defines a vowel in the context of this problem?
-Answer to sub-question1: Vowels are typically defined as the characters a, e, i, o, u (case-insensitive). Need to decide whether to include uppercase letters (e.g., A, E) as valid vowels.
-Sub-question2: How to iterate through the input string and check each character?
-Answer to sub-question2: Loop through each character in the string and determine if it matches any of the predefined vowels. Use a counter variable to track the total number of vowels found.
-Sub-question3: How to handle case sensitivity?
-Answer to sub-question3: Convert the input string to lowercase (or uppercase) before checking vowels, or explicitly check both lowercase and uppercase versions of vowels.
-Sub-question4: What edge cases should be considered?
-Answer to sub-question4: Empty strings, strings with no vowels, strings with mixed characters (letters, symbols, numbers), and strings containing uppercase vowels (e.g., "AEIOU").
-"""
-
-
-# 让模型生成测试样例
-gene_testcase_prompt = f"""Generate 3 test cases for the following function, which is defined but not yet implemented. Each test case must start with 'assert' and be listed consecutively without any additional separators or explanations
-
-### Function:
-def concat_strings(str1, str2):
-    '''
-    Concatenates two strings together.
-    for example:
-    assert concat_strings('hello', 'world') == 'helloworld'
-    '''
-
-### Test cases:
-assert concat_strings('hello', 'world') == 'helloworld'
-assert concat_strings('open', 'ai') == 'openai'
-assert concat_strings('abc', '123') == 'abc123'
+1. Input Analysis: What is the input of the function? What are the possible input types or ranges? Are there any special cases (e.g., empty input, invalid input) to consider?
+    The input is a string, which can contain letters, numbers, spaces, or special characters.
+    The input is of type str in Python. 
+    Possible cases include: An empty string, A single-character string, A string with mixed characters (e.g., "abc123", "a b", "a#a").
+2. Output Definition: What does the function need to return? What is the type of the return value? Are there any specific formats or conditions?
+    The function returns a boolean value (True or False) indicating whether all characters in the string are unique (no duplicates).
+    The return value is of type bool. True means no character appears more than once; False means at least one character is repeated.
+3. Function Decomposition: What smaller steps can the target functionality be broken into?
+    1. Take the input string.
+    2. Check each character to see if it appears more than once.
+    3. Return True if all characters are unique, False otherwise.
+4. Boundary Conditions: What boundary cases need to be handled? How do we ensure the function works correctly in these cases?
+    Empty string: Should return True (no characters, thus no duplicates).
+    Single character: Should return True (one character is always unique).
+    String with spaces or special characters: Should treat them as regular characters (e.g., "a b" has a space).
+    Using a set to track unique characters handles all these cases naturally, as it considers spaces and special characters as distinct elements.
 """
