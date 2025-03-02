@@ -1,4 +1,4 @@
-direct_answer_no_hints = """You are a Python assistant. You need to use them to solve a Python programming problem. ONLY provide the function implementation code.
+direct_answer_no_hints_prompt = """You are a Python assistant. You need to use them to solve a Python programming problem. ONLY provide the function implementation code.
 
 ### Python programming problem:
 def find_Odd_Pair(A,N):

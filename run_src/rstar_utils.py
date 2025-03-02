@@ -172,7 +172,7 @@ def concat_solution_trace(
     no_hints = len(hints) == 0
     solution_trace = (
         hints
-        + f"### Function implementation\n{main_question['direct_answer']['text'].strip()}"
+        + f"### Function implementation:\n{main_question['direct_answer']['text'].strip()}"
     )
     final_step = main_question["direct_answer"][
         "text"

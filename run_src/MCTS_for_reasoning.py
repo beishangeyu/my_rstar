@@ -30,7 +30,7 @@ from prompt import (
     ost_prompt,
     rephrase_prompt,
     direct_answer_prompt,
-    direct_answer_no_hints,
+    direct_answer_no_hints_prompt,
     cpd_prompt,
     cpd_final_answer_prompt,
 )
@@ -41,7 +41,7 @@ def verbose_print(s: str, verbose: bool):
         print(s)
 
 
-is_debug = True
+is_debug = False
 
 
 # NOTE 打印输入
@@ -122,7 +122,7 @@ class Generator:
 """
 
         elif not hint:
-            io_input = f"""{direct_answer_no_hints.strip()}
+            io_input = f"""{direct_answer_no_hints_prompt.strip()}
 
 ### Python programming problem:
 {funchead_and_docstring.strip()}
@@ -139,7 +139,6 @@ class Generator:
             temperature=0.8,
         )
         cleaned_io_output_list = [io_output.strip() for io_output in io_output_list]
-        # TODO 优化了提取答案的逻辑, 跑一个样本看看是不是有问题
         cleaned_io_output_list = [
             extract_answer_from_model_completion(io) for io in cleaned_io_output_list
         ]
@@ -258,7 +257,6 @@ Rephrased requirement:
             print_output_from_model(step)
         return ost_step_list
 
-    # BUG 模型回复有问题
     # 一次性生成剩下所有的 cot steps 而不是一步一步来
     def gene_remain_steps(
         self,

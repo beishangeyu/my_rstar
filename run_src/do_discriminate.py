@@ -22,39 +22,11 @@ from common.utils import (
 from common.arguments import get_parser
 import os
 import json
-from prompt import direct_answer_prompt
-
-
-# TAG 测试用
-def test_func(test_list: List[str], code: str, timeout=3):
-    test_list_code = "\n".join(test_list)
-    template = f"{code}\n{test_list_code}\n"
-    print(f"==> Testing code:\n{template}")
-    return function_with_timeout(template, None, timeout)
-
-
-def function_with_timeout(func, args, timeout):
-    def exec_code(queue):
-        try:
-            exec(func)
-            queue.put(1)
-        except Exception:
-            queue.put(0)
-
-    queue = multiprocessing.Queue()
-    process = multiprocessing.Process(target=exec_code, args=(queue,))
-    process.start()
-    process.join(timeout)
-
-    if process.is_alive():
-        process.terminate()
-        process.join()
-        return 0
-    else:
-        return queue.get()
-
-
-####################################
+from prompt import (
+    direct_answer_prompt,
+    direct_answer_no_hints_prompt,
+    cpd_final_answer_prompt,
+)
 
 
 # NOTE 封装一个trace和它所有的masked trace
@@ -69,7 +41,13 @@ class Candidate:
         freq=1,
         trace_reward=1.0,
         c_type="default",
+        is_no_hints=False,
     ):
+        self.no_hints = is_no_hints
+        self.is_cpd = "Thinking Steps:" in solution_trace
+        self.is_ost = "Hints:" in solution_trace
+        # TODO 决定采用哪些prompt
+
         self.solution_trace = solution_trace
         self.masked_solution_trace_list = masked_solution_trace_list
         self.final_step = final_step
@@ -194,11 +172,21 @@ class Discriminator:
         print("-" * 10 + "Completing Masked trace ..." + "-" * 10)
         input_lists = []
         for c in candidates:
+            no_hints = c.no_hints
+            is_cpd = c.is_cpd
+            is_ost = c.is_ost
+            if no_hints:
+                prompt = direct_answer_no_hints_prompt
+            elif is_cpd:
+                prompt = cpd_final_answer_prompt
+            elif is_ost:
+                prompt = direct_answer_prompt
+
             for masked_solution_trace in c.masked_solution_trace_list:
                 input_lists.append(
-                    direct_answer_prompt
+                    prompt
                     + "\n"
-                    + "### Function signature and docstring\n"
+                    + "### Python programming problem:\n"
                     + f"{funchead_and_docstring.strip()}\n"
                     + "\n"
                     + f"{masked_solution_trace.strip()}"
@@ -210,13 +198,12 @@ class Discriminator:
             gen_input=input_lists,
             temperature=self.args.rc_temperature,
             n=self.args.rc_n_completions,
-            max_tokens=1024,
+            max_tokens=800,
             stop_tokens=[
-                "### Function signature and docstring",
-                "As a Python expert, ",
+                "### Python programming problem:",
+                "You are a Python assistant. ",
                 "### Test cases",
                 "### Testing",
-                "import ",
             ],
         )
         completion_list = [c for r in completion_list for c in r]  # 展开
@@ -225,12 +212,6 @@ class Discriminator:
             for completion in completion_list
         ]
         answer_list = [ans for ans in answer_list if len(ans) > 0]
-        # retain_ids = [
-        #     i for i in range(len(answer_list)) if test_func(test_list, answer_list[i])
-        # ]
-        # # 防止生成了错误地 testcase
-        # if len(retain_ids) > 0:
-        #     answer_list = [answer_list[i] for i in retain_ids]
 
         num_consistent = 0
         candidate_count = len(answer_list)  # 这里应该是过滤后的, 不应该考虑空的
@@ -588,12 +569,10 @@ def main():
         solution_trace_dic = {}
         # 遍历同一个 task id 下所有的 solution trace, 将它们添加到的 dict 中
         for id, it in enumerate(solution_traces):
-            # # NOTE 过滤掉 direct answer 为空的
-            # if len(it["trace"]["0"]["direct_answer"]["text"]) == 0:
-            #     continue
-            # 把 solution trace 组合起来, 添加到 dict 中
-            requirement, solution_trace, final_step, reward = concat_solution_trace(
-                it["trace"]
+
+            # TODO concat_solution_trace 多返回了一个值, 需要根据不同采用不同的 prompt
+            (requirement, solution_trace, final_step, reward, no_hints) = (
+                concat_solution_trace(it["trace"])
             )
             # NOTE 使用trace中的, 因为有可能 rephrase 过
             funchead_and_docstring = make_funchead_and_docstring(
@@ -634,6 +613,7 @@ def main():
             )
             final_answer = evaluator.extract_answer_from_model_completion(final_step)
             # 一个 Candidate 记录同一条 trace 的所有 masked trace
+            # TODO 往这里加东西
             candidate = Candidate(
                 solution_trace,
                 deepcopy(masked_solution_trace_list),
@@ -642,6 +622,7 @@ def main():
                 id,  # all solution 中第几条 trace
                 trace_freq,
                 trace_reward,
+                is_no_hints=no_hints,
             )
             all_candidates.append(candidate)
 
