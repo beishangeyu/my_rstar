@@ -28,7 +28,6 @@ from prompt import (
     ost_prompt,
     rephrase_prompt,
     gene_subq_suba_prompt,
-    direct_answer_prompt,
 )
 
 
@@ -74,22 +73,39 @@ class Generator:
         funchead_and_docstring = make_funchead_and_docstring(
             requirement, func_head, test_case
         )
-        #         io_input = f"""{direct_answer_prompt.strip()}
 
-        # ### Function signature and docstring
-        # {funchead_and_docstring.strip()}
+        io_input = f"""As a Python expert, generate only the function implementation code based strictly on the provided signature, docstring and hints, without any explanations, tests or additional text.    
 
-        # ### Hints
-        # {hint.strip() if hint else ""}
+[Function signature and docstring]
+def find_Odd_Pair(A,N):
+    '''
+    Write a python function to count the pairs with xor as an odd number.
+    '''
 
-        # ### Function implementation
-        # """
-        io_input = f"""{direct_answer_prompt.strip()}
+[Hints]
+Understand the Input. The function takes a list A and an integer N, where N is the number of elements in the list A.
+Understand XOR Properties. The XOR of two numbers is odd if and only if one number is odd and the other is even. Therefore, we need to count how many odd and even numbers are present in the list.
+Count Odd and Even Numbers. Initialize two counters: one for odd numbers and one for even numbers. Iterate through the list to populate these counters.
+Calculate Pairs. The number of valid pairs (one odd, one even) can be calculated by multiplying the count of odd numbers by the count of even numbers.
+Return the Count. Finally, return the total count of such pairs.
+Implement the function
 
-### Function signature and docstring
-{funchead_and_docstring.strip()}
+[Function implementation]
+def find_Odd_Pair(A, N):
+    count = 0
+    for i in range(N):
+        for j in range(i + 1, N):
+            if (A[i] ^ A[j]) % 2 != 0:
+                count += 1
+    return count
 
-### Hints
+[Function signature and docstring]
+{funchead_and_docstring}
+
+[Hint]
+{hint}
+
+[Function implementation]
 """
         # 避免hint为空生成冗余空行
         io_input += (hint.strip() + "\n\n") if hint else "\n"
@@ -98,7 +114,14 @@ class Generator:
             model_input=io_input,
             num_return=num_return,
             max_tokens=1024,
-            stop_tokens=["###", "As a Python expert ", "\n\n\n"],
+            stop_tokens=[
+                "[Function signature and docstring]",
+                "You are a Python assistant",
+                "[Hints]",
+                "[Function implementation]",
+                "[Test cases]",
+                "[Test Cases]",
+            ],
             top_p=0.95,
             top_k=10,
             temperature=0.8,
@@ -106,13 +129,6 @@ class Generator:
         cleaned_io_output_list = [
             io_output.strip() for io_output in io_output_list
         ]  #! cleaning
-
-        # for debug
-        # print("--- Gene direct answer")
-        # print("--- print io_input")
-        # print(io_input)
-        # print("--- end of io_input")
-        # print("--- end of gene direct answer")
 
         return io_input, cleaned_io_output_list
 
@@ -154,10 +170,11 @@ class Generator:
     # 重述 docstring
     def generate_rephrased_requirement(self, user_requirement: str):
         rephrased_user_requirement_list = []
-        io_input = f"""{rephrase_prompt.strip()}
+        io_input = f"""
+{rephrase_prompt}
 
 Original requirement: 
-{user_requirement.strip()}
+{user_requirement}
 Rephrased requirement:
 """
         io_output = self.io.generate(
@@ -167,14 +184,13 @@ Rephrased requirement:
             stop_tokens=[
                 "\n\n\n",
                 "Original requirement:",
-                "You are an AI assistant ",
+                "You are an AI assistant to help me rephrase the requirement.",
             ],
         )[0]
         rephrased_user_requirement_list.append(io_output.strip())
 
         return rephrased_user_requirement_list
 
-    # 给出之前生成的单步思考, 生成下一步思考
     def generate_ost_step(
         self,
         requirement: str,
@@ -190,33 +206,74 @@ Rephrased requirement:
         ost_step_list = []
         #  也是一步一步提出来的
         existing_ost_steps, next_ost_step_id = concat_ost_steps(solution_trace)
-        io_input = f"""{ost_prompt.strip()}
+        io_input = f"""
+{ost_prompt}
 
-### Function signature and docstring
-{funchead_and_docstring.strip()}
+[Function signature and docstring]
+{funchead_and_docstring}
 
-### Step to implement
+[Step to implement]
 To implement the {func_name} function, we need to follow these steps:
+{existing_ost_steps} 
 """
-        if len(existing_ost_steps) > 0:
-            io_input += existing_ost_steps.strip() + "\n"
         io_output_list = self.io.generate(
             model_input=io_input,
             max_tokens=1024,
             num_return=self.num_a1_steps,
             stop_tokens=[
-                "###",
-                "\n",
-                "\n\n",
+                "\n\n\n",
                 f"Step{next_ost_step_id + 1}",
+                "[Function signature and docstring]",
+                "[Function implementation]",
+                "[Step to implement]",
                 "You are a Python assistant.",
-                "def ",
             ],
         )
-        # 这得到的多个step是并行关系
         ost_step_list = [io_output.strip()[7:] for io_output in io_output_list]
-        # 过滤掉空的
-        ost_step_list = [step for step in ost_step_list if len(step) > 0]
+
+        return ost_step_list
+
+    # NOTE 一次性生成剩下所有的 cot steps 而不是一步一步来
+    def gene_remain_steps(
+        self,
+        requirement: str,
+        solution_trace: Dict[int, Dict[str, str]],
+        func_head: str,
+        test_case: str,
+    ):
+        funchead_and_docstring = make_funchead_and_docstring(
+            requirement, func_head, test_case
+        )
+        idx = func_head.find("(")
+        func_name = func_head[4:idx]
+        ost_step_list = []
+        #  也是一步一步提出来的
+        existing_ost_steps, next_ost_step_id = concat_ost_steps(solution_trace)
+        io_input = f"""
+{ost_prompt}
+
+[Function signature and docstring]
+{funchead_and_docstring}
+
+[Step to implement]
+To implement the {func_name} function, we need to follow these steps:
+{existing_ost_steps} 
+"""
+        io_output_list = self.io.generate(
+            model_input=io_input,
+            max_tokens=1024,
+            num_return=self.num_a1_steps,
+            # TODO 注意返回的 ost_step_list 存储的逻辑
+            stop_tokens=[
+                "\n\n\n",
+                # f"Step{next_ost_step_id + 1}", # 一次性生成剩下所有的
+                "[Function signature and docstring]",
+                "[Function implementation]",
+                "[Step to implement]",
+                "You are a Python assistant.",
+            ],
+        )
+        ost_step_list = [io_output.strip()[7:] for io_output in io_output_list]
 
         return ost_step_list
 
@@ -236,53 +293,42 @@ To implement the {func_name} function, we need to follow these steps:
         ost_step_list = []
         #  也是一步一步提出来的
         existing_ost_steps, next_ost_step_id = concat_ost_steps(solution_trace)
-        io_input = f"""{ost_prompt}
+        io_input = f"""
+{ost_prompt}
 
-### Function signature and docstring
-{funchead_and_docstring.strip()}
+[Function signature and docstring]
+{funchead_and_docstring}
 
-### Step to implement
-To implement the {func_name.strip()} function, we need to follow these steps:
+[Step to implement]
+To implement the {func_name} function, we need to follow these steps:
+{existing_ost_steps} 
 """
-        # 这里如果直接加进去, 如果还没有ost step, 就会变成一个空行, 模型会从下一行开始, 这个空行就会影响模型输出
-        if len(existing_ost_steps) > 0:
-            io_input += existing_ost_steps.strip() + "\n"
         io_output_list = self.io.generate(
             model_input=io_input,
             max_tokens=1024,
-            num_return=1,  # 这个动作只会生成1个子节点, 单步则会生成3个
+            num_return=self.num_a1_steps,
+            # TODO 注意返回的 ost_step_list 存储的逻辑
             stop_tokens=[
                 "\n\n\n",
-                "### Function",
-                "### function",
-                "### Step",
-                "### step",
-                "### solution",
-                "### Solution",
+                "[Function signature and docstring]",
+                "[Step to implement]",
                 "You are a Python assistant.",
-                "def ",
             ],
         )
-        # 这得到的多个step是承接关系
-        ost_step_list = io_output_list[0].strip().split("\n")
-        ost_step_list = [step[7:].strip() for step in ost_step_list]
-        ost_step_list = [step for step in ost_step_list if len(step) > 0]
-
-        # for debug
-        # if ost_step_list:
-        #     print("Doding gene remian steps\n")
-        #     if len(ost_step_list) > 10:
-        #         print("--- check input for lenth more than 10")
-        #         print(io_input)
-        #         print("--- end of input for lenth more than 10")
-        #         for ost_step in ost_step_list:
-        #             print("*************** ost step")
-        #             print(ost_step)
-        #             print("*************** end of ost step")
+        ost_step_list = [io_output.strip()[7:] for io_output in io_output_list]
 
         return ost_step_list
 
-    # 生成剩下所有的subq和suba
+    # TODO 一次性生成剩下的subq
+    def gene_remian_subquestions(
+        self,
+        requirement: str,
+        solution_trace: Dict[int, Dict[str, str]],
+        func_head: str,
+        test_case: str,
+    ):
+        pass
+
     # 分解问题 回答问题
     def gene_subquestions(
         self,
@@ -291,157 +337,48 @@ To implement the {func_name.strip()} function, we need to follow these steps:
     ) -> Tuple[List[str], List[str]]:
         exit_subq_suba = concat_subqs_subas(solution_trace)
         exit_subq_len = len(exit_subq_suba) / 2  # 已有的subq个数
-        gen_subq_input = f"""{gene_subq_suba_prompt.strip()}
+        io_input = f"""
+{gene_subq_suba_prompt}
 
-Question: 
-{requirement.strip()}
+Question: {requirement}
 Break it down into sub-questions:
+{exit_subq_suba}
 """
-        if len(exit_subq_suba) > 0:
-            gen_subq_input += exit_subq_suba.strip() + "\n"
         # 生成子问题
         io_output_list = self.io.generate(
-            model_input=gen_subq_input,
-            max_tokens=1024,
+            model_input=io_input,
+            max_tokens=512,
             num_return=self.num_subquestions,
             stop_tokens=[
-                "\n",
-                f"Answer to",
+                "\n\n",
+                f"Answer to sub-question{exit_subq_len+1}:",
                 f"Sub-question{exit_subq_len+2}:",
                 "Question:",
+                "Question",
             ],
         )
         subq_list = [io_output.strip() for io_output in io_output_list]
-        subq_list = [subq for subq in subq_list if len(subq) > 0]
-        # 如果没有新的subq了就提前返回
-        if not subq_list:
-            return [], []
-
-        # 回答子问题
         suba_list = []
-        gen_suba_input = [f"{gen_subq_input.strip()}\n{subq}\n" for subq in subq_list]
+        gen_suba_input = [f"{io_input.strip()}\n{subq}" for subq in subq_list]
+        # 回答子问题
         io_output_list = self.io.generate(
+            # WARNING 当input是list时, 返回是 input个数(subq个数) * num_return
             model_input=gen_suba_input,
-            max_tokens=1024,
-            num_return=1,
-            stop_tokens=[
-                "\n",
-                f"Sub-question{exit_subq_len+2}: ",
-                f"Answer to sub-question{exit_subq_len+2}: ",
-                "Question: ",
-            ],
-        )
-
-        subq_list = [
-            subq[15:].strip() for subq in subq_list
-        ]  # 去掉 "Sub-questionX: " 这个前缀
-        suba_list = [
-            io_output[0].strip()[25:] for io_output in io_output_list
-        ]  # 去掉 "Answer to sub-questionX: " 这个前缀
-        # 过滤掉空的
-        subq_list = [subq for subq in subq_list if len(subq) > 0]
-        suba_list = [suba for suba in suba_list if len(suba) > 0]
-        # 确保长度一致
-        if len(subq_list) > len(suba_list):
-            subq_list = subq_list[: len(suba_list)]
-        elif len(subq_list) < len(suba_list):
-            suba_list = suba_list[: len(subq_list)]
-        assert len(subq_list) == len(
-            suba_list
-        ), "In Generator.gene_subquestions(), num_subq shouble be equal to num_suba"
-
-        # for debug
-        # print("---- Gene subqs")
-        # print("---- print gen_subq_input")
-        # print(gen_subq_input)
-        # print("---- end of gen_subq_input")
-        # for i in range(len(subq_list)):
-        #     print(f"---- print gen_suba_input {i}")
-        #     print(gen_suba_input[i])
-        #     print(f"---- end of gen_suba_input {i}")
-        #     print("----- print subq")
-        #     print(subq_list[i])
-        #     print("----- end of subq")
-        #     print("----- print suba")
-        #     print(suba_list[i])
-        #     print("----- end of suba")
-        #     print("-----------------------------")
-        # print("---- end of gene subqs")
-
-        return subq_list, suba_list
-
-    def gene_remian_subquestions(
-        self,
-        requirement: str,
-        solution_trace: Dict[int, Dict[str, str]],
-    ) -> Tuple[List[str], List[str]]:
-        exit_subq_suba = concat_subqs_subas(solution_trace)
-        exit_subq_len = len(exit_subq_suba) / 2  # 已有的subq个数
-        io_input = f"""{gene_subq_suba_prompt.strip()}
-
-Question: {requirement.strip()}
-Break it down into sub-questions:
-"""
-        if len(exit_subq_suba) > 0:
-            io_input += exit_subq_suba.strip() + "\n"
-        # 一步走完
-        io_output_list = self.io.generate(
-            model_input=io_input,
-            max_tokens=1024,
+            max_tokens=512,
             num_return=1,
             stop_tokens=[
                 "\n\n",
-                "Question: ",
-                "def ",
+                f"Sub-question{exit_subq_len+2}:",
+                f"Answer to sub-question{exit_subq_len+2}:",
+                "Question:",
+                "Question",
             ],
         )
-        # 一行是subq一行是suba
-        subqa_list = io_output_list[0].split("\n")
-        # 如果subq和suba不能成对, 丢掉最后一个
-        if len(subqa_list) % 2 != 0:
-            subqa_list = subqa_list[:-1]
-        subq_list = [subqa_list[i][15:].strip() for i in range(0, len(subqa_list), 2)]
-        suba_list = [subqa_list[i][25:].strip() for i in range(1, len(subqa_list), 2)]
-        # 过滤掉空的
-        subq_list = [subq for subq in subq_list if len(subq) > 0]
-        suba_list = [suba for suba in suba_list if len(suba) > 0]
-
-        # for debug
-        # 当还没有subq和suba的时候, 只会生成1个subq和sub
-        # ----- print subq
-        # Sub-question1: What is the definition of a square?
-        # ----- end of subq
-        # ----- print suba
-        # Answer to sub-question1: A square is a geometric shape with four equal sides and four right angles.
-        # ----- end of suba
-        # print("---- Gene remain subqs")
-        # print("---- print io_input")
-        # print(io_input)
-        # print("---- end of io_input")
-        # for subq, suba in zip(subq_list, suba_list):
-        #     print("----- print subq")
-        #     print(subq)
-        #     print("----- end of subq")
-        #     print("----- print suba")
-        #     print(suba)
-        #     print("----- end of suba")
-        #     print("-----------------------------")
-        # print("---- end of gene remain subqs")
-
+        suba_list = [io_output[0].strip() for io_output in io_output_list]
+        assert len(subq_list) == len(
+            suba_list
+        ), "In Generator.gene_subquestions(), num_subq shouble be equal to num_suba"
         return subq_list, suba_list
-
-    # TODO 反思
-    # 生成测试样例
-    def generate_test_case(self, requirement: str, func_head: str):
-        pass
-
-    # 执行测试样例 获取结果
-    def execute_test_case(self, requirement: str, func_head: str, test_case: str):
-        pass
-
-    # 输入测试样例执行结果, 让模型反思
-    def gene_reflection(self, requirement: str, func_head: str, test_case: str):
-        pass
 
 
 class Reasoning_MCTS_Node(MCTS_Node):
