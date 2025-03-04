@@ -77,7 +77,10 @@ def eval_exp(
     model_ckpt=str,
 ):
     dataset_path = f"./data/{args.dataset_name}.jsonl"
-    dataset = load_dataset(read_jsonl(dataset_path))
+    if args.dataset_name != "mbpp" and args.dataset_name != "humaneval_modi":
+        dataset = load_dataset(read_jsonl(dataset_path))
+    else:
+        dataset = read_jsonl(dataset_path)
     # NOTE 在这里更改 clone 工具使用的 device
     evaluator = PythonEvaluator(
         device=evaluator_device,
