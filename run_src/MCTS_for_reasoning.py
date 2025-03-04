@@ -319,15 +319,39 @@ To implement the {func_name} function, we need to follow these steps:
 
         return ost_step_list
 
-    # TODO 一次性生成剩下的subq
+    # 生成剩下所有的subq和suba
     def gene_remian_subquestions(
         self,
         requirement: str,
         solution_trace: Dict[int, Dict[str, str]],
-        func_head: str,
-        test_case: str,
-    ):
-        pass
+    ) -> Tuple[List[str], List[str]]:
+        exit_subq_suba = concat_subqs_subas(solution_trace)
+        exit_subq_len = len(exit_subq_suba) / 2  # 已有的subq个数
+        io_input = f"""{gene_subq_suba_prompt}
+
+Question: {requirement}
+Break it down into sub-questions:
+{exit_subq_suba}
+"""
+        # 一步走完
+        io_output_list = self.io.generate(
+            model_input=io_input,
+            max_tokens=1024,
+            num_return=1,
+            stop_tokens=[
+                "\n\n",
+                "Question:",
+                "def ",
+            ],
+        )
+        # 一行是subq一行是suba
+        subq_suba_list = io_output_list[0].strip().split("\n")
+        # 如果subq和suba不能成对, 丢掉最后一个
+        if len(ost_step_list) % 2 != 0:
+            ost_step_list = ost_step_list[:-1]
+        subq_list = [subq_suba_list[i] for i in range(0, len(subq_suba_list), 2)]
+        suba_list = [subq_suba_list[i] for i in range(1, len(subq_suba_list), 2)]
+        return subq_list, suba_list
 
     # 分解问题 回答问题
     def gene_subquestions(
