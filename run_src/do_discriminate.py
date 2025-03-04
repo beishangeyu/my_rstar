@@ -28,25 +28,38 @@ from prompt import (
     cpd_final_answer_prompt,
 )
 
+is_debug = True
+
+
+# WARNING 打印输入
+def print_input_to_model(s: str):
+    if is_debug:
+        print(f"---- Input to model:\n{s}")
+        print("---- End of input")
+
+
+def print_output_from_model(s: str):
+    if is_debug:
+        print(f"---- Output from model:\n{s}")
+        print("---- End of output")
+
 
 # NOTE 封装一个trace和它所有的masked trace
 class Candidate:
     def __init__(
         self,
-        solution_trace,
-        masked_solution_trace_list,
-        final_step,
-        final_answer,
-        id,
-        freq=1,
+        solution_trace: str,
+        masked_solution_trace_list: List[str],
+        final_step: str,
+        final_answer: str,
+        id: int,
+        freq: int = 1,
         trace_reward=1.0,
         c_type="default",
-        is_no_hints=False,
     ):
-        self.no_hints = is_no_hints
-        self.is_cpd = "Thinking Steps:" in solution_trace
-        self.is_ost = "Hints:" in solution_trace
-        # TODO 决定采用哪些prompt
+        self.is_cpd = "### Thinking Steps:" in solution_trace
+        self.is_ost = "### Hints:" in solution_trace
+        self.no_hints = True if not self.is_cpd and not self.is_ost else False
 
         self.solution_trace = solution_trace
         self.masked_solution_trace_list = masked_solution_trace_list
@@ -122,13 +135,6 @@ def group_candidates_by_answer(candidates: list[Candidate], evaluator, criteria=
                 c.trace_reward if criteria == "reward" else c.freq
             )
             answer2cnt[str(c.final_answer)] += c.freq
-
-    # assert all(
-    #     answer2cnt[ans] == len(answer2candidates[ans]) for ans in answer2cnt.keys()
-    # )
-    # assert float(sum([candidate.trace_reward for candidate in candidates])) == float(
-    #     sum([answer2confidence[ans] for ans in answer2confidence.keys()])
-    # )
     sum_num = 0
     for x in answer2cnt.keys():
         sum_num += answer2cnt[x]
@@ -175,6 +181,7 @@ class Discriminator:
             no_hints = c.no_hints
             is_cpd = c.is_cpd
             is_ost = c.is_ost
+
             if no_hints:
                 prompt = direct_answer_no_hints_prompt
             elif is_cpd:
@@ -191,13 +198,14 @@ class Discriminator:
                     + "\n"
                     + f"{masked_solution_trace.strip()}"
                 )
+
         # If len(input_lists)=2, rc_n_completions=3
         # completion_list: [[c1, c2, c3], [c1, c2, c3]]
         completion_list = self._gen_func(
             gen_model=gen_model,
             gen_input=input_lists,
             temperature=self.args.rc_temperature,
-            n=self.args.rc_n_completions,
+            n=self.args.rc_n_completions,  # 默认是1
             max_tokens=800,
             stop_tokens=[
                 "### Python programming problem:",
@@ -211,6 +219,11 @@ class Discriminator:
             self.evaluator.extract_answer_from_model_completion(completion)
             for completion in completion_list
         ]
+        for i, a in zip(input_lists, answer_list):
+            print_input_to_model(i)
+            print_output_from_model(a)
+        # BUG 这里要拼起来!!!! 因为补全的可能是部分函数!!!!
+        # 但是因为对函数做补全, 难以确定拼起来要接换行还是接空格, 所以在concat_solution_trace的时候不要把最终答案加进去
         answer_list = [ans for ans in answer_list if len(ans) > 0]
 
         num_consistent = 0
@@ -224,12 +237,12 @@ class Discriminator:
             # 把candidate和discriminator的补全答案一个个比较, 如果相等, num_consistent就加1
             for answer in answer_list:
                 print("-" * 10 + "Check answer equiv ..." + "-" * 10)
-                print(f"==> Answer from generator:\n" + repr(c.final_answer))
-                print(
-                    "==> Answer from discriminator:\n" + repr(answer)
-                    if len(answer)
-                    else "No answer"
-                )
+                # print(f"==> Answer from generator:\n" + repr(c.final_answer))
+                # print(
+                #     "==> Answer from discriminator:\n" + repr(answer)
+                #     if len(answer)
+                #     else "No answer"
+                # )
                 if self.evaluator.check_answers_equiv(c.final_answer, answer):
                     num_consistent += 1
 
@@ -246,55 +259,6 @@ class Discriminator:
                 if num_consistent == candidate_count:
                     consistent_candidates.append(c)
         return consistent_candidates
-
-    #     # 生成测试样例, 不使用
-    #     def _gen_testcases(
-    #         self,
-    #         gen_model,
-    #         funchead_and_docstring: str,
-    #         temperature: float = 0.9,
-    #         n: int = 1,
-    #         max_tokens: int = 512,
-    #         stop_tokens: List[str] = ["### ", "Generate 3 test", "Inputs: ", "Outputs: "],
-    #     ) -> List[str]:
-    #         gen_input = """Generate 3 test cases for the following function, which is defined but not yet implemented. Each test case must start with 'assert' and be listed consecutively without any additional separators or explanations.
-
-    # ### Function:
-    # def concat_strings(str1, str2):
-    #     '''
-    #     Concatenates two strings together.
-    #     for example:
-    #     assert concat_strings('hello', 'world') == 'helloworld'
-    #     '''
-
-    # ### Test cases:
-    # assert concat_strings('hello', 'world') == 'helloworld'
-    # assert concat_strings('open', 'ai') == 'openai'
-    # assert concat_strings('abc', '123') == 'abc123'
-    # """
-    #         gen_input = f"""{gen_input.strip()}
-
-    # ### Function:
-    # {funchead_and_docstring.strip()}
-
-    # ### Test cases:
-    # """
-    #         response = generate_with_vLLM_model(
-    #             model=gen_model,
-    #             input=gen_input,
-    #             temperature=temperature,
-    #             n=n,
-    #             max_tokens=max_tokens,
-    #             stop=stop_tokens,
-    #         )
-    #         test_case = [o.text for o in response[0].outputs]
-    #         # 在这里选择保留几个
-    #         test_case = test_case[0].split("assert")[1:3]
-    #         if len(test_case) > 0:
-    #             test_case = ["assert" + tc for tc in test_case]
-    #         else:
-    #             test_case = [""]
-    #         return test_case
 
     def _gen_func(
         self,
@@ -316,12 +280,6 @@ class Discriminator:
             max_tokens=max_tokens,
             stop=stop_tokens,
         )
-        # if n == 1:
-        #     if isinstance(gen_input, str):
-        #         return response[0].outputs[0].text
-        #     elif isinstance(gen_input, list):
-        #         return [r.outputs[0].text for r in response]
-        # elif n > 1:
         if isinstance(gen_input, str):
             return [o.text for o in response[0].outputs]
         elif isinstance(gen_input, list):
@@ -570,9 +528,9 @@ def main():
         # 遍历同一个 task id 下所有的 solution trace, 将它们添加到的 dict 中
         for id, it in enumerate(solution_traces):
 
-            # TODO concat_solution_trace 多返回了一个值, 需要根据不同采用不同的 prompt
-            (requirement, solution_trace, final_step, reward, no_hints) = (
-                concat_solution_trace(it["trace"])
+            # NOTE concat_solution_trace 多返回了一个值, 需要根据不同采用不同的 prompt
+            (requirement, solution_trace, final_step, reward) = concat_solution_trace(
+                it["trace"]
             )
             # NOTE 使用trace中的, 因为有可能 rephrase 过
             funchead_and_docstring = make_funchead_and_docstring(
@@ -613,7 +571,6 @@ def main():
             )
             final_answer = evaluator.extract_answer_from_model_completion(final_step)
             # 一个 Candidate 记录同一条 trace 的所有 masked trace
-            # TODO 往这里加东西
             candidate = Candidate(
                 solution_trace,
                 deepcopy(masked_solution_trace_list),
@@ -622,7 +579,6 @@ def main():
                 id,  # all solution 中第几条 trace
                 trace_freq,
                 trace_reward,
-                is_no_hints=no_hints,
             )
             all_candidates.append(candidate)
 

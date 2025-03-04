@@ -138,10 +138,9 @@ def concat_cpd_steps(solution_trace: Dict[int, Dict[str, str]]) -> Tuple[str, in
 
 
 # disc 时在 mask 前要先把solution trace拼接起来
-# WARNING 这个函数改了 disc对应逻辑也要做更改, 但是跟gene无关
 def concat_solution_trace(
     solution_trace: Dict[int, Dict[str, str]],
-) -> Tuple[str, str, str, float, bool]:
+) -> Tuple[str, str, str, float]:
     reward_value = 0.0
 
     question_trace = list(solution_trace.values())
@@ -169,11 +168,9 @@ def concat_solution_trace(
     else:
         hints = ""
 
-    no_hints = len(hints) == 0
-    solution_trace = (
-        hints
-        + f"### Function implementation:\n{main_question['direct_answer']['text'].strip()}"
-    )
+    # NOTE 只给推理路径, 防止mask的时候把答案mask掉不好处理
+    solution_trace = hints
+
     final_step = main_question["direct_answer"][
         "text"
     ]  # 就把main question的trace取出来就好
@@ -187,7 +184,6 @@ def concat_solution_trace(
         solution_trace.strip(),
         final_step.strip(),
         min(0, reward_value) + 1,
-        no_hints,  # TODO 如果没有 hints 用别的 prompt
     )
 
 
@@ -210,6 +206,8 @@ def mask_solution_trace(
         # 每个前缀字符串之间的比例间隔
         interval = (right_boundary - left_boundary) / (num_return - 1)
 
+    if not solution_trace_str:
+        return ["" for _ in range(num_return)]
     words_in_solution_trace = solution_trace_str.split(" ")
     ost_len = len(words_in_solution_trace)
     masked_solution_traces = []
