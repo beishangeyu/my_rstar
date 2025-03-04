@@ -82,8 +82,6 @@ def eval_exp(
     evaluator = PythonEvaluator(
         device=evaluator_device,
         threshold=evaluator_threshold,
-        disable_clone_detector=disable_clone_detector,
-        disable_mutual_vote=disable_mutual_vote,
     )
     gene_result_dir = os.path.join(gene_result, f"{dataset_name}", f"{model_ckpt}")
     eval_result_dir = os.path.join(eval_result, f"{dataset_name}", f"{model_ckpt}")

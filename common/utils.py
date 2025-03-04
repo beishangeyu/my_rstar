@@ -33,9 +33,12 @@ def read_jsonl(filename: str) -> List[Dict]:
     return data
 
 
-def load_dataset(data: List[Dict]) -> List[Dict]:
+def load_dataset(data: List[Dict], is_adv: bool = True) -> List[Dict]:
     # 只保留 state 为 true 的 item
-    return [item for item in data if item["state"]]
+    if is_adv:
+        return [item for item in data if item["state"]]
+    else:
+        return data
 
 
 def write_jsonl(filename: str, data: Iterable[Dict], append: bool = False):

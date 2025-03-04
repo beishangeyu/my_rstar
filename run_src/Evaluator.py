@@ -219,8 +219,8 @@ class PythonEvaluator(Evaluator):
         self,
         device: str = "cpu",
         threshold: float = 0.9,
-        disable_clone_detector: bool = False,
-        disable_mutual_vote: bool = False,
+        disable_clone_detector: bool = True,
+        disable_mutual_vote: bool = True,
     ):
         super().__init__(disable_mutual_vote=disable_mutual_vote)
         self.disable_clone_detector = disable_clone_detector
@@ -247,23 +247,43 @@ class PythonEvaluator(Evaluator):
         else:
             return False
 
-    def extract_answer_from_model_completion(self, completion: str) -> str:
-        # 找到第一个 def 的位置
-        start_idx = completion.find("def ")
-        if start_idx == -1:
-            first_function = ""
+    # BUG disc的时候应该取出最后一个 def
+    def extract_answer_from_model_completion(
+        self, completion: str, get_first: bool = True
+    ) -> str:
+        # 找到所有 def 的位置
+        def_positions = []
+        start = 0
+        while True:
+            pos = completion.find("def ", start)
+            if pos == -1:
+                break
+            def_positions.append(pos)
+            start = pos + 1
 
-        # 找到下一个 def 的位置（如果有）
-        next_def_idx = completion.find("def ", start_idx + 1)
-        if next_def_idx == -1:
-            first_function = completion[start_idx:].strip()
-        else:
-            # 取第一个 def 到下一个 def 之前的内容
-            first_function = completion[start_idx:next_def_idx].strip()
-        if not first_function:
+        if not def_positions:
             return ""
+
+        # 根据参数决定使用第一个还是最后一个函数
+        target_idx = 0 if get_first else -1
+        start_idx = def_positions[target_idx]
+
+        # 如果是最后一个函数，直接取到末尾
+        if target_idx == -1:
+            function_code = completion[start_idx:].strip()
+        else:
+            # 如果是第一个函数，找下一个def的位置
+            if len(def_positions) > 1:
+                next_def_idx = def_positions[1]
+                function_code = completion[start_idx:next_def_idx].strip()
+            else:
+                function_code = completion[start_idx:].strip()
+
+        if not function_code:
+            return ""
+
         # 去除注释
-        return remove_comments(first_function)
+        return remove_comments(function_code)
 
     def test_func(self, test_list, code, timeout=3):
         test_list_code = "\n".join(test_list)
