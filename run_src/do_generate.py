@@ -44,6 +44,10 @@ def main(args):
     for i, data_item in enumerate_resume(dataset, args.gene_result):
         problem_id = data_item["task_id"]
 
+        # WARNING 切片了 记得取消
+        # if not problem_id > 500:
+        #     continue
+
         if args.dataset_name == "mbpp":
             problem = data_item["text"]
         elif args.dataset_name == "humaneval_modi":

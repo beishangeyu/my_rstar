@@ -41,10 +41,10 @@ def verbose_print(s: str, verbose: bool):
         print(s)
 
 
-is_debug = False
+# WARNING 打印输入
+is_debug = True
 
 
-# NOTE 打印输入
 def print_input_to_model(s: str):
     if is_debug:
         print(f"---- Input to model:\n{s}")
@@ -643,7 +643,9 @@ class Reasoning_MCTS_Node(MCTS_Node):
                 do_action_generate_direct_answers()
 
             # 同一条路径下ost和cpd二选一
-            if self.cpd_counter == 0 and "Return " not in last_ost_step:
+            if self.cpd_counter == 0 and (
+                not last_ost_step or "Return " not in last_ost_step
+            ):
                 do_action_generate_ost_step()
                 if not self.is_gen_remaining and not self.disable_gene_remain_ost:
                     do_action_generate_remain_steps()
