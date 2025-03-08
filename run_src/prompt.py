@@ -1,4 +1,5 @@
-direct_answer_no_hints_prompt = """You are a Python assistant. You need to use them to solve a Python programming problem. ONLY provide the function implementation code.
+# WARNING 许多prompt都指明时python专家, 如果要用别的语言要更改
+direct_answer_no_hints_prompt = """You are a Python assistant. Solve the given Python programming problem. ONLY provide the function implementation code.
 
 ### Python programming problem:
 def find_Odd_Pair(A,N):
@@ -16,7 +17,7 @@ def find_Odd_Pair(A, N):
     return count
 """
 
-cpd_final_answer_prompt = """You are a Python assistant. I will give you some hints, and you need to use them to solve a Python programming problem. ONLY provide the function implementation code.
+cpd_final_answer_prompt = """You are a Python assistant. I will give you some hints, and you need to use them to solve the Python programming problem. ONLY provide the function implementation code.
 
 ### Python programming problem:
 def has_unique_chars(s):
@@ -112,27 +113,26 @@ def find_Odd_Pair(A,N):
 
 
 # 重述用户的要求
-rephrase_prompt = """You are an AI assistant to help me rephrase the requirement.
+rephrase_prompt = """You are a Python expert. I will provide a Python programming problem, and your task is to rewrite it in a clearer and more structured manner to enhance readability and comprehension.
 
-Original requirement:
-Write a python function to check whether the first and last characters of a given string are equal or not.
-Rephrased requirement:
-Write a Python function to check if the first and last characters of a given string are equal.
+Requirements:
+1. Clearly define the input format, expected output, and goal of the problem.
+2. Consider boundary conditions and relevant edge cases.
+3. Ensure the restated problem is well-structured, detailed, and follows a standardized format.
+4. Output the refined problem description in a professional and well-formatted manner.
 
-Original requirement:
-Writing a python function to unearth the first recurrent nature in a given chain
-Rephrased requirement:
-Write a Python function to find the first recurrent element in a given sequence.
+### Original Programming Problem:
+Write a function to find all words which are at least 4 characters long in a string by using regex.
 
-Original requirement:
-Write a function to count the same pair in two given lists usage map function.
-Rephrased requirement:
-Write a Python function using map to count the number of matching pairs in two given lists.
+### Refined Problem Description:
+You are given a string 's' containing words separated by whitespace.  
+The goal is to find all words that are at least 4 characters long using regex.  
+The output should be a list of matching words in their original order.
 """
 
-# NOTE 代码范式分解的prompt
-cpd_prompt = """
-You are a Python assistant. Now, you need to solve a python programming problem using the "Code Paradigm Decomposition" thinking approach.
+
+# 代码范式分解的prompt
+cpd_prompt = """You are a Python assistant. Approach and decompose programming problems from a specific perspective.
 
 ### Python programming problem:
 def has_unique_chars(s):

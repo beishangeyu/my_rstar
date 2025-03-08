@@ -26,14 +26,26 @@ from rstar_utils import (
     make_funchead_and_docstring,
     extract_answer_from_model_completion,
 )
-from prompt import (
-    ost_prompt,
-    rephrase_prompt,
-    direct_answer_prompt,
-    direct_answer_no_hints_prompt,
-    cpd_prompt,
-    cpd_final_answer_prompt,
-)
+
+is_conala = False
+if is_conala:
+    from conala_prompt import (
+        ost_prompt,
+        rephrase_prompt,
+        direct_answer_prompt,
+        direct_answer_no_hints_prompt,
+        cpd_prompt,
+        cpd_final_answer_prompt,
+    )
+else:
+    from prompt import (
+        ost_prompt,
+        rephrase_prompt,
+        direct_answer_prompt,
+        direct_answer_no_hints_prompt,
+        cpd_prompt,
+        cpd_final_answer_prompt,
+    )
 
 
 def verbose_print(s: str, verbose: bool):
@@ -186,24 +198,27 @@ class Generator:
         return direct_answer_list, value_list
 
     # 重述 docstring
+    # TODO 重述问题的prompt改了, 需要改结构
     def generate_rephrased_requirement(self, user_requirement: str):
         rephrased_user_requirement_list = []
         io_input = f"""{rephrase_prompt.strip()}
 
-Original requirement: 
+### Original Programming Problem:
 {user_requirement.strip()}
-Rephrased requirement:
+
+### Refined Problem Description:
 """
         io_output = self.io.generate(
             model_input=io_input,
-            max_tokens=128,
+            max_tokens=500,
             num_return=1,
             stop_tokens=[
                 "\n\n\n",
-                "Original requirement:",
-                "You are an AI assistant ",
+                "### ",
+                "You are a Python expert.",
             ],
         )[0]
+        # NOTE 多行的处理在 make func head 函数中已经有了
         rephrased_user_requirement_list.append(io_output.strip())
 
         print_input_to_model(io_input)

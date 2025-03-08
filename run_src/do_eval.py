@@ -18,9 +18,6 @@ def extract_trace(data_item: List[Dict], num_votes: int) -> List[str]:
     res = []
     for item in data_item:
         trace = item["trace"]["0"]
-        rollout_id = item["rollout_id"]
-        if num_votes != -1 and rollout_id >= num_votes:
-            continue
         if "direct_answer" in trace:
             res.append(trace["direct_answer"]["text"])
     return res
@@ -50,6 +47,7 @@ def eval_single_item(
     model_answer, _, _ = evaluator.find_most_confident_answer(solution_candidates)
     result = evaluator.check_correctness(model_answer, dataset_name, test_list)
     # 查看所有的 answer 中是否有正确的并统计正确的占比
+    # BUG passprob 说明不了什么, 就算 passprob > 0.3 即10个有3个对的, 但他7个错的都各不相同, 这样还是能选出对的
     correct_num = 0
     for id, c in enumerate(solution_candidates):
         answer = evaluator.extract_answer_from_model_completion(c)
@@ -60,7 +58,7 @@ def eval_single_item(
     data_item["predict_answer"] = model_answer
     data_item["acc_limit"] = 1 if correct_num > 0 else 0
     # 记录一共有几个trace是正确的
-    data_item["pass_prob"] = correct_num / len(solution_candidates)
+    # data_item["pass_prob"] = correct_num / len(solution_candidates)
 
     return data_item
 
@@ -92,8 +90,6 @@ def eval_exp(
 
     for i, item in enumerate_resume(dataset, eval_result_dir):
         task_id = item["task_id"]
-        # if task_id < 371:
-        #     continue
         test_list = item["test_list"]
         dta = eval_single_item(
             task_id, gene_result_dir, dataset_name, test_list, evaluator, num_votes
