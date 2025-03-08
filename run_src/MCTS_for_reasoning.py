@@ -347,8 +347,8 @@ Break it down into sub-questions:
         # 一行是subq一行是suba
         subq_suba_list = io_output_list[0].strip().split("\n")
         # 如果subq和suba不能成对, 丢掉最后一个
-        if len(ost_step_list) % 2 != 0:
-            ost_step_list = ost_step_list[:-1]
+        if len(subq_suba_list) % 2 != 0:
+            subq_suba_list = subq_suba_list[:-1]
         subq_list = [subq_suba_list[i] for i in range(0, len(subq_suba_list), 2)]
         suba_list = [subq_suba_list[i] for i in range(1, len(subq_suba_list), 2)]
         return subq_list, suba_list
