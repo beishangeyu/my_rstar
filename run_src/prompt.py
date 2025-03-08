@@ -131,8 +131,7 @@ Write a Python function using map to count the number of matching pairs in two g
 """
 
 # NOTE 代码范式分解的prompt
-cpd_prompt = """
-You are a Python assistant. Now, you need to solve a python programming problem using the "Code Paradigm Decomposition" thinking approach.
+cpd_prompt = """You are a Python assistant. Approach and decompose programming problems from a specific perspective.
 
 ### Python programming problem:
 def has_unique_chars(s):
