@@ -125,9 +125,11 @@ Requirements:
 Write a function to find all words which are at least 4 characters long in a string by using regex.
 
 ### Refined Problem Description:
-You are given a string 's' containing words separated by whitespace.  
-The goal is to find all words that are at least 4 characters long using regex.  
-The output should be a list of matching words in their original order.
+You are given a string 's' containing words separated by whitespace.
+Find all words that are at least 4 characters long using regex.
+Return a list of matching words in their original order.
+Ignore punctuation and special characters when identifying words.
+If no words meet the criteria, return an empty list.
 """
 
 
