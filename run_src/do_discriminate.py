@@ -24,7 +24,13 @@ from common.utils import (
 from common.arguments import get_parser, post_process_args, save_args
 import os
 import json
-from prompt import direct_answer_prompt
+
+# WARNING 如果用conala这里要设置为True
+is_conala = False
+if is_conala:
+    from conala_prompt import direct_answer_prompt
+else:
+    from prompt import direct_answer_prompt
 
 
 # NOTE 封装一个trace和它所有的masked trace
@@ -167,7 +173,7 @@ class Discriminator:
                 input_lists.append(
                     direct_answer_prompt
                     + "\n"
-                    + "### Function signature and docstring\n"
+                    + "[Programming problem]\n"
                     + f"{funchead_and_docstring.strip()}\n"
                     + "\n"
                     + f"{masked_solution_trace.strip()}"
@@ -181,10 +187,8 @@ class Discriminator:
             n=self.args.rc_n_completions,
             max_tokens=1024,
             stop_tokens=[
-                "### Function signature and docstring",
+                "[Programming problem]",
                 "As a Python expert, ",
-                "### Test cases",
-                "### Testing",
             ],
         )
         completion_list = [c for r in completion_list for c in r]  # 展开
@@ -553,6 +557,12 @@ def main():
         solution_traces = read_jsonl(path)
 
         test_list = item["test_list"]
+        if is_conala:
+            requirement = (
+                item["rewritten_intent"] if item["rewritten_intent"] else item["intent"]
+            )
+        else:
+            requirement = item["adv_text"] if item["adv_text"] else item["text"]
         code = item["code"]
         func_head = re.search(r"def .+?:", code).group(0)
         test_case = item["test_list"][0][7:]
@@ -562,9 +572,7 @@ def main():
         # 遍历同一个 task id 下所有的 solution trace, 将它们添加到的 dict 中
         for id, it in enumerate(solution_traces):
             # 把 solution trace 组合起来, 添加到 dict 中
-            requirement, solution_trace, final_step, reward = concat_solution_trace(
-                it["trace"]
-            )
+            _, solution_trace, final_step, reward = concat_solution_trace(it["trace"])
             # NOTE 使用trace中的, 因为有可能 rephrase 过
             funchead_and_docstring = make_funchead_and_docstring(
                 requirement, func_head, test_case

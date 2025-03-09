@@ -24,11 +24,24 @@ from rstar_utils import (
     stochastic_find_best_solution,
     make_funchead_and_docstring,
 )
-from prompt import (
-    ost_prompt,
-    rephrase_prompt,
-    gene_subq_suba_prompt,
-)
+
+# WARNING 如果用conala, 这里设置为True
+is_conala = False
+
+if is_conala:
+    from conala_prompt import (
+        ost_prompt,
+        rephrase_prompt,
+        gene_subq_suba_prompt,
+        direct_answer_prompt,
+    )
+else:
+    from prompt import (
+        ost_prompt,
+        rephrase_prompt,
+        gene_subq_suba_prompt,
+        direct_answer_prompt,
+    )
 
 
 def verbose_print(s: str, verbose: bool):
@@ -74,51 +87,25 @@ class Generator:
             requirement, func_head, test_case
         )
 
-        io_input = f"""As a Python expert, generate only the function implementation code based strictly on the provided signature, docstring and hints, without any explanations, tests or additional text.    
-
-[Function signature and docstring]
-def find_Odd_Pair(A,N):
-    '''
-    Write a python function to count the pairs with xor as an odd number.
-    '''
-
-[Hints]
-Understand the Input. The function takes a list A and an integer N, where N is the number of elements in the list A.
-Understand XOR Properties. The XOR of two numbers is odd if and only if one number is odd and the other is even. Therefore, we need to count how many odd and even numbers are present in the list.
-Count Odd and Even Numbers. Initialize two counters: one for odd numbers and one for even numbers. Iterate through the list to populate these counters.
-Calculate Pairs. The number of valid pairs (one odd, one even) can be calculated by multiplying the count of odd numbers by the count of even numbers.
-Return the Count. Finally, return the total count of such pairs.
-Implement the function
-
-[Function implementation]
-def find_Odd_Pair(A, N):
-    count = 0
-    for i in range(N):
-        for j in range(i + 1, N):
-            if (A[i] ^ A[j]) % 2 != 0:
-                count += 1
-    return count
-
-[Function signature and docstring]
+        io_input = f"""{direct_answer_prompt}
+        
+[Programming problem]
 {funchead_and_docstring}
 
-[Hint]
+[Hints]
 {hint}
 
-[Function implementation]
+[Solution]
 """
-        # 避免hint为空生成冗余空行
-        io_input += (hint.strip() + "\n\n") if hint else "\n"
-        io_input += "### Function implementation\n"
         io_output_list = self.io.generate(
             model_input=io_input,
             num_return=num_return,
             max_tokens=1024,
             stop_tokens=[
-                "[Function signature and docstring]",
-                "You are a Python assistant",
+                "[Programming problem]",
                 "[Hints]",
-                "[Function implementation]",
+                "[Solution]",
+                "As a Python expert.",
                 "[Test cases]",
                 "[Test Cases]",
             ],
@@ -209,11 +196,10 @@ Rephrased requirement:
         io_input = f"""
 {ost_prompt}
 
-[Function signature and docstring]
+[Programming problem]
 {funchead_and_docstring}
 
 [Step to implement]
-To implement the {func_name} function, we need to follow these steps:
 {existing_ost_steps} 
 """
         io_output_list = self.io.generate(
@@ -223,9 +209,9 @@ To implement the {func_name} function, we need to follow these steps:
             stop_tokens=[
                 "\n\n\n",
                 f"Step{next_ost_step_id + 1}",
-                "[Function signature and docstring]",
-                "[Function implementation]",
+                "[Programming problem]",
                 "[Step to implement]",
+                "[Solution]",
                 "You are a Python assistant.",
             ],
         )
@@ -252,66 +238,21 @@ To implement the {func_name} function, we need to follow these steps:
         io_input = f"""
 {ost_prompt}
 
-[Function signature and docstring]
+[Programming problem]
 {funchead_and_docstring}
 
 [Step to implement]
-To implement the {func_name} function, we need to follow these steps:
 {existing_ost_steps} 
 """
         io_output_list = self.io.generate(
             model_input=io_input,
             max_tokens=1024,
             num_return=self.num_a1_steps,
-            # TODO 注意返回的 ost_step_list 存储的逻辑
             stop_tokens=[
                 "\n\n\n",
-                # f"Step{next_ost_step_id + 1}", # 一次性生成剩下所有的
-                "[Function signature and docstring]",
-                "[Function implementation]",
+                "[Programming problem]",
                 "[Step to implement]",
-                "You are a Python assistant.",
-            ],
-        )
-        ost_step_list = [io_output.strip()[7:] for io_output in io_output_list]
-
-        return ost_step_list
-
-    # 一次性生成剩下所有的 cot steps 而不是一步一步来
-    def gene_remain_steps(
-        self,
-        requirement: str,
-        solution_trace: Dict[int, Dict[str, str]],
-        func_head: str,
-        test_case: str,
-    ):
-        funchead_and_docstring = make_funchead_and_docstring(
-            requirement, func_head, test_case
-        )
-        idx = func_head.find("(")
-        func_name = func_head[4:idx]
-        ost_step_list = []
-        #  也是一步一步提出来的
-        existing_ost_steps, next_ost_step_id = concat_ost_steps(solution_trace)
-        io_input = f"""
-{ost_prompt}
-
-[Function signature and docstring]
-{funchead_and_docstring}
-
-[Step to implement]
-To implement the {func_name} function, we need to follow these steps:
-{existing_ost_steps} 
-"""
-        io_output_list = self.io.generate(
-            model_input=io_input,
-            max_tokens=1024,
-            num_return=self.num_a1_steps,
-            # TODO 注意返回的 ost_step_list 存储的逻辑
-            stop_tokens=[
-                "\n\n\n",
-                "[Function signature and docstring]",
-                "[Step to implement]",
+                "[Solution]",
                 "You are a Python assistant.",
             ],
         )
@@ -340,7 +281,7 @@ Break it down into sub-questions:
             num_return=1,
             stop_tokens=[
                 "\n\n",
-                "Question:",
+                "Question: ",
                 "def ",
             ],
         )
@@ -375,10 +316,9 @@ Break it down into sub-questions:
             num_return=self.num_subquestions,
             stop_tokens=[
                 "\n\n",
-                f"Answer to sub-question{exit_subq_len+1}:",
-                f"Sub-question{exit_subq_len+2}:",
-                "Question:",
-                "Question",
+                f"Answer to sub-question{exit_subq_len+1}: ",
+                f"Sub-question{exit_subq_len+2}: ",
+                "Question: ",
             ],
         )
         subq_list = [io_output.strip() for io_output in io_output_list]
@@ -386,16 +326,14 @@ Break it down into sub-questions:
         gen_suba_input = [f"{io_input.strip()}\n{subq}" for subq in subq_list]
         # 回答子问题
         io_output_list = self.io.generate(
-            # WARNING 当input是list时, 返回是 input个数(subq个数) * num_return
             model_input=gen_suba_input,
             max_tokens=512,
             num_return=1,
             stop_tokens=[
                 "\n\n",
-                f"Sub-question{exit_subq_len+2}:",
-                f"Answer to sub-question{exit_subq_len+2}:",
-                "Question:",
-                "Question",
+                f"Sub-question{exit_subq_len+2}: ",
+                f"Answer to sub-question{exit_subq_len+2}: ",
+                "Question: ",
             ],
         )
         suba_list = [io_output[0].strip() for io_output in io_output_list]
@@ -516,7 +454,6 @@ class Reasoning_MCTS_Node(MCTS_Node):
                     }
             elif node_type is Node_Type.OST_STEP:
                 # solution_trace[0]["ost_step"] 也是一个 dict, key 是思考的步数
-                # TODO 目前ost不应用于subq, 所以下标固定为0
                 for ost_step in step_list:
                     self.ost_step_counter += 1
                     # 设置阈值, 超过的直接丢掉
